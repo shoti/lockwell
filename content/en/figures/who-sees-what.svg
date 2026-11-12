@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 509">
+  <title>Who sees what: without a VPN, with a VPN, and with Tor</title>
+  <desc>Without a VPN or Tor: Your internet provider: Every site you visit; The site: Your IP address, which shows roughly where you are. With a VPN: Your internet provider: Only that you use a VPN; In between: The VPN company: who you are and every site; The site: The VPN’s address, not yours. With Tor: Your internet provider: Only that you use Tor; In between: Three relays: none knows both who you are and where you go; The site: Only that someone comes from Tor. Whichever way you connect, signing in, cookies and other tracking can still tell a site who you are.</desc>
+  <text x="0" y="12.5" class="t-sm t-muted">What each one can see:</text>
+  <text x="50" y="33.6" class="t-sm t-b" text-anchor="middle">Your internet</text>
+  <text x="50" y="50.8" class="t-sm t-b" text-anchor="middle">provider</text>
+  <text x="170" y="33.6" class="t-sm t-b" text-anchor="middle">In between</text>
+  <text x="290" y="33.6" class="t-sm t-b" text-anchor="middle">The site</text>
+  <line x1="0" y1="63.5" x2="340" y2="63.5" class="line line-thin"/>
+  <text x="0" y="85.9" class="t-b">Without a VPN or Tor</text>
+  <rect x="0" y="95.3" width="100" height="84.6" rx="8" class="box-bad"/>
+  <text x="50" y="132.9" class="t-sm" text-anchor="middle">Every site you</text>
+  <text x="50" y="150.1" class="t-sm" text-anchor="middle">visit</text>
+  <rect x="240" y="95.3" width="100" height="84.6" rx="8" class="box-warn"/>
+  <text x="290" y="115.8" class="t-sm" text-anchor="middle">Your IP</text>
+  <text x="290" y="132.9" class="t-sm" text-anchor="middle">address, which</text>
+  <text x="290" y="150.1" class="t-sm" text-anchor="middle">shows roughly</text>
+  <text x="290" y="167.2" class="t-sm" text-anchor="middle">where you are</text>
+  <line x1="102" y1="137.6" x2="231" y2="137.6" class="line"/>
+  <polygon points="238,137.6 231,133.4 231,141.8" class="fill-muted"/>
+  <text x="170" y="124.9" class="t-sm t-muted" text-anchor="middle">Direct</text>
+  <line x1="0" y1="191.9" x2="340" y2="191.9" class="line line-thin"/>
+  <text x="0" y="214.3" class="t-b">With a VPN</text>
+  <rect x="0" y="223.7" width="100" height="84.6" rx="8" class="box-warn"/>
+  <text x="50" y="261.4" class="t-sm" text-anchor="middle">Only that you</text>
+  <text x="50" y="278.5" class="t-sm" text-anchor="middle">use a VPN</text>
+  <rect x="120" y="223.7" width="100" height="84.6" rx="8" class="box-bad"/>
+  <text x="170" y="244.2" class="t-sm" text-anchor="middle">The VPN</text>
+  <text x="170" y="261.4" class="t-sm" text-anchor="middle">company: who</text>
+  <text x="170" y="278.5" class="t-sm" text-anchor="middle">you are and</text>
+  <text x="170" y="295.7" class="t-sm" text-anchor="middle">every site</text>
+  <rect x="240" y="223.7" width="100" height="84.6" rx="8" class="box-good"/>
+  <text x="290" y="252.8" class="t-sm" text-anchor="middle">The VPN’s</text>
+  <text x="290" y="269.9" class="t-sm" text-anchor="middle">address, not</text>
+  <text x="290" y="287.1" class="t-sm" text-anchor="middle">yours</text>
+  <line x1="102" y1="266" x2="111" y2="266" class="line"/>
+  <polygon points="118,266 111,261.8 111,270.2" class="fill-muted"/>
+  <line x1="222" y1="266" x2="231" y2="266" class="line"/>
+  <polygon points="238,266 231,261.8 231,270.2" class="fill-muted"/>
+  <line x1="0" y1="320.4" x2="340" y2="320.4" class="line line-thin"/>
+  <text x="0" y="342.8" class="t-b">With Tor</text>
+  <rect x="0" y="352.2" width="100" height="101.8" rx="8" class="box-warn"/>
+  <text x="50" y="398.4" class="t-sm" text-anchor="middle">Only that you</text>
+  <text x="50" y="415.5" class="t-sm" text-anchor="middle">use Tor</text>
+  <rect x="120" y="352.2" width="100" height="101.8" rx="8" class="box-good"/>
+  <text x="170" y="372.6" class="t-sm" text-anchor="middle">Three relays:</text>
+  <text x="170" y="389.8" class="t-sm" text-anchor="middle">none knows</text>
+  <text x="170" y="407" class="t-sm" text-anchor="middle">both who you</text>
+  <text x="170" y="424.1" class="t-sm" text-anchor="middle">are and where</text>
+  <text x="170" y="441.3" class="t-sm" text-anchor="middle">you go</text>
+  <rect x="240" y="352.2" width="100" height="101.8" rx="8" class="box-good"/>
+  <text x="290" y="381.2" class="t-sm" text-anchor="middle">Only that</text>
+  <text x="290" y="398.4" class="t-sm" text-anchor="middle">someone</text>
+  <text x="290" y="415.5" class="t-sm" text-anchor="middle">comes from</text>
+  <text x="290" y="432.7" class="t-sm" text-anchor="middle">Tor</text>
+  <line x1="102" y1="403.1" x2="111" y2="403.1" class="line"/>
+  <polygon points="118,403.1 111,398.9 111,407.3" class="fill-muted"/>
+  <line x1="222" y1="403.1" x2="231" y2="403.1" class="line"/>
+  <polygon points="238,403.1 231,398.9 231,407.3" class="fill-muted"/>
+  <line x1="0" y1="466" x2="340" y2="466" class="line line-thin"/>
+  <text x="0" y="486.4" class="t-sm t-muted">Whichever way you connect, signing in, cookies and other</text>
+  <text x="0" y="503.6" class="t-sm t-muted">tracking can still tell a site who you are.</text>
+</svg>

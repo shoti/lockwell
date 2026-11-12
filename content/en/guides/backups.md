@@ -100,6 +100,8 @@ A computer backup protects your documents and photos from a broken disk, a theft
 
 One backup can fail too, or be wiped together with the computer if harmful software gets in. The usual rule is three copies of what matters, on two kinds of storage, with one somewhere else. Keep at least one copy unplugged: a drive that stays connected can be infected or encrypted along with the computer.
 
+![Keep at least one copy unplugged, so harmful software on the computer can't reach it.](figure:backup-copies)
+
 ### All devices
 
 1. For photos and documents you can't replace, keep one copy in the cloud and one on an external drive. A synced folder is not a separate copy: a deleted or damaged file disappears there too.

@@ -23,6 +23,8 @@ Tor sends your connection through at least three servers, called relays, so that
 4. A VPN is different: one company knows both who you are and what you browse. See [Know what a VPN can't do](/guides/anonymity/#vpn-limits).
 5. A private or Incognito window doesn't make you anonymous: see [Know what a private window doesn't hide](/guides/browser/#private-window-limits).
 
+![A VPN moves your trust from your internet provider to the VPN company. Tor splits it between three relays.](figure:who-sees-what)
+
 Tor Project says Tor doesn't protect you from someone who can watch both your connection and the site you visit at the same time and match the timing. Sites can tell you use Tor, because the list of Tor relays is public.
 
 ## Use Tor Browser safely {#tor-browser .essential}

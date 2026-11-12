@@ -40,6 +40,8 @@ A live location shows where you are in real time, sometimes with how you are tra
 
 Your phone's camera can write the exact place where a photo was taken into the photo file. Whoever gets the original file can read it. You can stop the camera saving it, or remove it before you share a photo. Even without it, a photo can show where you are through what is in it.
 
+![Remove the hidden data, and check what the picture itself shows.](figure:photo-metadata)
+
 ### iPhone {.ios}
 
 1. To stop saving location, go to **Settings → Privacy & Security → Location Services → Camera** and choose **Never**.

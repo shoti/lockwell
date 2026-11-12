@@ -83,6 +83,8 @@ A content blocker stops many of the hidden trackers and ads that follow you from
 
 Third-party cookies let a company whose code sits on many sites recognise you on all of them. Blocking them reduces this tracking. A few sites, often for logins or payments, may need an exception.
 
+![When one company's code sits on many sites, it can recognise you on all of them.](figure:third-party-tracker)
+
 ### Chrome
 
 1. On a computer, select the three dots, then **Settings → Privacy and security → Third-party cookies**, and choose **Block third-party cookies**.

@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 229">
+  <title>Which threats to take seriously first</title>
+  <desc>Rare but serious: Your choice: some people protect against these whatever the odds Likely and serious: Start here Rare and harmless: Set aside for now Likely but harmless: Lower priority</desc>
+  <rect x="38" y="0" width="148" height="108.8" rx="8" class="box-warn"/>
+  <text x="48" y="22.5" class="t-sm t-b t-warn">Rare but serious</text>
+  <text x="48" y="42.6" class="t-sm">Your choice: some</text>
+  <text x="48" y="59.8" class="t-sm">people protect</text>
+  <text x="48" y="77" class="t-sm">against these</text>
+  <text x="48" y="94.1" class="t-sm">whatever the odds</text>
+  <rect x="192" y="0" width="148" height="108.8" rx="8" class="box-bad"/>
+  <text x="202" y="22.5" class="t-sm t-b t-bad">Likely and serious</text>
+  <text x="202" y="42.6" class="t-sm">Start here</text>
+  <rect x="38" y="114.8" width="148" height="76" rx="8" class="box-soft"/>
+  <text x="48" y="137.3" class="t-sm t-b">Rare and harmless</text>
+  <text x="48" y="157.4" class="t-sm">Set aside for now</text>
+  <rect x="192" y="114.8" width="148" height="76" rx="8" class="box-info"/>
+  <text x="202" y="137.3" class="t-sm t-b t-info">Likely but harmless</text>
+  <text x="202" y="157.4" class="t-sm">Lower priority</text>
+  <line x1="18" y1="190.8" x2="18" y2="11" class="line"/>
+  <polygon points="18,4 13.8,11 22.2,11" class="fill-muted"/>
+  <text x="12" y="95.4" class="t-sm t-b" text-anchor="middle" transform="rotate(-90 12 95.4)">How bad it would be</text>
+  <line x1="38" y1="202.8" x2="331" y2="202.8" class="line"/>
+  <polygon points="338,202.8 331,198.6 331,207" class="fill-muted"/>
+  <text x="189" y="222.8" class="t-sm t-b" text-anchor="middle">How likely it is</text>
+</svg>

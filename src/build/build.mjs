@@ -19,6 +19,7 @@ import { headersFile, writeAssets } from './assets.mjs';
 import { loadContent } from './content.mjs';
 import { ContentError } from './errors.mjs';
 import { atomFeed, feedEntries, feedPath } from './feed.mjs';
+import { renderFigure } from './figures.mjs';
 import { createTranslator } from './i18n.mjs';
 import { checkInternalLinks, resolveLink } from './links.mjs';
 import { collectRoutes } from './routes.mjs';
@@ -190,6 +191,11 @@ function createContext(site, lang, content, assets, links) {
       file,
       calloutLabel: (kind) => t(`callout.${kind}`),
       resolveLink: (target, line) => resolveLink(site, lang, target, { file, line }, links, route),
+      figure: (name, caption, line) => {
+        const figure = content.figures[lang].get(name);
+        if (!figure) throw new ContentError(file, line, `Figure "${name}" doesn't exist. Add content/${lang}/figures/${name}.svg.`);
+        return renderFigure(figure, caption);
+      },
     }),
   };
 }

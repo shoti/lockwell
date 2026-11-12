@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 444">
+  <title>მეორე საფეხურის მეთოდები, ყველაზე საიმედოდან ყველაზე სუსტამდე</title>
+  <desc>passkey ან უსაფრთხოების გასაღები: ყველაზე საიმედო: მხოლოდ ნამდვილ საიტზე მუშაობს ავთენტიფიკატორი აპლიკაცია ან დადასტურება ტელეფონზე: საიმედოობით მეორე SMS კოდი: ყველაზე სუსტი: ნომერი შეიძლება სხვა SIM ბარათზე გადაიტანონ. მაინც ბევრად სჯობს არაფერს. მხოლოდ პაროლი: შესასვლელად მოპარული პაროლიც კმარა</desc>
+  <text x="286" y="13" class="t-sm t-b t-muted" text-anchor="middle">დაცვა</text>
+  <rect x="0" y="22" width="340" height="99.9" rx="8" class="box"/>
+  <text x="12" y="48.4" class="t-b">passkey ან უსაფრთხოების</text>
+  <text x="12" y="68.2" class="t-b">გასაღები</text>
+  <text x="12" y="88.1" class="t-sm">ყველაზე საიმედო: მხოლოდ</text>
+  <text x="12" y="105.2" class="t-sm">ნამდვილ საიტზე მუშაობს</text>
+  <rect x="244" y="67" width="18" height="10" rx="3" class="fill-good"/>
+  <rect x="266" y="67" width="18" height="10" rx="3" class="fill-good"/>
+  <rect x="288" y="67" width="18" height="10" rx="3" class="fill-good"/>
+  <rect x="310" y="67" width="18" height="10" rx="3" class="fill-good"/>
+  <rect x="0" y="129.9" width="340" height="102.6" rx="8" class="box"/>
+  <text x="12" y="156.3" class="t-b">ავთენტიფიკატორი</text>
+  <text x="12" y="176.1" class="t-b">აპლიკაცია ან</text>
+  <text x="12" y="195.9" class="t-b">დადასტურება ტელეფონზე</text>
+  <text x="12" y="215.8" class="t-sm">საიმედოობით მეორე</text>
+  <rect x="244" y="176.2" width="18" height="10" rx="3" class="fill-good"/>
+  <rect x="266" y="176.2" width="18" height="10" rx="3" class="fill-good"/>
+  <rect x="288" y="176.2" width="18" height="10" rx="3" class="fill-good"/>
+  <rect x="310" y="176.2" width="18" height="10" rx="3" class="box"/>
+  <rect x="0" y="240.5" width="340" height="114.4" rx="8" class="box"/>
+  <text x="12" y="266.9" class="t-b">SMS კოდი</text>
+  <text x="12" y="286.8" class="t-sm t-warn">ყველაზე სუსტი: ნომერი</text>
+  <text x="12" y="303.9" class="t-sm t-warn">შეიძლება სხვა SIM ბარათზე</text>
+  <text x="12" y="321.1" class="t-sm t-warn">გადაიტანონ. მაინც ბევრად</text>
+  <text x="12" y="338.2" class="t-sm t-warn">სჯობს არაფერს.</text>
+  <rect x="244" y="292.7" width="18" height="10" rx="3" class="fill-warn"/>
+  <rect x="266" y="292.7" width="18" height="10" rx="3" class="fill-warn"/>
+  <rect x="288" y="292.7" width="18" height="10" rx="3" class="box"/>
+  <rect x="310" y="292.7" width="18" height="10" rx="3" class="box"/>
+  <rect x="0" y="362.9" width="340" height="80.1" rx="8" class="box-soft"/>
+  <text x="12" y="389.3" class="t-b">მხოლოდ პაროლი</text>
+  <text x="12" y="409.2" class="t-sm t-bad">შესასვლელად მოპარული</text>
+  <text x="12" y="426.4" class="t-sm t-bad">პაროლიც კმარა</text>
+  <rect x="244" y="398" width="18" height="10" rx="3" class="box"/>
+  <rect x="266" y="398" width="18" height="10" rx="3" class="box"/>
+  <rect x="288" y="398" width="18" height="10" rx="3" class="box"/>
+  <rect x="310" y="398" width="18" height="10" rx="3" class="box"/>
+</svg>

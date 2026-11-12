@@ -17,6 +17,8 @@ The [accounts guide](/guides/accounts/) covers the basics: a password manager, t
 
 A fake login page can ask for your password and the code from an SMS or an authenticator app, and pass both to the real site at once. A security key or passkey doesn't work on a site it wasn't registered for, so it can't be phished this way. CISA advises people who are targeted to use them, and not to use SMS: someone with access to the phone network can read SMS codes, and a number can be moved to another SIM.
 
+![This is why codes can be phished and security keys can't.](figure:phishing-relay)
+
 ### All accounts
 
 1. Add a security key or passkey to your most important accounts first: email, Google or Apple, your password manager, social media. For passkey basics, see [Switch to passkeys where they are offered](/guides/accounts/#passkeys).

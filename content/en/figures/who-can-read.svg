@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 370">
+  <title>Who can read your messages</title>
+  <desc>End-to-end encrypted: The company sees who writes to whom and when, but not what. Not end-to-end encrypted: The company can read the message too. Neither protects a message on a phone that someone else can unlock.</desc>
+  <text x="0" y="14.4" class="t-b t-good">End-to-end encrypted</text>
+  <rect x="0" y="25.8" width="84" height="84.3" rx="8" class="box"/>
+  <text x="42" y="48.3" class="t-sm t-b" text-anchor="middle">You</text>
+  <rect x="25.2" y="76.1" width="33.6" height="24" rx="12" class="box-soft"/>
+  <text x="42" y="92.6" class="t-sm" text-anchor="middle">Hi!</text>
+  <rect x="112" y="25.8" width="116" height="84.3" rx="8" class="box"/>
+  <text x="170" y="48.3" class="t-sm t-b" text-anchor="middle">The app’s</text>
+  <text x="170" y="65.4" class="t-sm t-b" text-anchor="middle">company</text>
+  <rect x="148" y="76.1" width="44" height="24" rx="12" class="box-good"/>
+  <path d="M166 86.1 V83.1 A4 4 0 0 1 174 83.1 V86.1" class="line-good"/>
+  <rect x="163" y="86.1" width="14" height="10" rx="2" class="fill-good"/>
+  <rect x="256" y="25.8" width="84" height="84.3" rx="8" class="box"/>
+  <text x="298" y="48.3" class="t-sm t-b" text-anchor="middle">Your friend</text>
+  <rect x="281.2" y="76.1" width="33.6" height="24" rx="12" class="box-soft"/>
+  <text x="298" y="92.6" class="t-sm" text-anchor="middle">Hi!</text>
+  <line x1="87" y1="68" x2="102" y2="68" class="line"/>
+  <polygon points="109,68 102,63.8 102,72.2" class="fill-muted"/>
+  <line x1="231" y1="68" x2="246" y2="68" class="line"/>
+  <polygon points="253,68 246,63.8 246,72.2" class="fill-muted"/>
+  <text x="170" y="128.6" class="t-sm" text-anchor="middle">The company sees who writes to whom</text>
+  <text x="170" y="145.8" class="t-sm" text-anchor="middle">and when, but not what.</text>
+  <text x="0" y="180.8" class="t-b t-bad">Not end-to-end encrypted</text>
+  <rect x="0" y="192.2" width="84" height="84.3" rx="8" class="box"/>
+  <text x="42" y="214.7" class="t-sm t-b" text-anchor="middle">You</text>
+  <rect x="25.2" y="242.6" width="33.6" height="24" rx="12" class="box-soft"/>
+  <text x="42" y="259.1" class="t-sm" text-anchor="middle">Hi!</text>
+  <rect x="112" y="192.2" width="116" height="84.3" rx="8" class="box-bad"/>
+  <text x="170" y="214.7" class="t-sm t-b" text-anchor="middle">The app’s</text>
+  <text x="170" y="231.9" class="t-sm t-b" text-anchor="middle">company</text>
+  <rect x="153.2" y="242.6" width="33.6" height="24" rx="12" class="box-bad"/>
+  <text x="170" y="259.1" class="t-sm" text-anchor="middle">Hi!</text>
+  <rect x="256" y="192.2" width="84" height="84.3" rx="8" class="box"/>
+  <text x="298" y="214.7" class="t-sm t-b" text-anchor="middle">Your friend</text>
+  <rect x="281.2" y="242.6" width="33.6" height="24" rx="12" class="box-soft"/>
+  <text x="298" y="259.1" class="t-sm" text-anchor="middle">Hi!</text>
+  <line x1="87" y1="234.4" x2="102" y2="234.4" class="line"/>
+  <polygon points="109,234.4 102,230.2 102,238.6" class="fill-muted"/>
+  <line x1="231" y1="234.4" x2="246" y2="234.4" class="line"/>
+  <polygon points="253,234.4 246,230.2 246,238.6" class="fill-muted"/>
+  <text x="170" y="295" class="t-sm t-bad" text-anchor="middle">The company can read the message</text>
+  <text x="170" y="312.2" class="t-sm t-bad" text-anchor="middle">too.</text>
+  <line x1="0" y1="326.9" x2="340" y2="326.9" class="line line-thin"/>
+  <text x="0" y="347.4" class="t-sm t-muted">Neither protects a message on a phone that someone</text>
+  <text x="0" y="364.5" class="t-sm t-muted">else can unlock.</text>
+</svg>

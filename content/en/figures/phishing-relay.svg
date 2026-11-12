@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 314">
+  <title>Why a fake login page can steal a code but not a security key</title>
+  <desc>With a password and a code: The attacker is in your account. With a security key or passkey: The key works only on the site it was registered for. The fake page gets nothing it can pass on.</desc>
+  <rect x="0" y="0" width="340" height="153.3" rx="8" class="box-bad"/>
+  <text x="12" y="26.4" class="t-b t-bad">With a password and a code</text>
+  <text x="109" y="50.3" class="t-sm" text-anchor="middle">Password and</text>
+  <text x="109" y="67.4" class="t-sm" text-anchor="middle">code</text>
+  <text x="231" y="50.3" class="t-sm" text-anchor="middle">Passes both on</text>
+  <text x="231" y="67.4" class="t-sm" text-anchor="middle">at once</text>
+  <rect x="0" y="76.1" width="96" height="35.2" rx="8" class="box"/>
+  <text x="48" y="97.6" class="t-sm t-b" text-anchor="middle">You</text>
+  <rect x="122" y="76.1" width="96" height="35.2" rx="8" class="box-bad"/>
+  <text x="170" y="97.6" class="t-sm t-b" text-anchor="middle">Fake page</text>
+  <rect x="244" y="76.1" width="96" height="35.2" rx="8" class="box"/>
+  <text x="292" y="97.6" class="t-sm t-b" text-anchor="middle">Real site</text>
+  <line x1="99" y1="93.7" x2="112" y2="93.7" class="line"/>
+  <polygon points="119,93.7 112,89.5 112,97.9" class="fill-muted"/>
+  <line x1="221" y1="93.7" x2="234" y2="93.7" class="line-bad"/>
+  <polygon points="241,93.7 234,89.5 234,97.9" class="fill-bad"/>
+  <circle cx="22" cy="131.3" r="10" class="box-bad"/>
+  <path d="M18.2 127.5 L25.8 135.1 M25.8 127.5 L18.2 135.1" class="line-bad"/>
+  <text x="40" y="133.8" class="t-sm t-b t-bad">The attacker is in your account.</text>
+  <rect x="0" y="163.3" width="340" height="150.4" rx="8" class="box-good"/>
+  <text x="12" y="189.7" class="t-b t-good">With a security key or passkey</text>
+  <text x="109" y="213.6" class="t-sm" text-anchor="middle">Key or passkey</text>
+  <rect x="0" y="222.2" width="96" height="35.2" rx="8" class="box"/>
+  <text x="48" y="243.7" class="t-sm t-b" text-anchor="middle">You</text>
+  <rect x="122" y="222.2" width="96" height="35.2" rx="8" class="box-bad"/>
+  <text x="170" y="243.7" class="t-sm t-b" text-anchor="middle">Fake page</text>
+  <rect x="244" y="222.2" width="96" height="35.2" rx="8" class="box-soft"/>
+  <text x="292" y="243.7" class="t-sm t-b" text-anchor="middle">Real site</text>
+  <line x1="99" y1="239.8" x2="112" y2="239.8" class="line-good"/>
+  <polygon points="119,239.8 112,235.6 112,244" class="fill-good"/>
+  <circle cx="231" cy="239.8" r="9" class="box-bad"/>
+  <path d="M227.6 236.4 L234.4 243.2 M234.4 236.4 L227.6 243.2" class="line-bad"/>
+  <circle cx="22" cy="277.4" r="10" class="box-good"/>
+  <path d="M17.5 277.4 L21 280.9 L27 273.9" class="line-good"/>
+  <text x="40" y="279.9" class="t-sm t-b t-good">The key works only on the site it was registered</text>
+  <text x="40" y="297" class="t-sm t-b t-good">for. The fake page gets nothing it can pass on.</text>
+</svg>
