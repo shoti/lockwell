@@ -1,0 +1,20 @@
+# SPDX-FileCopyrightText: 2026 Shota Mtvarelishvili <mtvarelishvili@proton.me>
+# SPDX-License-Identifier: MIT
+#
+# Files Git should ignore.
+# Author: Shota Mtvarelishvili <mtvarelishvili@proton.me> (https://shoti.github.io/)
+dist/
+node_modules/
+.DS_Store
+*.log
+.env
+.env.*
+.dist-build-*
+
+# Internal notes kept out of the repository: AI assistant config, planning,
+# research logs and reviews. Only the contributor guide in docs/ is published.
+.claude/
+CLAUDE.md
+REVIEW.md
+/docs/*
+!/docs/CONTENT-GUIDE.md

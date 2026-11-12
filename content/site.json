@@ -1,0 +1,12 @@
+{
+  "url": "https://lockwell.org/",
+  "repo": "https://github.com/shoti/lockwell",
+  "defaultLang": "ka",
+  "languages": ["ka", "en"],
+  "author": {
+    "name": "Shota Mtvarelishvili",
+    "email": "mtvarelishvili@proton.me",
+    "url": "https://github.com/shoti"
+  },
+  "copyrightYear": 2026
+}

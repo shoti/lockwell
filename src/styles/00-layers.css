@@ -1,0 +1,59 @@
+/*
+ * SPDX-FileCopyrightText: 2026 Shota Mtvarelishvili <mtvarelishvili@proton.me>
+ * SPDX-License-Identifier: MIT
+ *
+ * @file Cascade layer order for the concatenated stylesheet.
+ * @author Shota Mtvarelishvili <mtvarelishvili@proton.me> (https://shoti.github.io/)
+ */
+/*
+ * Lockwell styles. Files are concatenated in name order into one stylesheet.
+ * Cascade layers keep specificity predictable: later layers win.
+ * The build preloads every font referenced below (src/build/assets.mjs).
+ *
+ * font-display: optional — the preloaded fonts (~28 KB each) almost always
+ * arrive before first paint and are used. If they don't, the page keeps the
+ * fallback for that view instead of swapping, so Georgian text (which the
+ * metric-matched Arial fallback can't cover) never reflows.
+ */
+@layer reset, tokens, base, layout, components, utilities;
+
+@font-face {
+  font-family: "FiraGO";
+  src: url("../fonts/firago-regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: optional;
+}
+
+@font-face {
+  font-family: "FiraGO";
+  src: url("../fonts/firago-semibold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: optional;
+}
+
+/*
+ * Arial resized to FiraGO's metrics, used when FiraGO isn't ready in time, so
+ * Latin text keeps FiraGO's spacing and line breaks. Values computed with fontTools
+ * from FiraGO-Regular/SemiBold and Arial (letter-frequency-weighted widths).
+ */
+@font-face {
+  font-family: "FiraGO Fallback";
+  src: local("Arial"), local("ArialMT");
+  font-weight: 400;
+  size-adjust: 103.47%;
+  ascent-override: 90.36%;
+  descent-override: 25.61%;
+  line-gap-override: 0%;
+}
+
+@font-face {
+  font-family: "FiraGO Fallback";
+  src: local("Arial Bold"), local("Arial-BoldMT");
+  font-weight: 600;
+  size-adjust: 103.99%;
+  ascent-override: 89.91%;
+  descent-override: 25.48%;
+  line-gap-override: 0%;
+}

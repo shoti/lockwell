@@ -1,0 +1,2089 @@
+/*
+ * SPDX-FileCopyrightText: 2026 Shota Mtvarelishvili <mtvarelishvili@proton.me>
+ * SPDX-License-Identifier: MIT
+ *
+ * @file Shared components: buttons, cards, callouts, tabs and forms.
+ * @author Shota Mtvarelishvili <mtvarelishvili@proton.me> (https://shoti.github.io/)
+ */
+@layer components {
+  /* ---------- Skip link ---------- */
+  .skip-link {
+    position: absolute;
+    inset-inline-start: var(--space-4);
+    top: var(--space-2);
+    z-index: 100;
+    padding: var(--space-2) var(--space-4);
+    border-radius: var(--radius-sm);
+    background: var(--color-accent);
+    color: var(--color-on-accent);
+    font-weight: 600;
+    text-decoration: none;
+    transform: translateY(-200%);
+  }
+
+  .skip-link:focus {
+    transform: none;
+  }
+
+  /* ---------- Header ---------- */
+  .site-header {
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-bg);
+  }
+
+  .site-header__inner {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "brand actions"
+      "nav nav";
+    align-items: center;
+    column-gap: var(--space-4);
+    padding-block: var(--space-3);
+  }
+
+  /* One row once the links fit beside the brand and the actions. Georgian
+     labels are the long ones: three links need about 45rem, four need 50rem
+     (see the phone rules below). */
+  @media (min-width: 45rem) {
+    .site-header__inner {
+      grid-template-columns: auto 1fr auto;
+      grid-template-areas: "brand nav actions";
+      min-height: 4.25rem;
+      padding-block: var(--space-2);
+    }
+  }
+
+  .brand {
+    grid-area: brand;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-3);
+    width: fit-content;
+    min-height: var(--tap);
+    color: var(--color-text);
+    font-size: var(--step-1);
+    font-weight: 600;
+    letter-spacing: var(--tracking-tight);
+    text-decoration: none;
+  }
+
+  .brand .logo {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .logo__bg {
+    fill: var(--color-brand);
+  }
+
+  .logo__fg {
+    fill: var(--color-brand-contrast);
+  }
+
+  .logo__shackle {
+    stroke: var(--color-brand-contrast);
+  }
+
+  .logo__keyhole {
+    stroke: var(--color-brand);
+  }
+
+  .brand--small {
+    font-size: var(--step-0);
+  }
+
+  .brand--small .logo {
+    width: 1.75rem;
+    height: 1.75rem;
+  }
+
+  .site-nav {
+    grid-area: nav;
+  }
+
+  .site-nav__list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-1);
+    margin-inline-start: calc(var(--space-3) * -1);
+  }
+
+  @media (min-width: 45rem) {
+    .site-nav__list {
+      justify-content: flex-end;
+      margin-inline-start: 0;
+    }
+  }
+
+  .site-nav__link {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap);
+    padding-inline: var(--space-3);
+    border-radius: var(--radius-full);
+    color: var(--color-text-muted);
+    font-size: var(--step--1);
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .site-nav__link:hover {
+    color: var(--color-text);
+    background: var(--color-surface-2);
+  }
+
+  .site-nav__link[aria-current] {
+    color: var(--color-text);
+    background: var(--color-surface-2);
+  }
+
+  /* The fourth link needs a wide header; below that it is in the footer
+     instead. (These rules come after the ones above: same specificity, so the
+     later one wins.) */
+  @media (max-width: 49.99rem) {
+    .site-nav__item--wide {
+      display: none;
+    }
+  }
+
+  /* Phones: three links fit one row, with tighter padding so the Georgian
+     labels fit too. */
+  @media (max-width: 44.99rem) {
+    .site-nav__list {
+      gap: 0;
+      margin-inline-start: calc(var(--space-2) * -1);
+    }
+
+    .site-nav__link {
+      padding-inline: var(--space-2);
+    }
+  }
+
+  .site-header__actions {
+    grid-area: actions;
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  .lang-switch,
+  .icon-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: var(--tap);
+    min-height: var(--tap);
+    padding-inline: var(--space-3);
+    border-radius: var(--radius-full);
+    color: var(--color-text);
+    font-size: var(--step--1);
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .lang-switch {
+    border: 1px solid var(--color-border-strong);
+    min-height: 2.25rem;
+    min-width: 3rem;
+  }
+
+  .lang-switch:hover,
+  .icon-button:hover {
+    background: var(--color-surface-2);
+  }
+
+  .icon-button {
+    padding: 0;
+  }
+
+  .icon-button[aria-current] {
+    background: var(--color-surface-2);
+  }
+
+  .icon-button .icon {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  /* Four action buttons need about 357px beside the brand; on narrower phones
+     the GitHub link gives way so the logo isn't squeezed out. (After the
+     .icon-button rule above: same specificity, so this one wins.) */
+  @media (max-width: 22.49rem) {
+    .site-header__repo {
+      display: none;
+    }
+  }
+
+  /* The icon follows the actual theme (not aria-pressed, which JS sets later),
+     so it's right from the first paint: moon in light mode, sun in dark mode. */
+  .icon-button__off {
+    display: none;
+  }
+
+  :root[data-theme="dark"] .icon-button__on {
+    display: none;
+  }
+
+  :root[data-theme="dark"] .icon-button__off {
+    display: inline-flex;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .icon-button__on {
+      display: none;
+    }
+
+    :root:not([data-theme="light"]) .icon-button__off {
+      display: inline-flex;
+    }
+  }
+
+  /* ---------- Footer ---------- */
+  .site-footer {
+    border-top: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+    font-size: var(--step--1);
+  }
+
+  .site-footer__inner {
+    display: grid;
+    gap: var(--space-5);
+    padding-block: var(--space-10);
+  }
+
+  @media (min-width: 48rem) {
+    .site-footer__inner {
+      grid-template-columns: 1.2fr 1fr;
+      align-items: start;
+    }
+
+    .site-footer__legal {
+      grid-column: 1 / -1;
+    }
+  }
+
+  .site-footer__tagline {
+    margin-top: var(--space-2);
+  }
+
+  .site-footer__privacy {
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .site-footer__promise {
+    display: flex;
+    gap: var(--space-2);
+    align-items: flex-start;
+    color: var(--color-text);
+  }
+
+  .site-footer__storage {
+    padding-inline-start: calc(1.25em + var(--space-2));
+  }
+
+  .site-footer__storage .link-button {
+    min-height: auto;
+  }
+
+  .site-footer__promise .icon {
+    color: var(--color-accent);
+    margin-top: 0.15em;
+  }
+
+  .site-footer__legal {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-5);
+    padding-top: var(--space-5);
+    border-top: 1px solid var(--color-border);
+  }
+
+  /* Plain text until hovered or focused (owner's choice). */
+  .site-footer__legal a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .site-footer__legal a:hover,
+  .site-footer__legal a:focus-visible {
+    text-decoration: underline;
+  }
+
+  /* ---------- Buttons ---------- */
+  .button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    min-height: var(--tap);
+    padding: var(--space-2) var(--space-5);
+    border: 1px solid var(--color-accent);
+    border-radius: var(--radius-full);
+    background: var(--color-accent);
+    color: var(--color-on-accent);
+    font-weight: 600;
+    text-decoration: none;
+    transition: background var(--duration) var(--ease), border-color var(--duration) var(--ease), transform var(--duration) var(--ease);
+  }
+
+  .button:hover {
+    background: var(--color-accent-hover);
+    border-color: var(--color-accent-hover);
+  }
+
+  .button:active {
+    transform: translateY(1px);
+  }
+
+  .button .icon {
+    transition: transform var(--duration) var(--ease);
+  }
+
+  .button:hover .icon {
+    transform: translateX(3px);
+  }
+
+  .button--small {
+    min-height: 2.5rem;
+    padding-inline: var(--space-4);
+    font-size: var(--step--1);
+  }
+
+  .button--small .icon {
+    width: 1.1rem;
+    height: 1.1rem;
+  }
+
+  /* Only arrows slide on hover. */
+  .button--small:hover .icon {
+    transform: none;
+  }
+
+  .button--ghost {
+    background: transparent;
+    border-color: var(--color-border-strong);
+    color: var(--color-text);
+  }
+
+  .button--ghost:hover {
+    background: var(--color-surface);
+    border-color: var(--color-text-muted);
+  }
+
+  .link-button {
+    min-height: var(--tap);
+    color: var(--color-text-muted);
+    font-size: var(--step--1);
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+
+  .link-button:hover {
+    color: var(--color-text);
+  }
+
+  /* ---------- Hero ---------- */
+  .hero {
+    padding-block: var(--space-12) var(--space-16);
+  }
+
+  @media (min-width: 48rem) {
+    .hero {
+      padding-block: var(--space-20);
+    }
+  }
+
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-full);
+    background: var(--color-accent-soft);
+    color: var(--color-accent);
+    font-size: var(--step--1);
+    font-weight: 600;
+  }
+
+  .hero__title {
+    max-width: 18ch;
+    font-size: var(--step-4);
+    line-height: 1.12;
+  }
+
+  /* Smaller on phones than --step-4, so a long Georgian word
+     ("კონფიდენციალურობა") fits on one line instead of breaking mid-word. */
+  :lang(ka) .hero__title {
+    max-width: 20ch;
+    font-size: clamp(1.625rem, 0.9rem + 3.4vw, 3.25rem);
+    line-height: 1.2;
+  }
+
+  /* Two classes, so it wins over .prose { max-width } defined later. */
+  .hero .hero__lead {
+    max-width: 38rem;
+    margin-top: var(--space-5);
+    color: var(--color-text-muted);
+    font-size: var(--step-1);
+  }
+
+  .hero__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3);
+    margin-top: var(--space-8);
+  }
+
+  /* "Continue: <guide>" (home). The line is always reserved; continue.mjs only
+     makes the link visible, so nothing below it moves. */
+  .hero__continue {
+    display: flex;
+    min-height: var(--tap);
+    margin-top: var(--space-3);
+  }
+
+  .continue {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    max-width: 100%;
+    font-size: var(--step--1);
+    font-weight: 600;
+    text-decoration: none;
+    visibility: hidden;
+  }
+
+  .continue.is-visible {
+    visibility: visible;
+  }
+
+  .continue:hover .continue__title {
+    text-decoration: underline;
+  }
+
+  .continue__title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .continue__count {
+    flex: none;
+    color: var(--color-text-muted);
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .continue .icon {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  /* "Hacked or harassed right now?" on its own row, then links straight to
+     those guides: side by side where they fit, stacked on phones. The links'
+     own height spaces the rows. */
+  .hero__urgent {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: var(--space-6);
+    font-size: var(--step--1);
+  }
+
+  .hero__urgent-label {
+    display: flex;
+    flex-basis: 100%;
+    align-items: flex-start;
+    gap: var(--space-2);
+    font-weight: 600;
+  }
+
+  .hero__urgent .icon {
+    width: 1.1rem;
+    height: 1.1rem;
+    margin-top: 0.2em;
+    color: var(--color-warning);
+  }
+
+  .hero__urgent a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--tap);
+  }
+
+  /* The site's promises in one line; the About page explains them. */
+  .hero__trust {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-6);
+    margin-top: var(--space-6);
+    padding-top: var(--space-6);
+    border-top: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+    font-size: var(--step--1);
+  }
+
+  .hero__trust li {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .hero__trust .icon {
+    width: 1.1rem;
+    height: 1.1rem;
+    color: var(--color-accent);
+  }
+
+  .section__title {
+    margin-bottom: var(--space-6);
+    font-size: var(--step-2);
+  }
+
+  /* Section title with a "see all" link at the other end. */
+  .section__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-1) var(--space-4);
+    margin-bottom: var(--space-6);
+  }
+
+  .section__head .section__title {
+    margin-bottom: 0;
+  }
+
+  .section__more {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: var(--tap);
+    font-size: var(--step--1);
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .section__more:hover {
+    text-decoration: underline;
+  }
+
+  .section__more .icon {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  /* ---------- Cards ---------- */
+  .card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding: var(--space-6);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow var(--duration) var(--ease), border-color var(--duration) var(--ease), transform var(--duration) var(--ease);
+  }
+
+  .card:hover {
+    border-color: var(--color-border-strong);
+    box-shadow: var(--shadow);
+    transform: translateY(-2px);
+  }
+
+
+  /* The whole card is clickable through the title link. */
+  .card__link {
+    color: var(--color-text);
+    text-decoration: none;
+  }
+
+  .card__link::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+  }
+
+  /* Ring around the whole card on keyboard focus only (:focus-within would also
+     show it after a mouse click). Browsers without :has() keep the link's own ring. */
+  @supports selector(:has(*)) {
+    .card:has(.card__link:focus-visible) {
+      outline: 3px solid var(--color-focus);
+      outline-offset: 2px;
+    }
+
+    .card__link:focus-visible {
+      outline: none;
+    }
+  }
+
+  .card__top {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 1.5rem;
+  }
+
+  .card__icon {
+    display: inline-grid;
+    place-items: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: var(--radius);
+    background: var(--color-accent-soft);
+    color: var(--color-accent);
+  }
+
+  .card__date {
+    color: var(--color-text-muted);
+    font-size: var(--step--1);
+  }
+
+  .guide-card__number {
+    color: var(--color-accent);
+    font-size: var(--step--1);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .card__title {
+    font-size: var(--step-1);
+  }
+
+  .card__summary {
+    color: var(--color-text-muted);
+  }
+
+  .card .meta {
+    margin-top: auto;
+    padding-top: var(--space-2);
+  }
+
+  /* Lives in the fixed-height top row and only toggles visibility, so showing it never moves the card. */
+  .card-progress {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin-inline-start: auto;
+    color: var(--color-text-muted);
+    font-size: 0.8125rem;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    visibility: hidden;
+  }
+
+  .card-progress.is-visible {
+    visibility: visible;
+  }
+
+  .card-progress__track {
+    display: block;
+    width: 3rem;
+    height: 6px;
+    border-radius: var(--radius-full);
+    background: var(--color-surface-2);
+    overflow: hidden;
+  }
+
+  .card-progress__bar {
+    display: block;
+    height: 100%;
+    background: var(--color-accent);
+    transform: scaleX(var(--progress, 0));
+    transform-origin: left;
+  }
+
+  /* ---------- Meta list, dots, badges ---------- */
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-5);
+    color: var(--color-text-muted);
+    font-size: var(--step--1);
+  }
+
+  .meta li {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .meta .icon {
+    width: 1.1rem;
+    height: 1.1rem;
+  }
+
+  .print-button {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 1.5rem;
+  }
+
+  .dot {
+    flex: none;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .dot--essential {
+    background: var(--color-essential);
+  }
+
+  .dot--recommended {
+    background: var(--color-recommended);
+  }
+
+  .dot--advanced {
+    background: var(--color-advanced);
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4em;
+    width: fit-content;
+    white-space: nowrap;
+    padding: 0.15em 0.65em;
+    border-radius: var(--radius-full);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.5;
+  }
+
+  .badge::before {
+    content: "";
+    width: 0.4rem;
+    height: 0.4rem;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .badge--essential {
+    color: var(--color-essential);
+    background: var(--color-essential-soft);
+  }
+
+  .badge--recommended {
+    color: var(--color-recommended);
+    background: var(--color-recommended-soft);
+  }
+
+  .badge--advanced {
+    color: var(--color-advanced);
+    background: var(--color-advanced-soft);
+  }
+
+  .badge--draft {
+    color: var(--color-text-muted);
+    background: var(--color-surface-2);
+  }
+
+  .badge--draft::before {
+    display: none;
+  }
+
+  /* ---------- Breadcrumbs ---------- */
+  .breadcrumbs {
+    margin-bottom: var(--space-6);
+    font-size: var(--step--1);
+  }
+
+  .breadcrumbs ol {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1) var(--space-2);
+    color: var(--color-text-muted);
+  }
+
+  .breadcrumbs li {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .breadcrumbs li + li::before {
+    content: "";
+    width: 0.35rem;
+    height: 0.35rem;
+    border-top: 1.5px solid var(--color-border-strong);
+    border-right: 1.5px solid var(--color-border-strong);
+    transform: rotate(45deg);
+  }
+
+  .breadcrumbs a {
+    color: var(--color-text-muted);
+  }
+
+  .breadcrumbs a:hover {
+    color: var(--color-text);
+  }
+
+  /* ---------- Page header ---------- */
+  .page-header {
+    max-width: 46rem;
+    margin-bottom: var(--space-8);
+  }
+
+  .page-header__title {
+    font-size: var(--step-3);
+  }
+
+  .lead {
+    margin-top: var(--space-3);
+    color: var(--color-text-muted);
+    font-size: var(--step-1);
+  }
+
+  .page-header .meta {
+    margin-top: var(--space-5);
+  }
+
+  .draft-notice,
+  .notice {
+    display: flex;
+    gap: var(--space-3);
+    align-items: flex-start;
+    margin-bottom: var(--space-6);
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--color-border);
+    border-inline-start: 4px solid var(--color-warning);
+    border-radius: var(--radius);
+    background: var(--color-warning-soft);
+    font-size: var(--step--1);
+  }
+
+  .draft-notice .icon,
+  .notice .icon {
+    color: var(--color-warning);
+    margin-top: 0.1em;
+  }
+
+  /* Under the lead instead of above the title. */
+  .notice {
+    max-width: var(--measure);
+    margin-top: var(--space-5);
+    margin-bottom: 0;
+  }
+
+  /* ---------- Guide tracks on the guides index ---------- */
+  .guide-group + .guide-group {
+    margin-top: var(--space-12);
+  }
+
+  .guide-group .section__title {
+    margin-bottom: var(--space-2);
+  }
+
+  .guide-group__lead {
+    max-width: var(--measure);
+    color: var(--color-text-muted);
+  }
+
+  /* A topic inside a track: a heading over its own list of guides. */
+  .guide-group__topic {
+    margin-block: var(--space-8) var(--space-3);
+    font-size: var(--step-1);
+    scroll-margin-top: var(--space-6);
+  }
+
+  /* ---------- "All guides" (sidebar) ----------
+     Shares the box, the summary and the link style of the contents list (.toc). */
+  .guide-nav__body {
+    gap: 0;
+    padding-bottom: var(--space-2);
+  }
+
+  /* Three levels that must not look alike: the track (largest, opens and
+     closes, with a rule above it), the topic (a dark, bold heading) and the
+     guides (lighter links, indented behind a line). Only the last are links. */
+  .guide-nav__track {
+    border-top: 1px solid var(--color-border);
+  }
+
+  .guide-nav__track[open] {
+    padding-bottom: var(--space-3);
+  }
+
+  .guide-nav__track-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    min-height: var(--tap);
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--step-0);
+    font-weight: 600;
+    line-height: var(--leading-tight);
+    cursor: pointer;
+    list-style: none;
+  }
+
+  /* Drawn inside: the sidebar can scroll on a short screen, which would clip a ring drawn outside. */
+  .guide-nav__track-title:focus-visible {
+    outline-offset: -3px;
+  }
+
+  .guide-nav__track-title::-webkit-details-marker {
+    display: none;
+  }
+
+  .guide-nav__track-title::after {
+    content: "";
+    flex: none;
+    width: 0.4rem;
+    height: 0.4rem;
+    margin-inline-end: var(--space-1);
+    border-right: 2px solid var(--color-text-muted);
+    border-bottom: 2px solid var(--color-text-muted);
+    transform: rotate(45deg) translateY(-2px);
+    transition: transform var(--duration) var(--ease);
+  }
+
+  .guide-nav__track[open] > .guide-nav__track-title::after {
+    transform: rotate(-135deg) translateY(-2px);
+  }
+
+  .guide-nav__group {
+    margin-top: var(--space-3);
+    padding-inline: var(--space-3);
+    color: var(--color-text);
+    font-size: var(--step--1);
+    font-weight: 600;
+  }
+
+  .guide-nav__group + ul {
+    margin: var(--space-1) 0 0 var(--space-3);
+    padding-inline-start: var(--space-1);
+    border-inline-start: 1px solid var(--color-border-strong);
+  }
+
+  .guide-nav__link {
+    position: relative;
+    padding-block: 0.4rem;
+  }
+
+  /* The guide being read: marked by its background and color only. A bolder
+     font would be wider, and the title would wrap differently from page to page. */
+  .guide-nav__link[aria-current] {
+    background: var(--color-accent-soft);
+    color: var(--color-text);
+  }
+
+  /* Saved progress is a mark on the line beside the link, where it takes no
+     room from the title: a dot once a guide is started, a tick when every
+     step is done. Screen readers get the count ("3 of 7 done"). */
+  .guide-nav__progress {
+    position: absolute;
+    inset-inline-start: calc(-1 * var(--space-1) - 0.25rem - 0.5px);
+    top: 0.8rem;
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: var(--color-accent);
+    box-shadow: 0 0 0 3px var(--color-surface);
+  }
+
+  .guide-nav__progress.is-complete {
+    inset-inline-start: calc(-1 * var(--space-1) - 0.375rem - 0.5px);
+    top: 0.65rem;
+    width: 0.75rem;
+    height: 0.75rem;
+    border-radius: 0;
+    box-shadow: none;
+    clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+  }
+
+  .guide-nav__progress .card-progress__text {
+    display: none;
+  }
+
+  /* On a phone a guide starts with the guide itself; the breadcrumb leads to
+     the guides list, which has the same overview. */
+  @media (max-width: 63.99rem) {
+    .guide-aside--page {
+      display: none;
+    }
+  }
+
+  /* Home: the way in for people at higher risk, under the first guides. */
+  .path-card {
+    display: grid;
+    gap: var(--space-4) var(--space-8);
+    margin-top: var(--space-6);
+    padding: var(--space-6);
+    border: 1px solid var(--color-border);
+    border-inline-start: 4px solid var(--color-accent);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface-2);
+  }
+
+  .path-card__title {
+    font-size: var(--step-1);
+  }
+
+  .path-card__text p {
+    max-width: var(--measure);
+    margin-top: var(--space-2);
+    color: var(--color-text-muted);
+  }
+
+  .path-card__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-6);
+  }
+
+  @media (min-width: 56rem) {
+    .path-card {
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+    }
+  }
+
+  .guide-group {
+    scroll-margin-top: var(--space-6);
+  }
+
+  /* "Continue: <guide>" under the lead. Like on the home page, the line is
+     always reserved and continue.mjs only makes the link visible. */
+  .page-header__continue {
+    display: flex;
+    min-height: var(--tap);
+    margin-top: var(--space-3);
+  }
+
+  .track-nav {
+    margin-top: var(--space-3);
+  }
+
+  .track-nav ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .track-nav__link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: var(--tap);
+    padding: var(--space-1) var(--space-2) var(--space-1) var(--space-4);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-full);
+    background: var(--color-surface);
+    color: var(--color-text);
+    font-size: var(--step--1);
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .track-nav__link:hover {
+    border-color: var(--color-accent);
+  }
+
+  .track-nav__count {
+    min-width: 1.75rem;
+    padding: 0.1rem var(--space-2);
+    border-radius: var(--radius-full);
+    background: var(--color-surface-2);
+    color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+  }
+
+  /* ---------- Guide rows (guides index) ----------
+     One bordered list per track. The title link covers the whole row; the
+     steps <details> sits above it so it stays its own control. No overflow
+     on the list: it would clip focus rings. */
+  .guide-list {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .guide-row {
+    position: relative;
+    padding: var(--space-5) var(--space-4) var(--space-1);
+    transition: background-color var(--duration) var(--ease);
+  }
+
+  .guide-row + .guide-row {
+    border-top: 1px solid var(--color-border);
+  }
+
+  .guide-row:first-child {
+    border-start-start-radius: calc(var(--radius-lg) - 1px);
+    border-start-end-radius: calc(var(--radius-lg) - 1px);
+  }
+
+  .guide-row:last-child {
+    border-end-start-radius: calc(var(--radius-lg) - 1px);
+    border-end-end-radius: calc(var(--radius-lg) - 1px);
+  }
+
+  /* Phones: progress shares the line with the time, so the title keeps the width. */
+  .guide-row__main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "title title"
+      "summary summary"
+      "meta progress";
+    gap: var(--space-1) var(--space-3);
+    align-items: baseline;
+  }
+
+  .guide-row__title {
+    grid-area: title;
+    font-size: var(--step-1);
+  }
+
+  .guide-row__link {
+    color: var(--color-text);
+    text-decoration: none;
+  }
+
+  .guide-row__link::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+  }
+
+  .guide-row__link:hover {
+    text-decoration: underline;
+    text-decoration-color: var(--color-border-strong);
+  }
+
+  .guide-row__summary {
+    grid-area: summary;
+    max-width: var(--measure);
+    color: var(--color-text-muted);
+  }
+
+  .guide-row__meta {
+    grid-area: meta;
+    padding-top: var(--space-2);
+  }
+
+  .guide-row__progress {
+    grid-area: progress;
+    align-self: end;
+    margin-inline-start: 0;
+    min-height: 1.5rem;
+  }
+
+  @media (min-width: 40rem) {
+    .guide-row {
+      padding-inline: var(--space-6);
+    }
+
+    .guide-row__main {
+      grid-template-areas:
+        "title progress"
+        "summary summary"
+        "meta meta";
+    }
+
+    .guide-row__progress {
+      align-self: center;
+    }
+  }
+
+  /* Ring and tint on the whole row (keyboard focus only for the ring). Without
+     :has() the link keeps its own ring and the row stays plain. */
+  @supports selector(:has(*)) {
+    .guide-row:has(.guide-row__link:hover) {
+      background: var(--color-surface-2);
+    }
+
+    .guide-row:has(.guide-row__link:focus-visible) {
+      outline: 3px solid var(--color-focus);
+      outline-offset: -3px;
+    }
+
+    .guide-row__link:focus-visible {
+      outline: none;
+    }
+  }
+
+  .guide-row__steps {
+    position: relative;
+    z-index: 1;
+  }
+
+  .guide-row__toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: var(--tap);
+    /* Room for the focus ring around the text and the arrow, without moving them. */
+    margin-inline: calc(-1 * var(--space-2));
+    padding-inline: var(--space-2);
+    color: var(--color-link);
+    font-size: var(--step--1);
+    font-weight: 600;
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .guide-row__toggle::-webkit-details-marker {
+    display: none;
+  }
+
+  .guide-row__toggle::after {
+    content: "";
+    width: 0.4rem;
+    height: 0.4rem;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(45deg) translateY(-2px);
+    transition: transform var(--duration) var(--ease);
+  }
+
+  .guide-row__steps[open] > .guide-row__toggle::after {
+    transform: rotate(-135deg) translateY(-2px);
+  }
+
+  .guide-row__toggle:hover {
+    text-decoration: underline;
+  }
+
+  /* The steps of one guide; link styles are shared with the contents list. */
+  .step-list {
+    display: grid;
+    gap: 2px;
+    margin-inline-start: calc(-1 * var(--space-3));
+    padding-bottom: var(--space-4);
+  }
+
+  /* Wide screens: two columns, read top to bottom like the numbered list it is. */
+  @media (min-width: 48rem) {
+    .step-list {
+      display: block;
+      columns: 2;
+      column-gap: var(--space-6);
+    }
+
+    .step-list > li {
+      padding-block: 1px;
+      break-inside: avoid;
+    }
+  }
+
+  /* ---------- Prose (Markdown output) ---------- */
+  .prose {
+    max-width: var(--measure);
+  }
+
+  .prose > * + * {
+    margin-top: var(--space-4);
+  }
+
+  .prose :where(ul, ol) {
+    padding-inline-start: 1.4em;
+  }
+
+  .prose li + li {
+    margin-top: var(--space-2);
+  }
+
+  .prose li::marker {
+    color: var(--color-text-muted);
+    font-weight: 600;
+  }
+
+  .prose--page h1 {
+    font-size: var(--step-3);
+    margin-bottom: var(--space-6);
+  }
+
+  .prose--page h2,
+  .prose--article h2 {
+    margin-top: var(--space-10);
+    font-size: var(--step-2);
+  }
+
+  .prose--page h3,
+  .prose--article h3 {
+    margin-top: var(--space-8);
+    font-size: var(--step-1);
+  }
+
+  .prose--page h4,
+  .prose--article h4 {
+    margin-top: var(--space-6);
+    font-size: var(--step-0);
+  }
+
+  /* A link to a section lands with some air above the heading. */
+  .prose :where(h2, h3, h4)[id] {
+    scroll-margin-top: var(--space-6);
+  }
+
+  .prose--page > p:first-of-type {
+    font-size: var(--step-1);
+  }
+
+  /* ---------- Callouts ---------- */
+  .callout {
+    padding: var(--space-4) var(--space-5);
+    border-radius: var(--radius);
+    border-inline-start: 4px solid var(--callout-color);
+    background: var(--callout-bg);
+  }
+
+  .callout > * + * {
+    margin-top: var(--space-2);
+  }
+
+  .callout__title {
+    color: var(--callout-color);
+    font-size: var(--step--1);
+    font-weight: 600;
+  }
+
+  .callout--note {
+    --callout-color: var(--color-advanced);
+    --callout-bg: var(--color-advanced-soft);
+  }
+
+  .callout--tip {
+    --callout-color: var(--color-accent);
+    --callout-bg: var(--color-accent-soft);
+  }
+
+  .callout--warning {
+    --callout-color: var(--color-warning);
+    --callout-bg: var(--color-warning-soft);
+  }
+
+  /* ---------- Search ---------- */
+  .search {
+    display: grid;
+    gap: var(--space-2);
+    max-width: 36rem;
+  }
+
+  .search__label {
+    font-size: var(--step--1);
+    font-weight: 600;
+  }
+
+  .search__input {
+    width: 100%;
+    min-height: 3rem;
+    padding-inline: var(--space-4);
+    border: 2px solid var(--color-control-border);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+  }
+
+  .search__input:hover {
+    border-color: var(--color-accent);
+  }
+
+  .search__hint {
+    color: var(--color-text-muted);
+    font-size: var(--step--1);
+  }
+
+  /* One line is always reserved, so the list doesn't move when the count appears. */
+  .search__status {
+    min-height: calc(var(--step--1) * var(--leading));
+    margin-top: var(--space-6);
+    color: var(--color-text-muted);
+    font-size: var(--step--1);
+  }
+
+  .search-results {
+    max-width: 46rem;
+    margin-top: var(--space-2);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .search-result {
+    display: grid;
+    gap: var(--space-1);
+    padding-block: var(--space-4);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .search-result__kind {
+    color: var(--color-text-muted);
+    font-size: var(--step--1);
+  }
+
+  .search-result__link {
+    width: fit-content;
+    font-size: var(--step-1);
+    font-weight: 600;
+    line-height: var(--leading-tight);
+  }
+
+  .search-result__summary {
+    color: var(--color-text-muted);
+  }
+
+  .search__empty {
+    max-width: 46rem;
+    padding-block: var(--space-6);
+    color: var(--color-text-muted);
+  }
+
+  /* ---------- Tools ---------- */
+  .tool-page {
+    max-width: 40rem;
+  }
+
+  .tool {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-6);
+    padding: var(--space-5);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-sm);
+  }
+
+  @media (min-width: 40rem) {
+    .tool {
+      padding: var(--space-8);
+    }
+  }
+
+  .tool__result {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3);
+  }
+
+  /* The generated or cleaned text. Two lines are reserved so filling it in doesn't move the page. */
+  .tool__value {
+    min-height: calc(var(--space-4) * 2 + var(--step-1) * 1.5 * 2);
+    padding: var(--space-4);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius);
+    background: var(--color-bg);
+    font-family: var(--font-mono);
+    font-size: var(--step-1);
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+    user-select: all;
+  }
+
+  /* A whole text rather than one value: keeps its line breaks, scrolls when long. */
+  .tool__value--text,
+  .marked {
+    max-block-size: 20rem;
+    overflow-y: auto;
+    white-space: pre-wrap;
+  }
+
+  .tool__value--text {
+    font-family: inherit;
+    font-size: var(--step-0);
+    user-select: text;
+  }
+
+  /* Hidden character detector: the pasted text with every finding made visible. */
+  .marked {
+    padding: var(--space-4);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius);
+    background: var(--color-bg);
+    line-height: 1.9;
+    overflow-wrap: anywhere;
+  }
+
+  /* An invisible character, shown as its code. */
+  .marked__code {
+    margin-inline: 1px;
+    padding: 0.1em 0.35em;
+    border: 1px solid var(--color-warning);
+    border-radius: var(--radius-sm);
+    background: var(--color-warning-soft);
+    color: var(--color-warning);
+    font-family: var(--font-mono);
+    font-size: var(--step--1);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  /* A visible letter from another alphabet. */
+  .marked__letter {
+    border-bottom: 2px solid var(--color-warning);
+    background: var(--color-warning-soft);
+    color: inherit;
+  }
+
+  .count {
+    display: inline-block;
+    min-inline-size: 1.6em;
+    padding-inline: 0.4em;
+    border-radius: var(--radius-full);
+    background: var(--color-warning-soft);
+    color: var(--color-warning);
+    font-size: var(--step--1);
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+  }
+
+  .tool__value--secret {
+    letter-spacing: 0.04em;
+  }
+
+  .tool__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  /* One line each, always reserved. */
+  .tool__status,
+  .meter__label {
+    min-height: calc(var(--step--1) * var(--leading));
+    color: var(--color-text-muted);
+    font-size: var(--step--1);
+  }
+
+  .tool__message {
+    font-size: var(--step--1);
+  }
+
+  /* A caution that belongs to a result, e.g. what a cleaned copy still contains. */
+  .tool__note {
+    padding: var(--space-3) var(--space-4);
+    border-inline-start: 4px solid var(--color-warning);
+    border-radius: var(--radius);
+    background: var(--color-warning-soft);
+    font-size: var(--step--1);
+  }
+
+  .tool__message:empty {
+    display: none;
+  }
+
+  .tool__local {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    padding-top: var(--space-5);
+    border-top: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+    font-size: var(--step--1);
+  }
+
+  .tool__local .icon {
+    margin-top: 0.15em;
+    color: var(--color-accent);
+  }
+
+  .tool-notes {
+    margin-top: var(--space-10);
+  }
+
+  .tool-notes h2:first-child {
+    margin-top: 0;
+  }
+
+  /* Form pieces */
+  .field {
+    display: grid;
+    gap: var(--space-2);
+    min-width: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .field:disabled {
+    opacity: 0.5;
+  }
+
+  .field__label {
+    padding: 0;
+    font-size: var(--step--1);
+    font-weight: 600;
+  }
+
+  .field__value {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .option {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    min-height: 2.25rem;
+    cursor: pointer;
+  }
+
+  .field:disabled .option {
+    cursor: default;
+  }
+
+  .checkbox--small {
+    width: 1.375rem;
+    height: 1.375rem;
+    margin: 0;
+    border-radius: 6px;
+  }
+
+  .checkbox--small::before {
+    width: 0.7rem;
+    height: 0.7rem;
+  }
+
+  .radio {
+    flex: none;
+    width: 1.25rem;
+    height: 1.25rem;
+    margin: 0;
+    accent-color: var(--color-accent);
+    cursor: pointer;
+  }
+
+  .range {
+    width: 100%;
+    min-height: var(--tap);
+    accent-color: var(--color-accent);
+    cursor: pointer;
+  }
+
+  .textarea,
+  .file {
+    width: 100%;
+    padding: var(--space-3) var(--space-4);
+    border: 2px solid var(--color-control-border);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+  }
+
+  /* File chooser. The real input covers the whole box and is transparent, so
+     the mouse, touch, the keyboard and screen readers all use the native
+     control; what shows is our own button and file name, in the page's
+     language instead of the browser's. */
+  .file {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+    padding: var(--space-3);
+    font-size: var(--step--1);
+  }
+
+  .file__input {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  .file__input::file-selector-button {
+    cursor: pointer;
+  }
+
+  /* The input is invisible, so its focus ring is drawn on the button. */
+  .file__input:focus-visible ~ .file__button {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  .file__name {
+    min-width: 0;
+    color: var(--color-text-muted);
+    overflow-wrap: anywhere;
+  }
+
+  .textarea {
+    font-family: var(--font-mono);
+    font-size: var(--step--1);
+    line-height: 1.5;
+    resize: vertical;
+    overflow-wrap: anywhere;
+  }
+
+  .textarea:hover,
+  .file:hover {
+    border-color: var(--color-accent);
+  }
+
+  /* Strength meter: the bar's length and the label carry the meaning; color only supports them. */
+  .meter {
+    height: 8px;
+    border-radius: var(--radius-full);
+    background: var(--color-surface-2);
+    overflow: hidden;
+  }
+
+  .meter__bar {
+    height: 100%;
+    background: var(--color-essential);
+    transform: scaleX(var(--level, 0));
+    transform-origin: left;
+    transition: transform 200ms var(--ease);
+  }
+
+  .meter[data-level="fair"] .meter__bar {
+    background: var(--color-recommended);
+  }
+
+  .meter[data-level="strong"] .meter__bar,
+  .meter[data-level="veryStrong"] .meter__bar {
+    background: var(--color-accent);
+  }
+
+  /* A report: name on the left, what was found on the right. */
+  .facts {
+    border-top: 1px solid var(--color-border);
+  }
+
+  .facts__row {
+    display: grid;
+    gap: var(--space-1);
+    padding-block: var(--space-3);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  @media (min-width: 40rem) {
+    .facts__row {
+      grid-template-columns: 11rem minmax(0, 1fr);
+      gap: var(--space-4);
+    }
+  }
+
+  .facts dt {
+    color: var(--color-text-muted);
+    font-size: var(--step--1);
+    font-weight: 600;
+  }
+
+  .facts dd {
+    display: grid;
+    gap: var(--space-1);
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .facts__why {
+    color: var(--color-text-muted);
+    font-size: var(--step--1);
+  }
+
+  /* Link checker verdict: the site name large, then what is wrong with the address. */
+  .verdict {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-2);
+    padding: var(--space-4) var(--space-5);
+    border-inline-start: 4px solid var(--color-accent);
+    border-radius: var(--radius);
+    background: var(--color-accent-soft);
+  }
+
+  .verdict[data-state="warn"],
+  .verdict[data-state="invalid"] {
+    border-inline-start-color: var(--color-warning);
+    background: var(--color-warning-soft);
+  }
+
+  .verdict[data-state="invalid"] .field__label {
+    display: none;
+  }
+
+  .verdict__site {
+    font-family: var(--font-mono);
+    font-size: var(--step-2);
+    font-weight: 600;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+
+  .verdict__host {
+    color: var(--color-text-muted);
+    font-family: var(--font-mono);
+    font-size: var(--step--1);
+    overflow-wrap: anywhere;
+  }
+
+  .verdict__site:empty,
+  .verdict__host:empty {
+    display: none;
+  }
+
+  .verdict__summary {
+    margin-top: var(--space-2);
+    font-weight: 600;
+  }
+
+  .verdict__list {
+    display: grid;
+    gap: var(--space-2);
+    padding-inline-start: 1.2em;
+  }
+
+  /* Image redaction */
+  .redact,
+  .redact__result {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3);
+  }
+
+  /* The image, which scrolls inside this box once it is zoomed in. */
+  .redact__view {
+    overflow: auto;
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-2);
+  }
+
+  .redact__view:not([data-zoom="1"]) {
+    max-block-size: 80vh;
+  }
+
+  /* touch-action: none, so dragging a finger draws instead of scrolling the page. */
+  .redact__canvas,
+  .redact__saved {
+    display: block;
+    width: 100%;
+    max-width: none;
+    height: auto;
+  }
+
+  .redact__canvas {
+    cursor: crosshair;
+    touch-action: none;
+  }
+
+  .redact__view[data-zoom="1.5"] .redact__canvas { width: 150%; }
+  .redact__view[data-zoom="2"] .redact__canvas { width: 200%; }
+  .redact__view[data-zoom="3"] .redact__canvas { width: 300%; }
+  .redact__view[data-zoom="4"] .redact__canvas { width: 400%; }
+
+  .redact__canvas[data-cursor="move"] { cursor: move; }
+  .redact__canvas[data-cursor="ns"] { cursor: ns-resize; }
+  .redact__canvas[data-cursor="ew"] { cursor: ew-resize; }
+  .redact__canvas[data-cursor="nwse"] { cursor: nwse-resize; }
+  .redact__canvas[data-cursor="nesw"] { cursor: nesw-resize; }
+
+  .redact__saved {
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-2);
+  }
+
+  .redact__bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+
+  .redact__zoom {
+    align-items: center;
+  }
+
+  .redact__zoom-value {
+    min-inline-size: 3.2em;
+    font-size: var(--step--1);
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+  }
+
+  .redact__result {
+    padding-block-start: var(--space-4);
+    border-block-start: 1px solid var(--color-border);
+  }
+
+  /* A file is being dragged over the tool. */
+  .tool.is-dropping {
+    outline: 2px dashed var(--color-accent);
+    outline-offset: 4px;
+  }
+
+  /* A button with only an icon. */
+  .button--icon {
+    padding-inline: 0;
+    min-inline-size: 2.5rem;
+    justify-content: center;
+  }
+
+  /* The chosen option in a group of buttons: filled and with a heavier edge, not color alone. */
+  .button--ghost[aria-pressed="true"] {
+    border-color: var(--color-accent);
+    background: var(--color-accent-soft);
+    box-shadow: inset 0 0 0 1px var(--color-accent);
+  }
+
+  .button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  /* Browser report: a summary box, then titled groups of facts. */
+  .report,
+  .autofill,
+  .cannot,
+  .autofill__form {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4);
+  }
+
+  .report {
+    gap: var(--space-8);
+  }
+
+  .report__group {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .report__title {
+    font-size: var(--step-1);
+  }
+
+  .fingerprint {
+    display: grid;
+    gap: var(--space-2);
+    padding: var(--space-4) var(--space-5);
+    border-inline-start: 4px solid var(--color-accent);
+    border-radius: var(--radius);
+    background: var(--color-accent-soft);
+  }
+
+  /* One line is reserved; the code arrives a moment after the page. */
+  .fingerprint__value {
+    min-height: calc(var(--step-2) * 1.3);
+    font-family: var(--font-mono);
+    font-size: var(--step-2);
+    font-weight: 600;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
+
+  .facts__value:empty::before {
+    content: "…";
+    color: var(--color-text-muted);
+  }
+
+  /* Autofill demonstration */
+  .autofill,
+  .cannot {
+    padding-top: var(--space-6);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .input {
+    width: 100%;
+    min-height: var(--tap);
+    padding-inline: var(--space-4);
+    border: 2px solid var(--color-control-border);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+  }
+
+  .input:hover {
+    border-color: var(--color-accent);
+  }
+
+  /* Fields the visitor can't see: the point of the demonstration. Kept in the
+     page (off screen) rather than display: none, as a real page would do it. */
+  .autofill__unseen {
+    position: absolute;
+    inset-inline-start: -9999px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+  }
+
+  .autofill__result {
+    display: grid;
+    justify-items: start;
+    gap: var(--space-3);
+    padding: var(--space-4) var(--space-5);
+    border-inline-start: 4px solid var(--color-accent);
+    border-radius: var(--radius);
+    background: var(--color-accent-soft);
+  }
+
+  .autofill__result--leak {
+    border-inline-start-color: var(--color-warning);
+    background: var(--color-warning-soft);
+  }
+
+  .autofill__message {
+    font-weight: 600;
+  }
+
+  .autofill__list {
+    display: grid;
+    gap: var(--space-1);
+    padding-inline-start: 1.2em;
+    overflow-wrap: anywhere;
+  }
+
+  .autofill__list:empty {
+    display: none;
+  }
+
+  .cannot__list {
+    display: grid;
+    gap: var(--space-2);
+    padding-inline-start: 1.2em;
+  }
+
+  /* ---------- 404 ---------- */
+  /* Full-width container (aligned with the header); only the text is narrow. */
+  .not-found {
+    padding-top: var(--space-16);
+  }
+
+  .not-found > * {
+    max-width: 40rem;
+  }
+
+  .not-found__code {
+    color: var(--color-accent);
+    font-size: var(--step-4);
+    font-weight: 600;
+    line-height: 1;
+    margin-bottom: var(--space-4);
+  }
+
+  .not-found__lang + .not-found__lang {
+    margin-top: var(--space-10);
+    padding-top: var(--space-8);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .not-found__lang > * + * {
+    margin-top: var(--space-4);
+  }
+
+  .not-found__alt-title {
+    font-size: var(--step-2);
+  }
+}

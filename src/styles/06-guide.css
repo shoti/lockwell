@@ -1,0 +1,592 @@
+/*
+ * SPDX-FileCopyrightText: 2026 Shota Mtvarelishvili <mtvarelishvili@proton.me>
+ * SPDX-License-Identifier: MIT
+ *
+ * @file Guide pages: progress, checklist items, filters and print.
+ * @author Shota Mtvarelishvili <mtvarelishvili@proton.me> (https://shoti.github.io/)
+ */
+@layer components {
+  /* ---------- Progress ---------- */
+  .progress-strip {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    height: 4px;
+    background: var(--color-surface-2);
+  }
+
+  /* From here the progress card is always in view, in the sticky rail. */
+  @media (min-width: 80rem) {
+    .progress-strip {
+      display: none;
+    }
+  }
+
+  /* Scaled, not resized: animating transform doesn't trigger layout. */
+  .progress-strip__bar,
+  .progress__bar {
+    height: 100%;
+    background: var(--color-accent);
+    transform: scaleX(var(--progress, 0));
+    transform-origin: left;
+    transition: transform 300ms var(--ease);
+  }
+
+  .progress {
+    display: grid;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+    padding: var(--space-5);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+  }
+
+  .progress__label {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: var(--space-1) var(--space-3);
+    font-size: var(--step--1);
+    font-weight: 600;
+  }
+
+  .progress__count {
+    color: var(--color-text-muted);
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .progress__track {
+    height: 8px;
+    border-radius: var(--radius-full);
+    background: var(--color-surface-2);
+    overflow: hidden;
+  }
+
+  .progress__note {
+    color: var(--color-text-muted);
+    font-size: 0.8125rem;
+    line-height: 1.5;
+  }
+
+  .progress .link-button {
+    justify-self: start;
+    min-height: 2rem;
+  }
+
+  /* ---------- Table of contents ---------- */
+  .toc {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+  }
+
+  .toc__summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: var(--tap);
+    padding: var(--space-2) var(--space-5);
+    font-size: var(--step--1);
+    font-weight: 600;
+    cursor: pointer;
+    list-style: none;
+  }
+
+  /* Draw the ring inside: the scrolling sidebar (overflow-y: auto) would clip one drawn outside. */
+  .toc__summary:focus-visible {
+    outline-offset: -3px;
+  }
+
+  .toc__summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .toc__summary::after {
+    content: "";
+    width: 0.45rem;
+    height: 0.45rem;
+    margin-inline-end: var(--space-1);
+    border-right: 2px solid var(--color-text-muted);
+    border-bottom: 2px solid var(--color-text-muted);
+    transform: rotate(45deg) translateY(-2px);
+    transition: transform var(--duration) var(--ease);
+  }
+
+  .toc[open] .toc__summary::after {
+    transform: rotate(-135deg) translateY(-2px);
+  }
+
+  /* Small screens: the list starts collapsed. Until checklist.mjs closes the
+     <details>, CSS already shows it closed, so nothing jumps. */
+  @media (max-width: 63.99rem) {
+    .js .toc:not([data-ready]) > .toc__list {
+      display: none;
+    }
+
+    .js .toc:not([data-ready]) .toc__summary::after {
+      transform: rotate(45deg) translateY(-2px);
+    }
+  }
+
+  /* The guide's own contents list is open only where it has its own column. */
+  .toc--rail {
+    --bp-wide: 80rem;
+  }
+
+  @media (max-width: 79.99rem) {
+    .js .toc--rail:not([data-ready]) > .toc__list {
+      display: none;
+    }
+
+    .js .toc--rail:not([data-ready]) .toc__summary::after {
+      transform: rotate(45deg) translateY(-2px);
+    }
+  }
+
+  .toc__list {
+    display: grid;
+    gap: 2px;
+    padding: 0 var(--space-2) var(--space-3);
+  }
+
+  .toc__link,
+  .step-list__link {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-muted);
+    font-size: var(--step--1);
+    line-height: 1.45;
+    text-decoration: none;
+  }
+
+  .toc__link:hover,
+  .step-list__link:hover {
+    color: var(--color-text);
+    background: var(--color-surface-2);
+  }
+
+  .toc__link .dot,
+  .step-list__link .dot {
+    margin-top: 0.42em;
+  }
+
+  .toc__link.is-done .dot,
+  .step-list__link.is-done .dot {
+    width: 0.7rem;
+    height: 0.7rem;
+    margin-top: 0.3em;
+    margin-inline: -0.1rem;
+    background: var(--color-accent);
+    clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+    border-radius: 0;
+  }
+
+  .toc__link.is-done .toc__text,
+  .step-list__link.is-done .step-list__text {
+    text-decoration: line-through;
+    text-decoration-color: var(--color-border-strong);
+  }
+
+  /* ---------- Step filters ---------- */
+  .item-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
+  }
+
+  /* A toggle button. The box fills in when pressed, so the state isn't shown by color alone. */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 2.25rem;
+    padding-inline: var(--space-3) var(--space-4);
+    border: 1px solid var(--color-control-border);
+    border-radius: var(--radius-full);
+    background: var(--color-surface);
+    color: var(--color-text);
+    font-size: var(--step--1);
+    font-weight: 600;
+    transition: background var(--duration) var(--ease), border-color var(--duration) var(--ease);
+  }
+
+  .chip::before {
+    content: "";
+    flex: none;
+    width: 0.75rem;
+    height: 0.75rem;
+    border: 1.5px solid var(--color-control-border);
+    border-radius: 3px;
+  }
+
+  .chip:hover {
+    border-color: var(--color-accent);
+  }
+
+  .chip[aria-pressed="true"] {
+    border-color: var(--color-accent);
+    background: var(--color-accent-soft);
+  }
+
+  .chip[aria-pressed="true"]::before {
+    border-color: var(--color-accent);
+    background: var(--color-accent);
+  }
+
+  .item-filters__status {
+    margin-inline-start: var(--space-2);
+    color: var(--color-text-muted);
+    font-size: var(--step--1);
+  }
+
+  .items__empty {
+    padding: var(--space-6);
+    border: 1px dashed var(--color-border-strong);
+    border-radius: var(--radius-lg);
+    color: var(--color-text-muted);
+    text-align: center;
+  }
+
+  /* ---------- Checklist items ---------- */
+  .guide-intro {
+    margin-bottom: var(--space-8);
+  }
+
+  /* minmax(0, 1fr) on these grids: a plain grid column grows to fit its widest
+     content, so a tab bar with many tabs would push the item wider than a phone
+     screen instead of scrolling inside it. */
+  .items {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4);
+  }
+
+  .item {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-5);
+    padding: var(--space-5);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-sm);
+    scroll-margin-top: var(--space-6);
+    transition: border-color var(--duration) var(--ease), background var(--duration) var(--ease);
+  }
+
+  @media (min-width: 40rem) {
+    .item {
+      padding: var(--space-6) var(--space-8) var(--space-8) var(--space-6);
+    }
+
+    .item__body {
+      padding-inline-start: calc(1.75rem + var(--space-4));
+    }
+  }
+
+  .item:target {
+    border-color: var(--color-accent);
+  }
+
+  /* Badge on top, aligned with the title; checkbox next to the title's first line. */
+  .item__head {
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .item__head > .badge {
+    margin-inline-start: calc(1.75rem + var(--space-4));
+  }
+
+  .item__row {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-4);
+    min-width: 0;
+  }
+
+  /* Centers the 1.75rem box on the first line of the title (font-size × line-height). */
+  .item__row .item__check {
+    margin-top: calc((var(--step-2) * var(--leading-tight) - 1.75rem) / 2);
+  }
+
+  .item__title {
+    min-width: 0;
+    font-size: var(--step-2);
+    transition: color var(--duration) var(--ease);
+  }
+
+  /* The title is the checkbox's label, so tapping it ticks the item. */
+  .item__title label {
+    cursor: pointer;
+  }
+
+  .item:has(.item__check:checked) {
+    background: var(--color-bg);
+    box-shadow: none;
+  }
+
+  .item:has(.item__check:checked) .item__title {
+    color: var(--color-text-muted);
+  }
+
+  .item__body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-5);
+  }
+
+  /* Custom checkbox: still a real <input>, so it works with keyboard and screen readers. */
+  .checkbox {
+    appearance: none;
+    flex: none;
+    display: grid;
+    place-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    margin: 0.1rem 0 0;
+    border: 2px solid var(--color-control-border);
+    border-radius: 8px;
+    background: var(--color-surface);
+    cursor: pointer;
+    transition: background var(--duration) var(--ease), border-color var(--duration) var(--ease);
+  }
+
+  .checkbox::before {
+    content: "";
+    width: 0.85rem;
+    height: 0.85rem;
+    background: var(--color-on-accent);
+    clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+    transform: scale(0);
+    transition: transform var(--duration) var(--ease);
+  }
+
+  .checkbox:hover {
+    border-color: var(--color-accent);
+  }
+
+  .checkbox:checked {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+  }
+
+  .checkbox:checked::before {
+    transform: scale(1);
+  }
+
+  /* ---------- Platform instructions ---------- */
+  .platform {
+    padding: var(--space-4) var(--space-5);
+    border-radius: var(--radius);
+    background: var(--color-surface-2);
+  }
+
+  .platform + .platform {
+    margin-top: var(--space-3);
+  }
+
+  .platform__title {
+    margin-bottom: var(--space-3);
+    color: var(--color-text-muted);
+    font-size: var(--step--1);
+  }
+
+  .platform:focus-visible {
+    outline-offset: 3px;
+  }
+
+  /*
+   * With JS, multi-platform items show tabs. To avoid any jump while tabs.mjs
+   * builds them, CSS already shows only the platform the head script picked
+   * (<html data-platform>, or the first one) and reserves the tab bar's height.
+   */
+  .js .platforms--multi > .platform {
+    margin-top: var(--space-3);
+  }
+
+  .js .platforms--multi .platform__title {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .js .platforms--multi:not(.platforms--tabs)::before {
+    content: "";
+    display: block;
+    height: var(--tablist-height);
+  }
+
+  .js .platforms--multi:not(.platforms--tabs) > .platform {
+    display: none;
+  }
+
+  .js .platforms--multi:not(.platforms--tabs) > .platform:first-of-type,
+  .js[data-platform="ios"] .platforms--multi:not(.platforms--tabs) > .platform[data-platform="ios"],
+  .js[data-platform="android"] .platforms--multi:not(.platforms--tabs) > .platform[data-platform="android"],
+  .js[data-platform="desktop"] .platforms--multi:not(.platforms--tabs) > .platform[data-platform="desktop"] {
+    display: block;
+  }
+
+  /* The group has the visitor's platform: hide the first panel unless it is that one.
+     (platforms--has-* classes come from the build, so this works without :has().) */
+  .js[data-platform="ios"] .platforms--has-ios:not(.platforms--tabs) > .platform:first-of-type:not([data-platform="ios"]),
+  .js[data-platform="android"] .platforms--has-android:not(.platforms--tabs) > .platform:first-of-type:not([data-platform="android"]),
+  .js[data-platform="desktop"] .platforms--has-desktop:not(.platforms--tabs) > .platform:first-of-type:not([data-platform="desktop"]) {
+    display: none;
+  }
+
+  /* Numbered steps */
+  .platform .prose > ol {
+    list-style: none;
+    padding: 0;
+    counter-reset: step;
+  }
+
+  .platform .prose > ol > li {
+    position: relative;
+    counter-increment: step;
+    padding-inline-start: 2.25rem;
+  }
+
+  .platform .prose > ol > li + li {
+    margin-top: var(--space-3);
+  }
+
+  .platform .prose > ol > li::before {
+    content: counter(step);
+    position: absolute;
+    inset-inline-start: 0;
+    top: 0.05em;
+    display: grid;
+    place-items: center;
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    color: var(--color-accent);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1;
+  }
+
+  /* Tabs (added by JS) */
+  .tablist {
+    display: flex;
+    gap: 2px;
+    width: fit-content;
+    max-width: 100%;
+    height: var(--tablist-height);
+    padding: 4px;
+    overflow-x: auto;
+    border-radius: var(--radius-full);
+    background: var(--color-surface-2);
+    scrollbar-width: none;
+  }
+
+  .tablist::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* More tabs than fit: fade the end so it's clear the bar scrolls. */
+  .tablist--more {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
+  }
+
+  .tab {
+    flex: none;
+    height: 100%;
+    padding-inline: var(--space-4);
+    border-radius: var(--radius-full);
+    color: var(--color-text-muted);
+    font-size: var(--step--1);
+    font-weight: 600;
+    white-space: nowrap;
+    transition: background var(--duration) var(--ease), color var(--duration) var(--ease);
+  }
+
+  .tab:hover {
+    color: var(--color-text);
+  }
+
+  /* Draw the ring inside the tab: the scrolling tab bar would clip one drawn outside. */
+  .tab:focus-visible {
+    outline-offset: -3px;
+  }
+
+  /* The accent underline marks the selected tab with 3:1 contrast; the background alone is too subtle. */
+  .tab[aria-selected="true"] {
+    background: var(--color-surface);
+    color: var(--color-text);
+    box-shadow: inset 0 -2px 0 var(--color-accent), var(--shadow-sm);
+  }
+
+  /* ---------- Footer of a guide or article ---------- */
+  .content-footer {
+    display: grid;
+    gap: var(--space-6);
+    margin-top: var(--space-10);
+  }
+
+  .content-footer__edit {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    width: fit-content;
+    color: var(--color-text-muted);
+    font-size: var(--step--1);
+  }
+
+  .next-link {
+    display: grid;
+    gap: var(--space-1);
+    padding: var(--space-5) var(--space-6);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+    color: var(--color-text);
+    text-decoration: none;
+    transition: border-color var(--duration) var(--ease), box-shadow var(--duration) var(--ease);
+  }
+
+  .next-link:hover {
+    border-color: var(--color-accent);
+    box-shadow: var(--shadow);
+  }
+
+  .next-link__label {
+    color: var(--color-text-muted);
+    font-size: var(--step--1);
+  }
+
+  .next-link__title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    font-size: var(--step-1);
+    font-weight: 600;
+  }
+
+  .next-link__title .icon {
+    color: var(--color-accent);
+    transition: transform var(--duration) var(--ease);
+  }
+
+  .next-link:hover .icon {
+    transform: translateX(4px);
+  }
+}

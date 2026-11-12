@@ -1,0 +1,178 @@
+/*
+ * SPDX-FileCopyrightText: 2026 Shota Mtvarelishvili <mtvarelishvili@proton.me>
+ * SPDX-License-Identifier: MIT
+ *
+ * @file Page layout: container, header, footer and grids.
+ * @author Shota Mtvarelishvili <mtvarelishvili@proton.me> (https://shoti.github.io/)
+ */
+@layer layout {
+  .container {
+    width: 100%;
+    max-width: var(--page-max);
+    margin-inline: auto;
+    padding-inline: var(--gutter);
+  }
+
+  .site-main {
+    flex: 1;
+  }
+
+  .page {
+    padding-block: var(--space-6) var(--space-20);
+  }
+
+  .section {
+    padding-block: var(--space-12) var(--space-16);
+  }
+
+  /* A section right after another plain one: the first one's bottom padding is enough space. */
+  .section--follow {
+    padding-top: 0;
+  }
+
+  .card-grid {
+    display: grid;
+    gap: var(--space-4);
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr));
+  }
+
+  /* A fixed number of cards (home page) fills its rows: no empty column on a
+     wide screen and no single card left over on a row of its own. */
+  @media (min-width: 40rem) {
+    .card-grid--four {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 64rem) {
+    .card-grid--three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 80rem) {
+    .card-grid--four {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+
+  /* Guide: sidebar with progress and contents next to the checklist. */
+  /* One column on phones, in page order: title block, "All guides" (guides
+     list only), the guide's progress and steps, then the text.
+     minmax(0, 1fr): a plain column would grow with a long unbroken line. */
+  .guide-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-6);
+  }
+
+  /* Wide screens: "All guides" stays on the left, in the same place on the
+     guides list and on every guide. On a guide, its own progress and steps
+     (the rail) sit above the text until there is room for a third column. */
+  @media (min-width: 64rem) {
+    /* The page's title block (head) is a cell of this grid, not above it: the
+       sidebar then starts at the same height on every page, whatever the
+       length of a guide's title and summary. */
+    .guide-layout {
+      grid-template-columns: var(--nav-width) minmax(0, 1fr);
+      grid-template-areas:
+        "nav head"
+        "nav main";
+      grid-template-rows: auto 1fr;
+      gap: 0 var(--space-10);
+      align-items: start;
+    }
+
+    .guide-layout--guide {
+      grid-template-areas:
+        "nav head"
+        "nav rail"
+        "nav main";
+      grid-template-rows: auto auto 1fr;
+    }
+
+    .guide-head {
+      grid-area: head;
+    }
+
+    .guide-aside--rail {
+      margin-bottom: var(--space-6);
+    }
+
+    /* The aside must span the full row height: a sticky element can only
+       move within its parent, and with align-items: start the parent would
+       be exactly as tall as the sidebar content. */
+    .guide-aside {
+      align-self: stretch;
+    }
+
+    .guide-aside--nav {
+      grid-area: nav;
+    }
+
+    .guide-aside--rail {
+      grid-area: rail;
+    }
+
+    .guide-main {
+      grid-area: main;
+    }
+
+    /* If the open track is taller than the screen, the list scrolls inside
+       the sidebar. The bar itself only shows while the pointer is over the
+       sidebar; wheel, touch and keyboard scrolling work either way. */
+    .guide-aside--nav .guide-aside__inner {
+      position: sticky;
+      top: var(--space-6);
+      max-height: calc(100vh - var(--space-12));
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: transparent transparent;
+    }
+
+    .guide-aside--nav .guide-aside__inner:hover,
+    .guide-aside--nav .guide-aside__inner:focus-within {
+      scrollbar-color: var(--color-border-strong) transparent;
+    }
+  }
+
+  @media (min-width: 80rem) {
+    .guide-layout--guide {
+      grid-template-columns: var(--nav-width) minmax(0, 1fr) var(--rail-width);
+      grid-template-areas:
+        "nav head rail"
+        "nav main rail";
+      grid-template-rows: auto 1fr;
+    }
+
+    .guide-aside--rail {
+      margin-bottom: 0;
+    }
+
+    .guide-aside--rail .guide-aside__inner {
+      position: sticky;
+      top: var(--space-6);
+      max-height: calc(100vh - var(--space-12));
+      overflow-y: auto;
+    }
+  }
+
+  .guide-main {
+    min-width: 0;
+    max-width: 46rem;
+  }
+
+  /* The guides list has no rail, so its rows can use some of that room. */
+  .guide-layout--index .guide-main {
+    max-width: 54rem;
+  }
+
+  /* Long-form article: the header, the text and the footer share one readable column. */
+  .article {
+    max-width: 40rem;
+  }
+
+  .article .prose {
+    max-width: none;
+  }
+}

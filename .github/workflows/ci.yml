@@ -1,0 +1,37 @@
+# SPDX-FileCopyrightText: 2026 Shota Mtvarelishvili <mtvarelishvili@proton.me>
+# SPDX-License-Identifier: MIT
+#
+# CI: tests, type check and build for pull requests and for main.
+# Deployment is done by Cloudflare Pages, which builds main on its own.
+# Author: Shota Mtvarelishvili <mtvarelishvili@proton.me> (https://shoti.github.io/)
+name: CI
+
+# Pull requests and main only: running on every branch push as well ran each check twice.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      # Actions are pinned to commit SHAs (tags can be moved); Dependabot keeps them updated.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version-file: .nvmrc
+      - name: Test
+        run: npm test
+      - name: Type check (tools installed for this run only; not project dependencies)
+        run: |
+          npm install --no-save --no-audit --no-fund --ignore-scripts typescript@7.0.2 @types/node@22.20.5
+          npx tsc -p jsconfig.json
+      - name: Build (fails on any content error)
+        run: npm run build

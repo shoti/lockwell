@@ -1,0 +1,544 @@
+{
+  "locale": "en_US",
+  "dateLocale": "en-GB",
+  "languageName": "English",
+  "languageShort": "EN",
+  "siteName": "Lockwell",
+  "siteTagline": "Practical guides to online privacy",
+  "skipToContent": "Skip to main content",
+  "breadcrumbs": "Breadcrumb",
+  "nav": {
+    "label": "Main",
+    "home": "Home",
+    "guides": "Guides",
+    "articles": "Articles",
+    "tools": "Tools",
+    "about": "About",
+    "search": "Search",
+    "source": "Source code on GitHub"
+  },
+  "theme": {
+    "toggle": "Dark theme"
+  },
+  "priority": {
+    "essential": "Essential",
+    "recommended": "Recommended",
+    "advanced": "Advanced"
+  },
+  "callout": {
+    "note": "Note",
+    "tip": "Tip",
+    "warning": "Watch out"
+  },
+  "guides": {
+    "title": "Guides",
+    "lead": "Short checklists you can work through at your own pace. Start with the first one: it protects you from the most common attacks.",
+    "description": "All Lockwell privacy guides: step-by-step checklists to secure your accounts, passwords and messaging apps.",
+    "everyone": {
+      "title": "For everyone",
+      "lead": "Sensible protection for your accounts, your phone and everyday life online."
+    },
+    "highRisk": {
+      "title": "For people at higher risk",
+      "lead": "For activists, journalists and anyone who has a reason to expect targeted attention. Start with the first guide: it helps you work out which of the others you need."
+    },
+    "tracksLabel": "Guide groups",
+    "navLabel": "All guides",
+    "groups": {
+      "start": "Start here",
+      "habits": "Everyday habits",
+      "devices": "Devices and network",
+      "recovery": "When something goes wrong",
+      "plan": "Start here",
+      "basics": "Harden the basics",
+      "situations": "Situations",
+      "threats": "Threats aimed at you",
+      "teams": "Working with others"
+    },
+    "showSteps": {
+      "one": "See the step",
+      "other": "See all {n} steps"
+    }
+  },
+  "guide": {
+    "minutes": {
+      "one": "{n} min",
+      "other": "{n} min"
+    },
+    "items": {
+      "one": "{n} step",
+      "other": "{n} steps"
+    },
+    "essentialCount": {
+      "one": "{n} essential",
+      "other": "{n} essential"
+    },
+    "reviewed": "Reviewed",
+    "inThisGuide": "In this guide",
+    "progressLabel": "Your progress",
+    "progress": "{done} of {total} done",
+    "privacyNote": "Saved only in this browser. Nothing is sent anywhere.",
+    "resetProgress": "Clear my progress",
+    "markDone": "Mark as done",
+    "doneLabel": "(done)",
+    "platformsLabel": "Instructions by device or app",
+    "filters": {
+      "label": "Filter steps",
+      "essential": "Essential only",
+      "hideDone": "Hide done",
+      "showing": "Showing {shown} of {total} steps",
+      "empty": "No steps to show. Turn off a filter to see the rest."
+    },
+    "next": "Next guide",
+    "draftNotice": "Draft: this guide hasn't been reviewed yet. Don't rely on it.",
+    "privacyNoteSession": "For your safety, progress on this guide is forgotten when you close this tab.",
+    "highRiskNotice": "This guide is for people who may be singled out for surveillance or attack. No checklist makes anyone fully safe: what you need depends on your situation.",
+    "highRiskStart": "Start here: work out your risks."
+  },
+  "content": {
+    "draftBadge": "Draft",
+    "suggestEdit": "Found a mistake? Suggest an edit",
+    "print": "Print or save as PDF"
+  },
+  "articles": {
+    "title": "Articles",
+    "lead": "Plain-language explanations of how online privacy works, and why the steps in our guides matter.",
+    "description": "Lockwell articles: plain-language explanations of online privacy and security, and the risks behind the advice in our guides."
+  },
+  "article": {
+    "published": "Published",
+    "updated": "Updated",
+    "readingTime": {
+      "one": "{n} min read",
+      "other": "{n} min read"
+    },
+    "next": "Next article",
+    "draftNotice": "Draft: this article hasn't been reviewed yet. Don't rely on it."
+  },
+  "search": {
+    "title": "Search",
+    "lead": "Find a step, a guide or an article.",
+    "description": "Search all Lockwell guides, checklist steps and articles.",
+    "label": "Search the site",
+    "hint": "The search runs in your browser. What you type is not sent anywhere.",
+    "results": "Results: {n}",
+    "none": "Nothing found. Try a shorter or different word.",
+    "all": "Everything on this site",
+    "kind": {
+      "guide": "Guide",
+      "step": "Step",
+      "article": "Article",
+      "tool": "Tool"
+    }
+  },
+  "tools": {
+    "title": "Tools",
+    "lead": "Small tools that run entirely in your browser. Nothing you type or open here is sent anywhere.",
+    "description": "Free privacy tools that run in your browser: password generator, link checker and cleaner, photo and document metadata removers, image redaction, hidden character detector and a browser check.",
+    "homeHeading": "Tools",
+    "all": "All tools",
+    "needsJs": "This tool needs JavaScript, which is turned off or failed to load in your browser.",
+    "local": "Runs in your browser. Nothing is sent or saved.",
+    "chooseFile": "Choose a file",
+    "noFile": "No file chosen",
+    "copy": "Copy",
+    "copied": "Copied",
+    "copyFailed": "Couldn't copy. Select the text and copy it yourself.",
+    "notesHeading": "Good to know",
+    "aiHeading": "A word about AI",
+    "items": {
+      "password": {
+        "title": "Password generator",
+        "summary": "Create a strong, random password or PIN. It is made in your browser and never leaves it.",
+        "description": "Free password generator: strong random passwords and PINs made in your browser with a cryptographic random source. Nothing is sent or saved.",
+        "output": "Your password",
+        "new": "New one",
+        "mode": "Type",
+        "modePassword": "Password",
+        "modePin": "PIN (digits only)",
+        "length": "Length",
+        "sets": "Characters",
+        "lower": "Lowercase letters (a–z)",
+        "upper": "Uppercase letters (A–Z)",
+        "digits": "Digits (0–9)",
+        "symbols": "Symbols (!@#$…)",
+        "avoid": "Leave out look-alikes (0 O o, 1 l I |)",
+        "strength": "{label}: about {bits} bits",
+        "weak": "Weak",
+        "fair": "Fair",
+        "strong": "Strong",
+        "veryStrong": "Very strong",
+        "noSets": "Choose at least one kind of character.",
+        "note1": "Every character is picked with your browser's cryptographic random generator, the same source used for encryption keys. The password exists only on this page: it is not saved or sent, and it is gone when you close the tab.",
+        "note2": "Save the password in a password manager straight away, and use a different one for every account. Length matters more than symbols: 16 random characters or more is enough for almost anything.",
+        "note3": "A PIN made of digits is much weaker than a password of the same length. Use one only where a PIN is required, such as a phone or SIM lock, and prefer six digits or more. The time shown above assumes an attacker who can try without limit. A phone that locks after a few wrong tries makes a PIN much safer than that.",
+        "time": "Time to guess at a trillion tries a second: {time}",
+        "times": {
+          "instant": "instantly",
+          "minutes": "minutes",
+          "hours": "hours",
+          "days": "days",
+          "months": "months",
+          "years": "years",
+          "centuries": "centuries",
+          "forever": "millions of years or more"
+        },
+        "ai1": "Don't ask an AI chatbot to make up a password. Language models write text that looks random but follows patterns, so their passwords are easier to guess than they seem, and the password then sits in your chat history on someone else's servers. A generator like this one uses your device's cryptographic random source and keeps the result on this page."
+      },
+      "links": {
+        "title": "Link cleaner",
+        "summary": "Paste a link and get it back without the tracking parts, before you share it.",
+        "description": "Remove tracking parameters such as utm_source and fbclid from a link before you share it. Works in your browser: the link is never opened or sent anywhere.",
+        "input": "Paste a link, or a message with links",
+        "output": "Clean version",
+        "removed": "Removed: {list}",
+        "clean": "Nothing to remove. This link has no tracking parts we know of.",
+        "invalid": "This doesn't look like a web link. It should start with https:// or http://.",
+        "unwrapped": "This link went through {host} first. That detour is removed too.",
+        "note1": "Links copied from Facebook, Instagram, TikTok, newsletters and ads often carry extra parts such as fbclid or utm_source. They tell the site who shared the link or which ad was clicked, and can connect your account to the people you send it to.",
+        "note2": "The tool only edits the text of the link. It never opens the link and never contacts the site, so nobody learns that you checked it.",
+        "note3": "Short links such as bit.ly or t.co can't be cleaned this way: only the shortening service knows the real address. Open them only if you trust the sender.",
+        "several": "Links found in the text: {n}."
+      },
+      "photo": {
+        "title": "Photo metadata remover",
+        "summary": "See what a photo reveals about you, such as where and when it was taken, and save a copy without it.",
+        "description": "Check what hidden data a photo carries (location, date, phone model) and save a clean copy. The photo is read in your browser and never uploaded.",
+        "file": "Choose a photo (JPEG, PNG or WebP)",
+        "found": "Hidden data found in this photo:",
+        "none": "No hidden data found in this photo.",
+        "unsupported": "This file type isn't supported. Choose a JPEG, PNG or WebP photo.",
+        "heic": "This is a HEIC photo, which this tool can't read yet. On an iPhone, set Settings → Camera → Formats to Most Compatible, or export the photo as JPEG first.",
+        "tooLarge": "This file is too large. The limit is 40 MB.",
+        "damaged": "This file couldn't be read. It may be damaged.",
+        "download": "Save a clean copy",
+        "rows": {
+          "location": "Location",
+          "camera": "Camera or phone",
+          "taken": "Date taken",
+          "software": "Software",
+          "exif": "Camera settings",
+          "xmp": "Editing details",
+          "iptc": "Caption and author",
+          "comment": "Comment",
+          "thumbnail": "Preview image",
+          "trailing": "Extra data",
+          "text": "Text notes",
+          "other": "Other"
+        },
+        "flags": {
+          "exif": "Lens, exposure and other technical details",
+          "xmp": "Editing history and extra descriptions (XMP)",
+          "iptc": "Caption, author, keywords or copyright (IPTC)",
+          "comment": "A text comment saved inside the file",
+          "thumbnail": "A small copy of the photo, which can show it as it was before cropping",
+          "trailing": "Data after the image, for example the video of a motion photo",
+          "text": "Text saved inside the file, for example by an editing or AI tool",
+          "other": "Other data that isn't needed to show the picture"
+        },
+        "note1": "Phones save more than the picture: often the exact place, the time and the phone model. Anyone who gets the original file can read them.",
+        "note2": "The photo is opened in your browser only. It is not uploaded, and this site can't see it. You can check: the tool keeps working with the internet turned off.",
+        "note3": "The clean copy is the same picture, not compressed again, so the quality doesn't change. Rotation and colour information stay, so it looks the same. Everything else is removed.",
+        "note4": "Messengers usually remove this data when you send a picture as a photo, but not when you send it as a file or document. Email and many websites keep it. Removing metadata doesn't hide what the picture itself shows: faces, street signs, screens.",
+        "pasteHint": "You can also paste a photo or drop a file here.",
+        "ai1": "Removing metadata is no longer the whole story. AI models can often work out where a photo was taken from the picture alone: the buildings, signs, plants, even the light. If the place must stay private, check what is visible in the background, not only what is stored in the file.",
+        "ai2": "If you upload a photo to an AI chatbot, the service receives the original file, hidden data included. Clean it first if the place or time matters."
+      },
+      "browser": {
+        "title": "What your browser reveals",
+        "summary": "See what every website you visit can learn about your device without asking, and try what autofill gives away.",
+        "description": "See what your browser tells every website: language, time zone, device, graphics chip, fonts and a fingerprint that identifies you without cookies. Shown only to you.",
+        "fingerprint": "Your browser's fingerprint",
+        "fingerprintWhy": "A code made from the details below. Any site can work out the same code and recognise your browser by it, even after you delete cookies or open a private window.",
+        "groups": {
+          "place": "Language and place",
+          "device": "Your device",
+          "settings": "Your settings",
+          "signature": "Hidden signatures",
+          "network": "Connection"
+        },
+        "rows": {
+          "languages": "Languages",
+          "timeZone": "Time zone",
+          "userAgent": "Browser and system",
+          "os": "System version",
+          "model": "Device model",
+          "platform": "Platform",
+          "gpu": "Graphics chip",
+          "cores": "Processor cores",
+          "memory": "Memory (approximate)",
+          "screen": "Screen",
+          "window": "Window size",
+          "colors": "Colours",
+          "touch": "Touch screen",
+          "theme": "Colour theme",
+          "motion": "Reduced motion",
+          "contrast": "Higher contrast",
+          "cookies": "Cookies allowed",
+          "dnt": "Do Not Track",
+          "gpc": "Global Privacy Control",
+          "canvas": "Canvas drawing",
+          "fonts": "Installed fonts",
+          "connection": "Connection speed",
+          "referrer": "Page you came from",
+          "ip": "IP address"
+        },
+        "why": {
+          "languages": "Shows which languages you read, in order of preference.",
+          "timeZone": "Narrows down where you are, even behind a VPN.",
+          "userAgent": "Your browser, its version and your operating system.",
+          "os": "Some browsers give the exact system version when a site asks.",
+          "gpu": "The exact graphics chip often gives away the model of your computer or phone.",
+          "screen": "Size and sharpness differ from device to device.",
+          "motion": "An accessibility setting. Settings like this can hint at a health condition.",
+          "dnt": "A request not to be tracked. Most sites ignore it.",
+          "gpc": "A newer signal that some privacy laws require sites to respect.",
+          "canvas": "This page drew a small picture out of sight. Each device draws it slightly differently, so the result works like a signature. Some browsers change it on purpose every time.",
+          "fonts": "Fonts show which programs are installed, for example Microsoft Office or design software.",
+          "referrer": "Sites usually see which page sent you. Links from Lockwell don't reveal it.",
+          "ip": "Every website also sees your IP address, which shows your internet provider and roughly where you are. This page can't show it: that would need a server that records it."
+        },
+        "tokens": {
+          "yes": "Yes",
+          "no": "No",
+          "on": "On",
+          "off": "Off",
+          "unset": "Not set",
+          "unsupported": "Not supported by this browser",
+          "none": "None",
+          "dark": "Dark",
+          "light": "Light",
+          "unknown": "Not available"
+        },
+        "autofill": {
+          "heading": "Try it: what autofill gives away",
+          "intro": "Saved names, addresses and phone numbers are handy. But a page can contain fields you can't see, and your browser may fill those in too. Start typing in the name field and choose one of your browser's suggestions.",
+          "name": "Name",
+          "email": "Email",
+          "phone": "Phone",
+          "company": "Company",
+          "address": "Street address",
+          "city": "City",
+          "zip": "Postal code",
+          "country": "Country",
+          "leaked": "Your browser also filled in fields you couldn't see:",
+          "safe": "Nothing extra was filled in. You typed by hand, you have no saved address, or your browser protected you.",
+          "clear": "Clear",
+          "note": "This form goes nowhere. What was filled in is shown only here and is erased when you clear it or leave the page. Bank cards are not part of this demonstration.",
+          "tip": "To protect yourself, turn off address autofill in your browser's settings, or use a password manager that fills in only when you ask."
+        },
+        "cannot": {
+          "heading": "What websites can't see without asking",
+          "item1": "Your browsing history and your other open tabs.",
+          "item2": "Files on your device, unless you choose one yourself.",
+          "item3": "Passwords you saved for other sites.",
+          "item4": "Your camera, microphone and exact location, until you allow them.",
+          "item5": "What you copied, unless you paste it."
+        },
+        "note1": "None of the details above needs your permission. Each is harmless alone, but together they form a fingerprint that recognises your browser on different sites, even without cookies.",
+        "note2": "These values are read by this page and shown only to you. They are not sent or saved.",
+        "note3": "You can reduce what sites learn: keep your browser updated, use a browser with fingerprinting protection such as Firefox, Brave or Tor Browser, and remove extensions you don't need."
+      },
+      "check": {
+        "title": "Link checker",
+        "summary": "Paste a link you're not sure about and see where it really leads, before you open it.",
+        "description": "Check a suspicious link without opening it: see the real site it leads to and the tricks phishing links use, such as look-alike letters and fake brand names.",
+        "input": "Paste a link, or the message it came in",
+        "leads": "This link leads to",
+        "invalid": "This doesn't look like a web link. It should start with https:// or http://.",
+        "ok": "No warning signs in the address. That doesn't prove the site is safe: if you weren't expecting this link, don't open it.",
+        "warn": "Warning signs: {n}",
+        "warnings": {
+          "redirect": "The link first goes through {via}, which then sends you on to {site}.",
+          "http": "The connection is not encrypted (http instead of https). Don't type a password or card number there.",
+          "ip": "The address is a number instead of a name. Real services almost never send links like this.",
+          "userinfo": "There is an “@” in the address. Everything before it is decoration; the real site is {site}.",
+          "port": "The address uses an unusual port number ({port}).",
+          "mixedScript": "The name mixes alphabets, for example Latin and Cyrillic letters that look the same. This is a classic way to fake a well-known address.",
+          "lookalikeScript": "The name is written in letters from another alphabet that look just like English ones.",
+          "brandSubdomain": "“{brand}” appears at the start of the address, but the site is really {site}. Only the end of the address counts.",
+          "nestedDomain": "The address starts with “{inner}”, which looks like another site's address, but the site is really {site}. Only the end of the address counts.",
+          "brandLookalike": "The address contains “{brand}”, but {site} is not that company's usual address.",
+          "typo": "The address looks like “{brand}” with a small change. Compare it letter by letter.",
+          "shortener": "This is a shortened link. It hides the real address, which this tool can't see without opening it.",
+          "deepSubdomain": "The address has many parts in front of the site name, which can be used to hide where it leads.",
+          "fileTld": "The address ends in .{ending}, which looks like a file type. It is a website, not a file.",
+          "download": "The link points to a file that can install or run software (.{file}). Open it only if you were expecting it."
+        },
+        "note1": "Read an address from the end. In login.example.com.evil.ge the site is evil.ge; everything in front of it can be anything the owner likes, including the name of your bank.",
+        "note2": "The tool reads only the text of the link. It never opens it and never contacts the site, so nobody learns that you checked. For the same reason it can't know what the page contains.",
+        "note3": "A clean result is not a guarantee. When a message asks you to log in or pay, don't use its link: open the site yourself from a bookmark or by typing the address.",
+        "several": "The text has {n} links. This is the first one; check the others one at a time.",
+        "ai1": "You can ask an AI chatbot whether a link is safe, but treat the answer with care. Many can't open the page at all and still answer confidently; others are fooled by the same tricks that fool people. This tool does one narrow thing reliably: it reads the address itself, by fixed rules, and shows where it leads. And if a suspicious link came in a private message, pasting the whole message into a chatbot shares that conversation too."
+      },
+      "redact": {
+        "title": "Image redaction",
+        "summary": "Cover faces, names or messages in a photo or screenshot with solid shapes, crop away the rest, and save a copy that hides them for good.",
+        "description": "Cover faces, names, number plates or messages in a photo or screenshot with solid shapes, and crop it, before sharing. Works in your browser: the image is never uploaded.",
+        "file": "Choose a photo or screenshot",
+        "pasteHint": "You can also paste a screenshot or drop a file here.",
+        "canvas": "Your image. Drag to cover what should be hidden.",
+        "help": "Drag on the image to cover an area. Tap a covered area to select it, then drag it to move it or drag its handles to resize it. Use two fingers to move around a zoomed image. With a keyboard: focus the image, press Enter to add an area, move it with the arrow keys, resize it with Shift and the arrow keys, remove it with Delete, and switch between areas with Page Up and Page Down.",
+        "modes": "Mode",
+        "modeBox": "Box",
+        "modeEllipse": "Ellipse",
+        "modeMarker": "Marker",
+        "modeCrop": "Crop",
+        "markerSize": "Marker thickness",
+        "undo": "Undo",
+        "redo": "Redo",
+        "remove": "Delete selected",
+        "removeCrop": "Remove crop",
+        "clearAll": "Remove everything",
+        "zoomIn": "Zoom in",
+        "zoomOut": "Zoom out",
+        "count": "Covered areas: {n}.",
+        "cropped": "Only the outlined part will be in the copy.",
+        "check": "Check the result",
+        "resultTitle": "Check before you share",
+        "resultHelp": "This is exactly the picture that will be saved. Look for anything that can still be read or recognised.",
+        "download": "Save the covered copy",
+        "copyImage": "Copy image",
+        "copied": "Image copied",
+        "copyFailed": "This browser can't copy images. Save the copy instead.",
+        "unsupported": "This file can't be opened as an image. Choose a JPEG, PNG or WebP file.",
+        "tooLarge": "This file is too large. The limit is 40 MB.",
+        "resized": "The image is very large, so the saved copy is scaled down to {w} × {h}.",
+        "encodeFailed": "The browser could not create the copy. Try a smaller image.",
+        "note1": "Covered areas are solid and painted into the picture itself. In the saved copy the pixels underneath no longer exist, so nobody can uncover them. This tool doesn't blur on purpose: blurred text and faces can sometimes be recovered.",
+        "note2": "The saved copy is a new picture, so it carries none of the original's hidden data such as location, date and device. Parts you crop away are not in the copy at all.",
+        "note3": "The image is opened in your browser only. It is not uploaded, and this site can't see it.",
+        "note4": "Look at the result before you share it. Cover reflections, name tags, tattoos, street signs and screens too, and remember that the original is still on your device.",
+        "ai1": "AI image editors can now hide a face or erase a name too, often more neatly than a black box. The catch is how they do it: to change the picture, the service has to receive the original, with everything you wanted hidden still in it.",
+        "ai2": "Most AI services keep what you upload for some time, and some let staff look at it or use it to train future models, depending on your settings and plan. For a picture you are covering precisely because it is sensitive, that defeats the purpose. An AI that “removes” something also fills the gap with invented detail, which someone may later take for the real thing. A plain black shape drawn on your own device is less elegant, but nothing leaves the device and nobody can mistake it for the original."
+      },
+      "document": {
+        "title": "Document metadata",
+        "summary": "See what a Word, Excel, PowerPoint or PDF file says about who made it, and save a cleaned copy of Office files.",
+        "description": "Check the hidden details in a DOCX, XLSX, PPTX or PDF file: author, company, software, dates and tracked changes. Save a cleaned copy of Office files. Nothing is uploaded.",
+        "file": "Choose a document (DOCX, XLSX, PPTX or PDF)",
+        "found": "Hidden data found in this document:",
+        "none": "No details about the author were found in this document.",
+        "unsupported": "This file type isn't supported. Choose a DOCX, XLSX, PPTX or PDF file.",
+        "old": "This is an old-format Office file (.doc, .xls or .ppt), which this tool can't read. Save it as .docx, .xlsx or .pptx first.",
+        "tooLarge": "This file is too large. The limit is 40 MB.",
+        "damaged": "This file couldn't be read. It may be damaged or protected with a password.",
+        "browser": "Your browser is too old for this tool. Update it and try again.",
+        "download": "Save a cleaned copy",
+        "pdfOnly": "PDF files can be checked here but not cleaned. To remove this data, print the document to a new PDF or export it again with document properties turned off.",
+        "kept": "The cleaned copy still contains tracked changes and comments. Accept or reject all changes and delete the comments in your editor before you share the file.",
+        "rows": {
+          "author": "Author",
+          "lastAuthor": "Last edited by",
+          "company": "Company",
+          "manager": "Manager",
+          "title": "Title",
+          "subject": "Subject",
+          "keywords": "Keywords",
+          "comments": "Description",
+          "created": "Created",
+          "modified": "Last changed",
+          "printed": "Last printed",
+          "revision": "Times saved",
+          "editTime": "Editing time (minutes)",
+          "software": "Software",
+          "template": "Template",
+          "producer": "PDF made with",
+          "tracked": "Tracked changes",
+          "commentsPart": "Comments",
+          "custom": "Custom properties",
+          "xmp": "Embedded description"
+        },
+        "flags": {
+          "tracked": "Deleted and inserted text is still stored in the file, with the name of the person who changed it",
+          "commentsPart": "Comments in the margin, with their authors' names",
+          "custom": "Extra fields added by an organisation or a program",
+          "xmp": "A block with further details about how the file was made"
+        },
+        "note1": "Office programs and PDF exporters write your name, your organisation, the software and the dates into every file. Sources have been identified from these details.",
+        "note2": "The document is opened in your browser only. It is not uploaded, and this site can't see it.",
+        "note3": "For Word, Excel and PowerPoint files the cleaned copy has its properties emptied and the internal file dates reset. The text, formatting and pictures are not touched.",
+        "note4": "What a cleaned copy can still reveal: tracked changes and comments, names typed in the text, and hidden data inside embedded pictures. For anything sensitive, copy the text into a new, empty document.",
+        "dropHint": "You can also drop a file here.",
+        "ai1": "It is tempting to hand a document to an AI assistant and ask it to make it anonymous or to look for hidden details. Doing so sends the whole document, text and properties alike, to that company's servers, where it may be kept and, depending on your settings and plan, read by staff or used to train models. Check and clean a document you want to protect on your own device first, and think twice about what you upload after that."
+      },
+      "hidden": {
+        "title": "Hidden character detector",
+        "summary": "Paste text to reveal invisible characters and look-alike letters that can be used to trace who shared it.",
+        "description": "Find invisible characters, unusual spaces and look-alike letters hidden in a text, which can mark a copy and reveal who leaked it. Get a clean version. Nothing is sent anywhere.",
+        "input": "Paste text",
+        "none": "No hidden or unusual characters found.",
+        "found": "Hidden or unusual characters found: {n}",
+        "secret": "Hidden message written in them: {text}",
+        "truncated": "Only the first 2,000 places are shown below. The count and the clean text cover the whole text.",
+        "marked": "Where they are",
+        "clean": "Clean text",
+        "rows": {
+          "zeroWidth": "Invisible characters",
+          "bidi": "Direction marks",
+          "tags": "Hidden tag characters",
+          "softHyphen": "Soft hyphens",
+          "spaces": "Unusual spaces",
+          "trailing": "Spaces at line ends",
+          "lookalike": "Look-alike letters"
+        },
+        "flags": {
+          "zeroWidth": "Characters with no width: the usual way to hide a mark inside text",
+          "bidi": "Marks that change the direction of text, also used to disguise file names and links",
+          "tags": "Invisible characters that can carry a whole hidden message",
+          "softHyphen": "Hyphens that only appear at a line break",
+          "spaces": "Spaces of a different width from the ordinary one; a pattern of them can identify a copy",
+          "trailing": "Spaces or tabs at the end of lines, which nobody sees",
+          "lookalike": "Words that mix alphabets, such as a Cyrillic “а” in an English word. They are not changed in the clean text: check them yourself"
+        },
+        "note1": "A document can be marked so that every copy is slightly different: an invisible character here, a wider space there, a letter swapped for its twin from another alphabet. If the text leaks, the pattern shows whose copy it was.",
+        "note2": "The clean text has invisible characters removed and unusual spaces replaced with ordinary ones. Marks made with wording, such as a changed word or comma, can't be detected by any tool: for something sensitive, retell it in your own words.",
+        "note3": "The text stays in your browser. It is not sent or saved.",
+        "ai1": "Invisible characters matter for AI in two ways. First, a text can carry hidden instructions that you can't see but an AI assistant will read. If you paste such a text, or let an assistant read a web page or an email that contains it, the assistant may follow those instructions instead of yours. The “hidden tag characters” above are the usual carrier. Check text from a source you don't trust before you give it to an assistant.",
+        "ai2": "Second, text written by AI tools sometimes arrives with unusual spaces or invisible characters of its own. Not every such character is a deliberate mark, but the clean text removes them either way. Watermarks that work through the choice of words, which some companies are developing, can't be seen or removed by this tool."
+      }
+    }
+  },
+  "home": {
+    "cta": "Start here",
+    "continue": "Continue:",
+    "allGuides": "All guides",
+    "guidesHeading": "Where to start",
+    "articlesHeading": "Latest articles",
+    "allArticles": "All articles",
+    "promises": {
+      "tracking": {
+        "title": "No tracking"
+      },
+      "device": {
+        "title": "Stays on your device"
+      },
+      "open": {
+        "title": "Open and free"
+      }
+    },
+    "highRiskGuides": "For people at higher risk",
+    "allGuidesCount": {
+      "one": "All guides",
+      "other": "All {n} guides"
+    },
+    "urgent": "Hacked or harassed right now?",
+    "highRisk": {
+      "title": "At higher risk?",
+      "cta": "Make your security plan",
+      "text": "If you are an activist or a journalist, or have reason to think someone is targeting you, start with your security plan: it helps you work out which guides you need."
+    }
+  },
+  "footer": {
+    "promise": "No tracking, no cookies, no ads.",
+    "storageNote": "Checklist progress and settings are saved only in this browser.",
+    "clearData": "Clear saved data",
+    "cleared": "Saved data cleared",
+    "copyright": "© {year}"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "text": "This page doesn't exist or has moved.",
+    "back": "Go to the home page"
+  }
+}
