@@ -283,6 +283,30 @@ describe('build safety and options', () => {
     assert.match(await read('en/index.html'), /data-js="card-progress" data-guide="g[0-9a-f]{10}" data-storage="session"/);
   });
 
+  it('places figures as accessible inline SVG in both languages, and checks them', async () => {
+    await build({ outDir, siteUrl: 'https://example.org/' });
+    for (const path of ['guides/messaging/index.html', 'en/guides/messaging/index.html']) {
+      const page = await read(path);
+      const figure = /<figure class="figure" id="figure-account-takeover"><svg class="figure__art" [^>]*role="img" aria-labelledby="figure-account-takeover-title"[^>]*><title id="figure-account-takeover-title">[^<]+<\/title>/.exec(page);
+      assert.ok(figure, `${path} has the account-takeover figure`);
+      assert.match(page, /<figcaption class="figure__caption">[^<]+<\/figcaption><\/figure>/);
+    }
+
+    const missing = await contentCopy();
+    await appendFile(join(missing, 'en', 'pages', 'about.md'), '\n![Caption](figure:nope)\n');
+    await assert.rejects(build({ outDir, contentDir: missing, siteUrl: 'https://example.org/' }), /about\.md:\d+ — Figure "nope" doesn't exist/);
+
+    const mismatch = await contentCopy();
+    const file = join(mismatch, 'en', 'guides', 'messaging.md');
+    await writeFile(file, (await readFile(file, 'utf8')).replace(/\n!\[[^\]]+\]\(figure:account-takeover\)\n/, '\n'));
+    await assert.rejects(build({ outDir, contentDir: mismatch, siteUrl: 'https://example.org/' }), /Figures in "account-pin" must match/);
+
+    const unused = await contentCopy();
+    await cp(join(unused, 'en', 'figures', 'risk-grid.svg'), join(unused, 'en', 'figures', 'spare.svg'));
+    const result = await build({ outDir, contentDir: unused, siteUrl: 'https://example.org/' });
+    assert.ok(result.warnings.some((w) => /spare\.svg: not used/.test(w)), result.warnings.join('\n'));
+  });
+
   it('BUG-11: warns that robots.txt is ignored when the site lives under a subpath', async () => {
     const sub = await build({ outDir, siteUrl: 'https://example.org/sub/' });
     assert.ok(sub.warnings.some((w) => /robots\.txt.*\/sub\//.test(w)), sub.warnings.join('\n'));

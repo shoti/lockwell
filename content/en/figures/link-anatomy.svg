@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 297">
+  <title>How to read a web address</title>
+  <desc>The site is the name just before the first single / after https://. Read it from the end. In https://login.example.com.evil.ge/account the site is evil.ge, not example.com.</desc>
+  <rect x="0" y="0" width="340" height="100" rx="8" class="box"/>
+  <text x="12" y="26.4" class="t-b t-good">Real</text>
+  <rect x="102.9" y="37.8" width="92" height="21" rx="3" class="fill-good-soft"/>
+  <text x="12" y="52.8" class="t-muted">https://</text>
+  <text x="66.5" y="52.8">login.</text>
+  <text x="103.9" y="52.8">example.com</text>
+  <text x="193.9" y="52.8" class="t-muted">/account</text>
+  <path d="M103.9 61.8 V66.8 H193.9 V61.8" class="line-good line-thin"/>
+  <text x="148.9" y="83.3" class="t-sm t-good" text-anchor="middle">The site</text>
+  <rect x="0" y="110" width="340" height="142.3" rx="8" class="box"/>
+  <text x="12" y="136.4" class="t-b t-bad">Fake</text>
+  <text x="66.5" y="158.2" class="t-sm t-warn">Can say anything, even your</text>
+  <text x="66.5" y="175.4" class="t-sm t-warn">bank’s name</text>
+  <path d="M66.5 189.1 V184.1 H193.5 V189.1" class="line-warn line-thin"/>
+  <rect x="196.5" y="190.1" width="45.7" height="21" rx="3" class="fill-bad-soft"/>
+  <text x="12" y="205.1" class="t-muted">https://</text>
+  <text x="66.5" y="205.1">login.example.com.</text>
+  <text x="197.5" y="205.1">evil.ge</text>
+  <text x="241.1" y="205.1" class="t-muted">/account</text>
+  <path d="M197.5 214.1 V219.1 H241.1 V214.1" class="line-bad line-thin"/>
+  <text x="219.3" y="235.6" class="t-sm t-bad" text-anchor="middle">The site it really is</text>
+  <text x="0" y="274.7" class="t-sm">The site is the name just before the first single / after</text>
+  <text x="0" y="291.9" class="t-sm">https://. Read it from the end.</text>
+</svg>

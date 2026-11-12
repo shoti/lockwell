@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 265">
+  <title>ორი დაფარვა, რომლებიც ერთნაირად გამოიყურება</title>
+  <desc>ეკრანზე ორივე ერთნაირად ჩანს. მონიშნეთ და დააკოპირეთ, რაც მართკუთხედის ქვეშაა: ზემოდან დახატული მართკუთხედი: წყაროს სახელი. ტექსტი ფაილში დარჩა. დაფარვის ხელსაწყო: არაფერი. ტექსტი წაიშალა.</desc>
+  <text x="0" y="14.4" class="t-b t-bad">ზემოდან დახატული</text>
+  <text x="0" y="34.2" class="t-b t-bad">მართკუთხედი</text>
+  <text x="180" y="14.4" class="t-b t-good">დაფარვის ხელსაწყო</text>
+  <rect x="0" y="45.6" width="160" height="84" rx="4" class="box"/>
+  <rect x="14" y="59.6" width="120" height="4" rx="2" class="fill-muted"/>
+  <rect x="11" y="71.6" width="138" height="14" rx="2" class="fill-ink"/>
+  <rect x="14" y="93.6" width="110" height="4" rx="2" class="fill-muted"/>
+  <rect x="14" y="110.6" width="90" height="4" rx="2" class="fill-muted"/>
+  <rect x="180" y="45.6" width="160" height="84" rx="4" class="box"/>
+  <rect x="194" y="59.6" width="120" height="4" rx="2" class="fill-muted"/>
+  <rect x="191" y="71.6" width="138" height="14" rx="2" class="fill-ink"/>
+  <rect x="194" y="93.6" width="110" height="4" rx="2" class="fill-muted"/>
+  <rect x="194" y="110.6" width="90" height="4" rx="2" class="fill-muted"/>
+  <text x="170" y="150.1" class="t-sm t-muted" text-anchor="middle">ეკრანზე ორივე ერთნაირად ჩანს.</text>
+  <line x1="80" y1="160.8" x2="80" y2="175.8" class="line"/>
+  <polygon points="80,182.8 84.2,175.8 75.8,175.8" class="fill-muted"/>
+  <line x1="260" y1="160.8" x2="260" y2="175.8" class="line"/>
+  <polygon points="260,182.8 264.2,175.8 255.8,175.8" class="fill-muted"/>
+  <rect x="0" y="186.8" width="160" height="78.1" rx="8" class="box-bad"/>
+  <text x="80" y="211.2" class="t-b t-bad" text-anchor="middle">წყაროს სახელი</text>
+  <text x="80" y="233" class="t-sm" text-anchor="middle">ტექსტი ფაილში</text>
+  <text x="80" y="250.2" class="t-sm" text-anchor="middle">დარჩა</text>
+  <rect x="180" y="186.8" width="160" height="78.1" rx="8" class="box-good"/>
+  <text x="260" y="211.2" class="t-b t-good" text-anchor="middle">არაფერი</text>
+  <text x="260" y="233" class="t-sm" text-anchor="middle">ტექსტი წაიშალა</text>
+</svg>

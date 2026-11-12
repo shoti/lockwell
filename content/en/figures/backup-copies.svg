@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 335">
+  <title>Three copies, two kinds of storage, one somewhere else</title>
+  <desc>Your computer: The original. External drive: Unplugged after each backup. The cloud: Somewhere else. 3 copies of what matters; 2 kinds of storage (Disks, Cloud); 1 somewhere else. A synced folder is not a separate copy: a file deleted or damaged on the computer disappears there too.</desc>
+  <rect x="0" y="0" width="104" height="148.6" rx="8" class="box"/>
+  <rect x="26" y="15" width="52" height="32" rx="3" class="box-soft"/>
+  <rect x="26" y="15" width="52" height="32" rx="3" class="box"/>
+  <path d="M18 53 H86 L80 47 H24 Z" class="box"/>
+  <text x="52" y="80.5" class="t-sm t-b" text-anchor="middle">Your computer</text>
+  <text x="52" y="99.6" class="t-sm t-muted" text-anchor="middle">The original</text>
+  <rect x="118" y="0" width="104" height="148.6" rx="8" class="box-good"/>
+  <rect x="152" y="13" width="36" height="44" rx="6" class="box"/>
+  <circle cx="170" cy="47" r="3" class="fill-good"/>
+  <text x="170" y="80.5" class="t-sm t-b" text-anchor="middle">External drive</text>
+  <text x="170" y="99.6" class="t-sm t-muted" text-anchor="middle">Unplugged</text>
+  <text x="170" y="116.8" class="t-sm t-muted" text-anchor="middle">after each</text>
+  <text x="170" y="134" class="t-sm t-muted" text-anchor="middle">backup</text>
+  <rect x="236" y="0" width="104" height="148.6" rx="8" class="box-good"/>
+  <path d="M266 47 H310 A10 10 0 0 0 308 29 A14 14 0 0 0 282 23 A11 11 0 0 0 266 47 Z" class="box"/>
+  <text x="288" y="80.5" class="t-sm t-b" text-anchor="middle">The cloud</text>
+  <text x="288" y="99.6" class="t-sm t-muted" text-anchor="middle">Somewhere</text>
+  <text x="288" y="116.8" class="t-sm t-muted" text-anchor="middle">else</text>
+  <text x="0" y="172.6" class="t-lg t-good">3</text>
+  <text x="30" y="171.1" class="t-sm t-b">copies of what matters</text>
+  <path d="M4 187.6 V182.6 H336 V187.6" class="line-good line-thin"/>
+  <text x="0" y="212.6" class="t-lg t-good">2</text>
+  <text x="30" y="211.1" class="t-sm t-b">kinds of storage</text>
+  <path d="M4 227.6 V222.6 H218 V227.6" class="line-good line-thin"/>
+  <text x="111" y="241.1" class="t-sm t-good" text-anchor="middle">Disks</text>
+  <path d="M240 227.6 V222.6 H336 V227.6" class="line-good line-thin"/>
+  <text x="288" y="241.1" class="t-sm t-good" text-anchor="middle">Cloud</text>
+  <text x="0" y="267.8" class="t-lg t-good">1</text>
+  <text x="30" y="266.3" class="t-sm t-b">somewhere else</text>
+  <path d="M240 282.8 V277.8 H336 V282.8" class="line-good line-thin"/>
+  <line x1="0" y1="291.8" x2="340" y2="291.8" class="line line-thin"/>
+  <text x="0" y="312.3" class="t-sm t-muted">A synced folder is not a separate copy: a file deleted or</text>
+  <text x="0" y="329.4" class="t-sm t-muted">damaged on the computer disappears there too.</text>
+</svg>

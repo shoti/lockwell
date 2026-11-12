@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 382">
+  <title>რატომ იცავს გამორთვა ეკრანის ჩაკეტვაზე მეტად</title>
+  <desc>გამორთული, ან გადატვირთული და ჯერ განუბლოკავი: მონაცემების უმეტესობა ჩაკეტილი რჩება, სანამ პაროლს არ შეიყვანთ. განბლოკილი: მონაცემები ღიაა ყველასთვის, ვისაც ტელეფონი უჭირავს. პირველი განბლოკვის შემდეგ ისევ ჩაკეტილი ეკრანი: მონაცემების დიდი ნაწილი მეხსიერებიდან იკითხება. ექსპერტიზის ხელსაწყოები ასეთ ტელეფონზე გაცილებით უკეთ მუშაობს. პაროლს შეიყვანთ, ეკრანი იკეტება, სრულად გამორთეთ.</desc>
+  <rect x="0" y="0" width="290" height="100.9" rx="8" class="box-good"/>
+  <text x="12" y="26.4" class="t-b t-good">გამორთული, ან გადატვირთული</text>
+  <text x="12" y="46.2" class="t-b t-good">და ჯერ განუბლოკავი</text>
+  <text x="12" y="67.1" class="t-sm">მონაცემების უმეტესობა ჩაკეტილი</text>
+  <text x="12" y="84.2" class="t-sm">რჩება, სანამ პაროლს არ შეიყვანთ.</text>
+  <line x1="40" y1="102.9" x2="40" y2="123.9" class="line"/>
+  <polygon points="40,130.9 44.2,123.9 35.8,123.9" class="fill-muted"/>
+  <text x="52" y="120.8" class="t-sm">პაროლს შეიყვანთ</text>
+  <rect x="0" y="132.9" width="290" height="81.1" rx="8" class="box-bad"/>
+  <text x="12" y="159.3" class="t-b t-bad">განბლოკილი</text>
+  <text x="12" y="180.2" class="t-sm">მონაცემები ღიაა ყველასთვის, ვისაც</text>
+  <text x="12" y="197.4" class="t-sm">ტელეფონი უჭირავს.</text>
+  <line x1="40" y1="216" x2="40" y2="237" class="line"/>
+  <polygon points="40,244 44.2,237 35.8,237" class="fill-muted"/>
+  <text x="52" y="233.9" class="t-sm">ეკრანი იკეტება</text>
+  <rect x="0" y="246" width="290" height="135.2" rx="8" class="box-warn"/>
+  <text x="12" y="272.4" class="t-b t-warn">პირველი განბლოკვის შემდეგ ისევ</text>
+  <text x="12" y="292.2" class="t-b t-warn">ჩაკეტილი ეკრანი</text>
+  <text x="12" y="313.1" class="t-sm">მონაცემების დიდი ნაწილი</text>
+  <text x="12" y="330.3" class="t-sm">მეხსიერებიდან იკითხება. ექსპერტიზის</text>
+  <text x="12" y="347.4" class="t-sm">ხელსაწყოები ასეთ ტელეფონზე</text>
+  <text x="12" y="364.6" class="t-sm">გაცილებით უკეთ მუშაობს.</text>
+  <polyline points="292,313.7 328,313.7 328,50.5 301,50.5" class="line-good"/>
+  <polygon points="294,50.5 301,54.7 301,46.3" class="fill-good"/>
+  <rect x="319" y="110.7" width="18" height="142.8" rx="4" class="fill-bg"/>
+  <text x="332.5" y="182.1" class="t-sm t-b t-good" text-anchor="middle" transform="rotate(-90 332.5 182.1)">სრულად გამორთეთ</text>
+</svg>

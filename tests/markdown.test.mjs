@@ -195,3 +195,36 @@ describe('strongTexts', () => {
     assert.deepEqual(strongTexts('No bold here, only *emphasis* and `code`.'), []);
   });
 });
+
+describe('figures in Markdown', () => {
+  /** @type {import('../src/build/markdown.mjs').RenderContext} */
+  const withFigures = { ...ctx, figure: (name, caption) => `<figure data-name="${name}">${caption}</figure>` };
+
+  it('parses a figure on a line of its own, keeping the caption for rendering', () => {
+    const nodes = parseBlocks('Intro text.\n![The **site** is at the end](figure:link-anatomy)\nMore text.', 'test.md');
+    assert.deepEqual(nodes.map((n) => n.type), ['paragraph', 'figure', 'paragraph']);
+    assert.deepEqual(nodes[1], { type: 'figure', name: 'link-anatomy', caption: 'The **site** is at the end', line: 2 });
+  });
+
+  it('renders the caption as escaped inline Markdown and hands it to the figure resolver', () => {
+    const out = renderBlocks(parseBlocks('![Use <b> **this**](figure:x)', 'test.md'), withFigures).toString();
+    assert.equal(out, '<figure data-name="x">Use &lt;b&gt; <strong>this</strong></figure>');
+  });
+
+  it('rejects other image syntax, empty captions and figures inside callouts', () => {
+    assert.throws(() => parseBlocks('![photo](https://example.org/a.png)', 'test.md'), /test\.md:1 — Images must be figures/);
+    assert.throws(() => parseBlocks('![](figure:x)', 'test.md'), /Images must be figures/);
+    assert.throws(() => parseBlocks('![A](figure:Bad_Name)', 'test.md'), /Images must be figures/);
+    assert.throws(() => parseBlocks('![A](figure:x) and text', 'test.md'), /Images must be figures/);
+    assert.throws(() => parseBlocks('> [!note]\n> ![A](figure:x)', 'test.md'), /Callouts may only contain paragraphs and lists/);
+  });
+
+  it('ends a list before a figure', () => {
+    const nodes = parseBlocks('1. One\n![A](figure:x)', 'test.md');
+    assert.deepEqual(nodes.map((n) => n.type), ['list', 'figure']);
+  });
+
+  it('fails where no figures are available', () => {
+    assert.throws(() => render('![A](figure:x)'), /Figures are not supported here/);
+  });
+});

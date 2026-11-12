@@ -67,6 +67,8 @@ When a site is breached, attackers try the leaked passwords on email, social med
 
 With two-step verification, a new device needs your password and a second proof before it can sign in. A stolen password alone is then not enough. The methods are not equal: a passkey or security key is the strongest, an authenticator app or a prompt on your phone comes next, and codes by SMS are the weakest, because a phone number can be moved to another SIM card. SMS codes are still far better than nothing.
 
+![Choose the strongest method each account offers.](figure:two-step-methods)
+
 ### Google
 
 1. Open your [Google Account](https://myaccount.google.com/) and choose **Security & sign-in**.

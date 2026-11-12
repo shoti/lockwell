@@ -10,6 +10,7 @@ import { readdir, readFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 import { readingMinutes } from './article.mjs';
 import { ContentError } from './errors.mjs';
+import { loadFigures } from './figures.mjs';
 import { AUDIENCES, GROUPS, parseFrontMatter, validateFrontMatter } from './frontmatter.mjs';
 import { splitGuide } from './guide.mjs';
 import { missingKeys } from './i18n.mjs';
@@ -80,6 +81,7 @@ import { ROOT } from './site.mjs';
  * @property {Record<string, Guide[]>} guides  Per language, sorted by track, then `order`.
  * @property {Record<string, Article[]>} articles  Per language, newest first.
  * @property {Record<string, Page[]>} pages
+ * @property {Record<string, Map<string, import('./figures.mjs').Figure>>} figures  Per language, by name.
  * @property {string[]} warnings  Non-fatal issues to print after the build.
  */
 
@@ -134,17 +136,19 @@ const PAGE_FIELDS = {
  */
 export async function loadContent(site, { contentDir, now = new Date() }) {
   /** @type {Content} */
-  const content = { strings: {}, guides: {}, articles: {}, pages: {}, warnings: [] };
+  const content = { strings: {}, guides: {}, articles: {}, pages: {}, figures: {}, warnings: [] };
 
   for (const lang of site.languages) {
     content.strings[lang] = await loadStrings(contentDir, lang);
     content.guides[lang] = await loadGuides(contentDir, lang, site);
     content.articles[lang] = await loadArticles(contentDir, lang);
     content.pages[lang] = await loadPages(contentDir, lang, site);
+    content.figures[lang] = await loadFigures(contentDir, lang);
   }
 
   checkStrings(site, content);
   checkTranslations(site, content);
+  checkFigures(site, content);
   checkDescriptions(site, content);
   checkReviewDates(site, content, now);
   return content;
@@ -395,6 +399,79 @@ function checkTranslations(site, content) {
       for (const entry of content[kind][base]) {
         if (!content[kind][lang].some((translation) => translation.slug === entry.slug)) {
           content.warnings.push(`${entry.file}: not translated to ${lang} yet.`);
+        }
+      }
+    }
+  }
+}
+
+/**
+ * The figures placed in some blocks, in order.
+ * @param {BlockNode[]} nodes
+ * @returns {import('./markdown.mjs').FigureNode[]}
+ */
+function figuresIn(nodes) {
+  return nodes.filter((node) => node.type === 'figure');
+}
+
+/**
+ * The parts of a guide that can hold figures: the intro, then each item with its tabs.
+ * @param {Guide} guide
+ * @returns {{ part: string, nodes: BlockNode[] }[]}
+ */
+function guideParts(guide) {
+  return [
+    { part: 'intro', nodes: guide.intro },
+    ...guide.items.map((item) => ({ part: item.id, nodes: [...item.body, ...item.platforms.flatMap((platform) => platform.body)] })),
+  ];
+}
+
+/**
+ * Every figure placed in content must exist in that language, and appear once
+ * per page (its ids must be unique). A translated guide places the same
+ * figures in the same items, so both languages explain the same things.
+ * Figure files nobody uses are warnings.
+ * @param {Site} site
+ * @param {Content} content
+ */
+function checkFigures(site, content) {
+  for (const lang of site.languages) {
+    const figures = content.figures[lang];
+    const used = new Set();
+    /** @type {{ file: string, nodes: BlockNode[] }[]} */
+    const documents = [
+      ...content.guides[lang].map((guide) => ({ file: guide.file, nodes: guideParts(guide).flatMap((p) => p.nodes) })),
+      ...content.articles[lang].map((article) => ({ file: article.file, nodes: article.body })),
+      ...content.pages[lang].map((page) => ({ file: page.file, nodes: page.body })),
+    ];
+    for (const { file, nodes } of documents) {
+      const seen = new Set();
+      for (const node of figuresIn(nodes)) {
+        if (!figures.has(node.name)) {
+          throw new ContentError(file, node.line, `Figure "${node.name}" doesn't exist. Add content/${lang}/figures/${node.name}.svg.`);
+        }
+        if (seen.has(node.name)) throw new ContentError(file, node.line, `Figure "${node.name}" is already on this page. Each figure can appear once per page.`);
+        seen.add(node.name);
+        used.add(node.name);
+      }
+    }
+    for (const [name, figure] of figures) {
+      if (!used.has(name)) content.warnings.push(`${figure.file}: not used in any ${lang} content.`);
+    }
+  }
+
+  const [base, ...others] = site.languages;
+  for (const lang of others) {
+    for (const guide of content.guides[lang]) {
+      const original = content.guides[base].find((g) => g.slug === guide.slug);
+      if (!original) continue;
+      // Item ids already match in the same order (checkTranslations), so the parts line up.
+      const theirs = guideParts(original);
+      for (const [i, { part, nodes }] of guideParts(guide).entries()) {
+        const names = figuresIn(nodes).map((node) => node.name).join(', ');
+        const expected = figuresIn(theirs[i].nodes).map((node) => node.name).join(', ');
+        if (names !== expected) {
+          throw new ContentError(guide.file, 0, `Figures in "${part}" must match ${original.file}.\n  ${base}: ${expected || '(none)'}\n  ${lang}: ${names || '(none)'}`);
         }
       }
     }

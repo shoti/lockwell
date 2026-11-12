@@ -105,6 +105,7 @@ src/build/        static site generator (Node, no dependencies)
   assets.mjs        CSS, JS, fonts, CSP, head script, _headers
   content.mjs       loads and validates content/
   markdown.mjs      Markdown subset parser
+  figures.mjs       loads, validates and renders figures (an SVG subset)
   links.mjs         link validation and broken-link check
   search.mjs        what the search page lists (guides, steps, articles, tools)
   tools.mjs         the list of tools under /tools/

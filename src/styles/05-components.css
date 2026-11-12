@@ -1372,6 +1372,197 @@
     --callout-bg: var(--color-warning-soft);
   }
 
+  /* ---------- Figures ---------- */
+  /* Inline SVG from content/<lang>/figures (src/build/figures.mjs). Figures
+     are drawn 340 units wide with 15-unit text, so the text is about 13px on
+     a phone and 18px at the widest. Colours come only from these classes. */
+  .figure {
+    padding: var(--space-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-bg);
+    break-inside: avoid;
+  }
+
+  .figure__art {
+    display: block;
+    width: 100%;
+    max-width: 26rem;
+    height: auto;
+    margin-inline: auto;
+    overflow: visible;
+  }
+
+  .figure__caption {
+    max-width: 26rem;
+    margin: var(--space-3) auto 0;
+    color: var(--color-text-muted);
+    font-size: var(--step--1);
+  }
+
+  .figure__art text {
+    fill: var(--color-text);
+    font-size: 15px;
+  }
+
+  .figure__art :where(.box, .box-soft, .box-good, .box-bad, .box-warn, .box-info) {
+    stroke-width: 1.5;
+  }
+
+  .figure__art .box {
+    fill: var(--color-surface);
+    stroke: var(--color-border-strong);
+  }
+
+  .figure__art .box-soft {
+    fill: var(--color-surface-2);
+    stroke: none;
+  }
+
+  .figure__art .box-good {
+    fill: var(--color-accent-soft);
+    stroke: var(--color-accent);
+  }
+
+  .figure__art .box-bad {
+    fill: var(--color-essential-soft);
+    stroke: var(--color-essential);
+  }
+
+  .figure__art .box-warn {
+    fill: var(--color-warning-soft);
+    stroke: var(--color-warning);
+  }
+
+  .figure__art .box-info {
+    fill: var(--color-advanced-soft);
+    stroke: var(--color-advanced);
+  }
+
+  .figure__art :where(.line, .line-good, .line-bad, .line-warn, .line-info) {
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .figure__art .line {
+    stroke: var(--color-text-muted);
+  }
+
+  .figure__art .line-good {
+    stroke: var(--color-accent);
+  }
+
+  .figure__art .line-bad {
+    stroke: var(--color-essential);
+  }
+
+  .figure__art .line-warn {
+    stroke: var(--color-warning);
+  }
+
+  .figure__art .line-info {
+    stroke: var(--color-advanced);
+  }
+
+  .figure__art .line-dash {
+    stroke-dasharray: 5 4;
+  }
+
+  .figure__art .line-thin {
+    stroke-width: 1.25;
+  }
+
+  .figure__art .fill-ink {
+    fill: var(--color-text);
+  }
+
+  .figure__art .fill-muted {
+    fill: var(--color-text-muted);
+  }
+
+  .figure__art .fill-good {
+    fill: var(--color-accent);
+  }
+
+  .figure__art .fill-bad {
+    fill: var(--color-essential);
+  }
+
+  .figure__art .fill-warn {
+    fill: var(--color-warning);
+  }
+
+  .figure__art .fill-info {
+    fill: var(--color-advanced);
+  }
+
+  /* The figure's own background, to clear a gap behind a label. */
+  .figure__art .fill-bg {
+    fill: var(--color-bg);
+  }
+
+  .figure__art .fill-good-soft {
+    fill: var(--color-accent-soft);
+  }
+
+  .figure__art .fill-bad-soft {
+    fill: var(--color-essential-soft);
+  }
+
+  .figure__art .t {
+    font-size: 15px;
+  }
+
+  .figure__art .t-sm {
+    font-size: 13px;
+  }
+
+  .figure__art .t-lg {
+    font-size: 17px;
+    font-weight: 600;
+  }
+
+  .figure__art .t-b {
+    font-weight: 600;
+  }
+
+  .figure__art .t-muted {
+    fill: var(--color-text-muted);
+  }
+
+  .figure__art .t-good {
+    fill: var(--color-accent);
+  }
+
+  .figure__art .t-bad {
+    fill: var(--color-essential);
+  }
+
+  .figure__art .t-warn {
+    fill: var(--color-warning);
+  }
+
+  .figure__art .t-info {
+    fill: var(--color-advanced);
+  }
+
+  .figure__art .t-on {
+    fill: var(--color-on-accent);
+  }
+
+  /* On a phone, a figure inside a checklist item spans the item's full
+     width, so its text stays readable (about 12px for the smallest). */
+  @media (max-width: 29.99rem) {
+    .item .figure {
+      margin-inline: calc(var(--space-5) * -1);
+      padding: var(--space-3) var(--space-2);
+      border-inline: 0;
+      border-radius: 0;
+    }
+  }
+
   /* ---------- Search ---------- */
   .search {
     display: grid;

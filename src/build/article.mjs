@@ -24,6 +24,7 @@ function countWords(nodes) {
   for (const node of nodes) {
     if (node.type === 'callout') words += countWords(node.children);
     else if (node.type === 'list') words += node.items.reduce((sum, item) => sum + wordsIn(item.text), 0);
+    else if (node.type === 'figure') words += wordsIn(node.caption);
     else words += wordsIn(node.text);
   }
   return words;

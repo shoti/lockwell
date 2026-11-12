@@ -16,6 +16,8 @@ Messaging accounts are a popular target. Whoever takes over your WhatsApp, Viber
 
 A takeover usually goes like this: someone enters your phone number on their own phone, the app sends the code to you, and a message asks you to pass it on. The message often comes from a friend whose account is already stolen. An extra PIN or password stops this, because the code alone is no longer enough.
 
+![Never pass on a login code, even to a friend.](figure:account-takeover)
+
 Save the PIN or password in your password manager and add a recovery email. If you forget it, you can be locked out for days.
 
 ### WhatsApp
@@ -84,6 +86,8 @@ All five apps can run on a computer or a second phone next to your own. Someone 
 ## Know what each app can read {#know-encryption .essential}
 
 End-to-end encryption means only you and the person you write to can read a message. The company that runs the app can't. It does not hide who you talk to or when, and it does not protect a message on a phone that someone else can unlock. Our [article on end-to-end encryption](/articles/end-to-end-encryption/) explains more.
+
+![End-to-end encryption hides what you say, not who you talk to or when.](figure:who-can-read)
 
 ### WhatsApp
 

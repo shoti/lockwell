@@ -9,6 +9,7 @@
  * A deliberately small Markdown subset (see docs/CONTENT-GUIDE.md):
  *   headings (## – ####) with optional {#id .class} attributes,
  *   paragraphs, "-" and "1." lists (one level), callouts (> [!note|tip|warning]),
+ *   figures on a line of their own (![Caption](figure:name), see figures.mjs),
  *   **bold**, *italic*, `code`, [links](url) and backslash escapes.
  * Anything else fails the build with a clear message instead of rendering wrongly.
  * All text is HTML-escaped; raw HTML is not allowed.
@@ -23,7 +24,8 @@ import { SafeHtml, escapeHtml } from './html.mjs';
  * @typedef {{ text: string, line: number }} ListItem
  * @typedef {{ type: 'list', ordered: boolean, items: ListItem[], line: number }} ListNode
  * @typedef {{ type: 'callout', kind: string, children: BlockNode[], line: number }} CalloutNode
- * @typedef {HeadingNode | ParagraphNode | ListNode | CalloutNode} BlockNode
+ * @typedef {{ type: 'figure', name: string, caption: string, line: number }} FigureNode
+ * @typedef {HeadingNode | ParagraphNode | ListNode | CalloutNode | FigureNode} BlockNode
  */
 
 /**
@@ -31,6 +33,7 @@ import { SafeHtml, escapeHtml } from './html.mjs';
  * @property {string} file
  * @property {(target: string, line: number) => string} resolveLink  Validates a link target and returns the final href.
  * @property {(kind: string) => string} calloutLabel
+ * @property {(name: string, caption: string, line: number) => string} [figure]  Returns the figure's HTML around an already-rendered caption.
  */
 
 export const CALLOUT_KINDS = ['note', 'tip', 'warning'];
@@ -47,6 +50,8 @@ const BLOCKQUOTE = /^>[ \t]?/;
 const FENCE = /^ {0,3}(```|~~~)/;
 const HTML_TAG = /^[ \t]*<[a-zA-Z/!]/;
 const ATTRS = /\{([^{}]*)\}$/;
+const FIGURE = /^!\[(.*\S)\]\(figure:([a-z0-9][a-z0-9-]*)\)[ \t]*$/;
+const IMAGE = /^!\[/;
 
 /**
  * Parses block-level structure.
@@ -76,6 +81,14 @@ export function parseBlocks(source, file, firstLine = 1) {
     if (HTML_TAG.test(line)) fail(i, 'Raw HTML is not allowed in content. Use the Markdown subset described in docs/CONTENT-GUIDE.md.');
     if (NESTED_LIST_ITEM.test(line)) fail(i, 'Indented list items are not supported. Remove the indentation; lists are one level deep.');
 
+    if (IMAGE.test(line)) {
+      const figure = FIGURE.exec(line);
+      if (!figure) throw new ContentError(file, firstLine + i, 'Images must be figures on a line of their own: ![Caption shown under it](figure:name), with content/<lang>/figures/name.svg.');
+      nodes.push({ type: 'figure', name: figure[2], caption: figure[1].trim(), line: firstLine + i });
+      i += 1;
+      continue;
+    }
+
     const heading = HEADING.exec(line);
     if (heading) {
       nodes.push(parseHeading(heading[1].length, heading[2], firstLine + i, file));
@@ -99,7 +112,7 @@ export function parseBlocks(source, file, firstLine = 1) {
       if (!CALLOUT_KINDS.includes(kind)) fail(start, `Unknown callout type "${kind}". Use one of: ${CALLOUT_KINDS.join(', ')}.`);
       const children = parseBlocks(inner.slice(1).join('\n'), file, firstLine + start + 1);
       if (children.length === 0) fail(start, 'This callout is empty. Add text on the "> " lines below the [!type] line.');
-      if (children.some((child) => child.type === 'heading' || child.type === 'callout')) {
+      if (children.some((child) => child.type === 'heading' || child.type === 'callout' || child.type === 'figure')) {
         fail(start, 'Callouts may only contain paragraphs and lists.');
       }
       nodes.push({ type: 'callout', kind, children, line: firstLine + start });
@@ -166,6 +179,7 @@ export function parseBlocks(source, file, firstLine = 1) {
 function startsBlock(line) {
   return (
     HEADING.test(line) ||
+    IMAGE.test(line) ||
     LIST_ITEM.test(line) ||
     NESTED_LIST_ITEM.test(line) ||
     BLOCKQUOTE.test(line) ||
@@ -339,6 +353,10 @@ function blockToString(node, ctx) {
       const tag = node.ordered ? 'ol' : 'ul';
       const items = node.items.map((item) => `<li>${inlineToString(item.text, ctx, item.line)}</li>`).join('');
       return `<${tag}>${items}</${tag}>`;
+    }
+    case 'figure': {
+      if (!ctx.figure) throw new ContentError(ctx.file, node.line, 'Figures are not supported here.');
+      return ctx.figure(node.name, inlineToString(node.caption, ctx, node.line), node.line);
     }
     case 'callout':
       return `<aside class="callout callout--${node.kind}" role="note"><p class="callout__title">${escapeHtml(ctx.calloutLabel(node.kind))}</p>${blocksToString(node.children, ctx)}</aside>`;

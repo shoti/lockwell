@@ -41,6 +41,8 @@ Encryption protects a device that is off or locked after a restart. Once you hav
 
 Apple's and Android's own documents explain the difference. After a restart, most data stays locked until you enter your passcode. Once you have unlocked the phone, much of it stays readable in memory even after the screen locks again: on iPhone, this is the default for third-party app data. Freedom of the Press Foundation explains that forensic tools work much better on a phone that has been unlocked since it was switched on.
 
+![A locked screen is not the same as switched off. If your phone may be taken, switch it off.](figure:phone-lock-states)
+
 ### All devices
 
 1. If your phone may be taken, switch it off fully, not just to sleep. See [If you are detained or your phone is taken](/guides/protest/#if-detained) for how.

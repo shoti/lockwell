@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 386">
+  <title>სამი ასლი, ორი სახის საცავი, ერთი სხვა ადგილას</title>
+  <desc>თქვენი კომპიუტერი: ორიგინალი. გარე დისკი: ასლის შექმნის შემდეგ გამოაერთეთ. ღრუბელი: სხვა ადგილას. 3 ასლი ყველაფრის, რაც მნიშვნელოვანია; 2 სახის საცავი (დისკები, ღრუბელი); 1 სხვა ადგილას. სინქრონიზებული საქაღალდე ცალკე ასლი არ არის: კომპიუტერზე წაშლილი ან დაზიანებული ფაილი იქაც ქრება.</desc>
+  <rect x="0" y="0" width="104" height="183" rx="8" class="box"/>
+  <rect x="26" y="15" width="52" height="32" rx="3" class="box-soft"/>
+  <rect x="26" y="15" width="52" height="32" rx="3" class="box"/>
+  <path d="M18 53 H86 L80 47 H24 Z" class="box"/>
+  <text x="52" y="80.5" class="t-sm t-b" text-anchor="middle">თქვენი</text>
+  <text x="52" y="97.6" class="t-sm t-b" text-anchor="middle">კომპიუტერი</text>
+  <text x="52" y="116.8" class="t-sm t-muted" text-anchor="middle">ორიგინალი</text>
+  <rect x="118" y="0" width="104" height="183" rx="8" class="box-good"/>
+  <rect x="152" y="13" width="36" height="44" rx="6" class="box"/>
+  <circle cx="170" cy="47" r="3" class="fill-good"/>
+  <text x="170" y="80.5" class="t-sm t-b" text-anchor="middle">გარე დისკი</text>
+  <text x="170" y="116.8" class="t-sm t-muted" text-anchor="middle">ასლის</text>
+  <text x="170" y="134" class="t-sm t-muted" text-anchor="middle">შექმნის</text>
+  <text x="170" y="151.1" class="t-sm t-muted" text-anchor="middle">შემდეგ</text>
+  <text x="170" y="168.3" class="t-sm t-muted" text-anchor="middle">გამოაერთეთ</text>
+  <rect x="236" y="0" width="104" height="183" rx="8" class="box-good"/>
+  <path d="M266 47 H310 A10 10 0 0 0 308 29 A14 14 0 0 0 282 23 A11 11 0 0 0 266 47 Z" class="box"/>
+  <text x="288" y="80.5" class="t-sm t-b" text-anchor="middle">ღრუბელი</text>
+  <text x="288" y="116.8" class="t-sm t-muted" text-anchor="middle">სხვა ადგილას</text>
+  <text x="0" y="207" class="t-lg t-good">3</text>
+  <text x="30" y="205.4" class="t-sm t-b">ასლი ყველაფრის, რაც მნიშვნელოვანია</text>
+  <path d="M4 222 V217 H336 V222" class="line-good line-thin"/>
+  <text x="0" y="247" class="t-lg t-good">2</text>
+  <text x="30" y="245.4" class="t-sm t-b">სახის საცავი</text>
+  <path d="M4 262 V257 H218 V262" class="line-good line-thin"/>
+  <text x="111" y="275.4" class="t-sm t-good" text-anchor="middle">დისკები</text>
+  <path d="M240 262 V257 H336 V262" class="line-good line-thin"/>
+  <text x="288" y="275.4" class="t-sm t-good" text-anchor="middle">ღრუბელი</text>
+  <text x="0" y="302.1" class="t-lg t-good">1</text>
+  <text x="30" y="300.6" class="t-sm t-b">სხვა ადგილას</text>
+  <path d="M240 317.1 V312.1 H336 V317.1" class="line-good line-thin"/>
+  <line x1="0" y1="326.1" x2="340" y2="326.1" class="line line-thin"/>
+  <text x="0" y="346.6" class="t-sm t-muted">სინქრონიზებული საქაღალდე ცალკე ასლი არ არის:</text>
+  <text x="0" y="363.8" class="t-sm t-muted">კომპიუტერზე წაშლილი ან დაზიანებული ფაილი</text>
+  <text x="0" y="380.9" class="t-sm t-muted">იქაც ქრება.</text>
+</svg>

@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 383">
+  <title>რატომ შეუძლია ყალბ გვერდს კოდის მოპარვა და უსაფრთხოების გასაღებისა არა</title>
+  <desc>პაროლით და კოდით: თავდამსხმელი თქვენს ანგარიშშია. უსაფრთხოების გასაღებით ან passkey-ით: გასაღები მხოლოდ იმ საიტზე მუშაობს, სადაც დაარეგისტრირეთ. ყალბ გვერდს გადასაცემი არაფერი რჩება.</desc>
+  <rect x="0" y="0" width="340" height="170.4" rx="8" class="box-bad"/>
+  <text x="12" y="26.4" class="t-b t-bad">პაროლით და კოდით</text>
+  <text x="109" y="50.3" class="t-sm" text-anchor="middle">პაროლი და</text>
+  <text x="109" y="67.4" class="t-sm" text-anchor="middle">კოდი</text>
+  <text x="231" y="50.3" class="t-sm" text-anchor="middle">ორივეს მაშინვე</text>
+  <text x="231" y="67.4" class="t-sm" text-anchor="middle">გადასცემს</text>
+  <rect x="0" y="76.1" width="96" height="52.3" rx="8" class="box"/>
+  <text x="48" y="106.2" class="t-sm t-b" text-anchor="middle">თქვენ</text>
+  <rect x="122" y="76.1" width="96" height="52.3" rx="8" class="box-bad"/>
+  <text x="170" y="97.6" class="t-sm t-b" text-anchor="middle">ყალბი</text>
+  <text x="170" y="114.8" class="t-sm t-b" text-anchor="middle">გვერდი</text>
+  <rect x="244" y="76.1" width="96" height="52.3" rx="8" class="box"/>
+  <text x="292" y="97.6" class="t-sm t-b" text-anchor="middle">ნამდვილი</text>
+  <text x="292" y="114.8" class="t-sm t-b" text-anchor="middle">საიტი</text>
+  <line x1="99" y1="102.3" x2="112" y2="102.3" class="line"/>
+  <polygon points="119,102.3 112,98.1 112,106.5" class="fill-muted"/>
+  <line x1="221" y1="102.3" x2="234" y2="102.3" class="line-bad"/>
+  <polygon points="241,102.3 234,98.1 234,106.5" class="fill-bad"/>
+  <circle cx="22" cy="148.4" r="10" class="box-bad"/>
+  <path d="M18.2 144.6 L25.8 152.2 M25.8 144.6 L18.2 152.2" class="line-bad"/>
+  <text x="40" y="150.9" class="t-sm t-b t-bad">თავდამსხმელი თქვენს ანგარიშშია.</text>
+  <rect x="0" y="180.4" width="340" height="201.9" rx="8" class="box-good"/>
+  <text x="12" y="206.8" class="t-b t-good">უსაფრთხოების გასაღებით ან passkey-ით</text>
+  <text x="109" y="230.7" class="t-sm" text-anchor="middle">გასაღები ან</text>
+  <text x="109" y="247.9" class="t-sm" text-anchor="middle">passkey</text>
+  <rect x="0" y="256.6" width="96" height="52.3" rx="8" class="box"/>
+  <text x="48" y="286.6" class="t-sm t-b" text-anchor="middle">თქვენ</text>
+  <rect x="122" y="256.6" width="96" height="52.3" rx="8" class="box-bad"/>
+  <text x="170" y="278" class="t-sm t-b" text-anchor="middle">ყალბი</text>
+  <text x="170" y="295.2" class="t-sm t-b" text-anchor="middle">გვერდი</text>
+  <rect x="244" y="256.6" width="96" height="52.3" rx="8" class="box-soft"/>
+  <text x="292" y="278" class="t-sm t-b" text-anchor="middle">ნამდვილი</text>
+  <text x="292" y="295.2" class="t-sm t-b" text-anchor="middle">საიტი</text>
+  <line x1="99" y1="282.7" x2="112" y2="282.7" class="line-good"/>
+  <polygon points="119,282.7 112,278.5 112,286.9" class="fill-good"/>
+  <circle cx="231" cy="282.7" r="9" class="box-bad"/>
+  <path d="M227.6 279.3 L234.4 286.1 M234.4 279.3 L227.6 286.1" class="line-bad"/>
+  <circle cx="22" cy="328.9" r="10" class="box-good"/>
+  <path d="M17.5 328.9 L21 332.4 L27 325.4" class="line-good"/>
+  <text x="40" y="331.4" class="t-sm t-b t-good">გასაღები მხოლოდ იმ საიტზე მუშაობს,</text>
+  <text x="40" y="348.5" class="t-sm t-b t-good">სადაც დაარეგისტრირეთ. ყალბ გვერდს</text>
+  <text x="40" y="365.7" class="t-sm t-b t-good">გადასაცემი არაფერი რჩება.</text>
+</svg>

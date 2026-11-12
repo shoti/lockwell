@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 284">
+  <title>What a photo file can carry besides the picture</title>
+  <desc>Hidden in the file: Place: 41.7° N, 44.8° E, Date: 12 November 2026, 18:42, Phone model, A small copy of the original picture. Remove it before you share. What is in the picture can still show where you are.</desc>
+  <rect x="0" y="12.5" width="120" height="90" rx="6" class="box-info"/>
+  <circle cx="92" cy="36.5" r="9" class="fill-warn"/>
+  <polygon points="4,98.5 40,50.5 62,72.5 82,56.5 116,98.5" class="fill-info"/>
+  <text x="136" y="12.5" class="t-sm t-b t-bad">Hidden in the file:</text>
+  <circle cx="140" cy="29.7" r="2.5" class="fill-bad"/>
+  <text x="148" y="33.6" class="t-sm">Place: 41.7° N, 44.8° E</text>
+  <circle cx="140" cy="48.9" r="2.5" class="fill-bad"/>
+  <text x="148" y="52.8" class="t-sm">Date: 12 November 2026, 18:42</text>
+  <circle cx="140" cy="68.1" r="2.5" class="fill-bad"/>
+  <text x="148" y="72" class="t-sm">Phone model</text>
+  <circle cx="140" cy="87.2" r="2.5" class="fill-bad"/>
+  <text x="148" y="91.1" class="t-sm">A small copy of the original</text>
+  <text x="148" y="108.3" class="t-sm">picture</text>
+  <line x1="60" y1="123" x2="60" y2="145.1" class="line-good"/>
+  <polygon points="60,152.1 64.2,145.1 55.8,145.1" class="fill-good"/>
+  <text x="74" y="139.4" class="t-sm t-b t-good">Remove it before you share</text>
+  <rect x="0" y="156.1" width="120" height="90" rx="6" class="box-info"/>
+  <circle cx="92" cy="180.1" r="9" class="fill-warn"/>
+  <polygon points="4,242.1 40,194.1 62,216.1 82,200.1 116,242.1" class="fill-info"/>
+  <text x="136" y="186.6" class="t-sm t-b t-good">Hidden in the file:</text>
+  <circle cx="145" cy="205.9" r="9" class="box-good"/>
+  <path d="M141 205.9 L144.1 209 L149.5 202.7" class="line-good"/>
+  <text x="162" y="209.8" class="t-sm">Nothing</text>
+  <line x1="0" y1="258.1" x2="340" y2="258.1" class="line line-thin"/>
+  <text x="0" y="278.6" class="t-sm t-muted">What is in the picture can still show where you are.</text>
+</svg>

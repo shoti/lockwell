@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 387">
+  <title>ვის შეუძლია თქვენი შეტყობინებების წაკითხვა</title>
+  <desc>ბოლომდე დაშიფრული: კომპანია ხედავს, ვინ ვის და როდის სწერს, მაგრამ არა იმას, რას სწერს. ბოლომდე დაშიფრული არ არის: კომპანიას შეტყობინების წაკითხვაც შეუძლია. არცერთი არ იცავს შეტყობინებას ტელეფონზე, რომელსაც სხვაც განბლოკავს.</desc>
+  <text x="0" y="14.4" class="t-b t-good">ბოლომდე დაშიფრული</text>
+  <rect x="0" y="25.8" width="84" height="84.3" rx="8" class="box"/>
+  <text x="42" y="48.3" class="t-sm t-b" text-anchor="middle">თქვენ</text>
+  <rect x="7" y="76.1" width="70" height="24" rx="12" class="box-soft"/>
+  <text x="42" y="92.6" class="t-sm" text-anchor="middle">სალამი!</text>
+  <rect x="112" y="25.8" width="116" height="84.3" rx="8" class="box"/>
+  <text x="170" y="48.3" class="t-sm t-b" text-anchor="middle">აპლიკაციის</text>
+  <text x="170" y="65.4" class="t-sm t-b" text-anchor="middle">კომპანია</text>
+  <rect x="148" y="76.1" width="44" height="24" rx="12" class="box-good"/>
+  <path d="M166 86.1 V83.1 A4 4 0 0 1 174 83.1 V86.1" class="line-good"/>
+  <rect x="163" y="86.1" width="14" height="10" rx="2" class="fill-good"/>
+  <rect x="256" y="25.8" width="84" height="84.3" rx="8" class="box"/>
+  <text x="298" y="48.3" class="t-sm t-b" text-anchor="middle">მეგობარი</text>
+  <rect x="263" y="76.1" width="70" height="24" rx="12" class="box-soft"/>
+  <text x="298" y="92.6" class="t-sm" text-anchor="middle">სალამი!</text>
+  <line x1="87" y1="68" x2="102" y2="68" class="line"/>
+  <polygon points="109,68 102,63.8 102,72.2" class="fill-muted"/>
+  <line x1="231" y1="68" x2="246" y2="68" class="line"/>
+  <polygon points="253,68 246,63.8 246,72.2" class="fill-muted"/>
+  <text x="170" y="128.6" class="t-sm" text-anchor="middle">კომპანია ხედავს, ვინ ვის და</text>
+  <text x="170" y="145.8" class="t-sm" text-anchor="middle">როდის სწერს, მაგრამ არა იმას,</text>
+  <text x="170" y="162.9" class="t-sm" text-anchor="middle">რას სწერს.</text>
+  <text x="0" y="198" class="t-b t-bad">ბოლომდე დაშიფრული არ არის</text>
+  <rect x="0" y="209.4" width="84" height="84.3" rx="8" class="box"/>
+  <text x="42" y="231.9" class="t-sm t-b" text-anchor="middle">თქვენ</text>
+  <rect x="7" y="259.7" width="70" height="24" rx="12" class="box-soft"/>
+  <text x="42" y="276.2" class="t-sm" text-anchor="middle">სალამი!</text>
+  <rect x="112" y="209.4" width="116" height="84.3" rx="8" class="box-bad"/>
+  <text x="170" y="231.9" class="t-sm t-b" text-anchor="middle">აპლიკაციის</text>
+  <text x="170" y="249" class="t-sm t-b" text-anchor="middle">კომპანია</text>
+  <rect x="135" y="259.7" width="70" height="24" rx="12" class="box-bad"/>
+  <text x="170" y="276.2" class="t-sm" text-anchor="middle">სალამი!</text>
+  <rect x="256" y="209.4" width="84" height="84.3" rx="8" class="box"/>
+  <text x="298" y="231.9" class="t-sm t-b" text-anchor="middle">მეგობარი</text>
+  <rect x="263" y="259.7" width="70" height="24" rx="12" class="box-soft"/>
+  <text x="298" y="276.2" class="t-sm" text-anchor="middle">სალამი!</text>
+  <line x1="87" y1="251.6" x2="102" y2="251.6" class="line"/>
+  <polygon points="109,251.6 102,247.4 102,255.8" class="fill-muted"/>
+  <line x1="231" y1="251.6" x2="246" y2="251.6" class="line"/>
+  <polygon points="253,251.6 246,247.4 246,255.8" class="fill-muted"/>
+  <text x="170" y="312.2" class="t-sm t-bad" text-anchor="middle">კომპანიას შეტყობინების</text>
+  <text x="170" y="329.4" class="t-sm t-bad" text-anchor="middle">წაკითხვაც შეუძლია.</text>
+  <line x1="0" y1="344" x2="340" y2="344" class="line line-thin"/>
+  <text x="0" y="364.5" class="t-sm t-muted">არცერთი არ იცავს შეტყობინებას ტელეფონზე,</text>
+  <text x="0" y="381.7" class="t-sm t-muted">რომელსაც სხვაც განბლოკავს.</text>
+</svg>
