@@ -1227,6 +1227,13 @@ describe('tool pages', () => {
     for (const family of ['firefox', 'safari', 'brave', 'chromium', 'other']) assert.ok(css.includes(`[data-browser="${family}"] [data-family="${family}"]`), family);
   });
 
+  it('browser check: a rating badge wraps inside the name column instead of running over the value (long in Georgian)', async () => {
+    const css = await read('assets/site.css');
+    const rule = /\.rating \{([^}]*)\}/.exec(css)?.[1] ?? '';
+    assert.doesNotMatch(rule, /white-space: nowrap/);
+    assert.match(rule, /max-inline-size: 100%/);
+  });
+
   it('the browser report explains the IP address once, in the network group', async () => {
     const page = await read('en/tools/browser-check/index.html');
     const groups = [...page.matchAll(/<section class="report__group" aria-labelledby="browser__(\w+)">([\s\S]*?)<\/section>/g)];
