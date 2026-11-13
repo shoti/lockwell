@@ -1,8 +1,3 @@
-<!--
-SPDX-FileCopyrightText: 2026 Shota Mtvarelishvili <mtvarelishvili@proton.me>
-SPDX-License-Identifier: MIT
--->
-
 # Contributing to Lockwell
 
 Thank you for helping! You can contribute without writing any code.
@@ -78,22 +73,10 @@ These are deliberate. Please keep them in pull requests.
 - **Errors:** messages say what failed, where (file and line) and how to fix it.
 - **No inline scripts or styles.** The Content-Security-Policy blocks them.
   The one exception, the head script in `src/build/assets.mjs`, is allowed by its hash.
-- **File headers:** every file that allows comments starts with SPDX tags
-  ([REUSE](https://reuse.software/) style) and a one-line purpose. In a
-  JavaScript file, after `// @ts-check`:
-
-  ```js
-  // SPDX-FileCopyrightText: 2026 Shota Mtvarelishvili <mtvarelishvili@proton.me>
-  // SPDX-License-Identifier: MIT
-  /**
-   * @file What this file does, in one sentence.
-   * @author Shota Mtvarelishvili <mtvarelishvili@proton.me> (https://shoti.github.io/)
-   */
-  ```
-
-  CSS uses the same lines in a `/* … */` block, shell and YAML use `#`, and
-  Markdown outside `content/` uses an HTML comment. Files that can't hold a
-  comment (content, JSON, images, fonts) are covered by `REUSE.toml`.
+- **File headers:** none needed. Licenses are declared for the whole
+  repository in `REUSE.toml`, and Git records who wrote what, so don't add
+  copyright, license or author lines to files. A code file may start with a
+  one-line `@file` comment saying what it does.
 
 ## Project layout
 
@@ -125,3 +108,10 @@ tests/            node:test tests
 - Run `npm run check`.
 - For content: say which device and app versions you checked.
 - Never change an existing checklist item id. Saved progress depends on it.
+
+## License of your contributions
+
+You keep the copyright on what you write. By opening a pull request you agree
+to license it under the same terms as the rest of the project: code under the
+[MIT License](LICENSE), and guides, pages, UI text and images under
+[CC BY-SA 4.0](LICENSE-CONTENT.md). There is nothing to sign.

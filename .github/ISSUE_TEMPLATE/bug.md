@@ -3,11 +3,6 @@ name: Bug
 about: Something on the site doesn't work or looks broken
 labels: bug
 ---
-<!--
-SPDX-FileCopyrightText: 2026 Shota Mtvarelishvili <mtvarelishvili@proton.me>
-SPDX-License-Identifier: MIT
--->
-
 **Page:**
 
 **What happened:**

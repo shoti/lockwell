@@ -1,9 +1,5 @@
-# SPDX-FileCopyrightText: 2026 Shota Mtvarelishvili <mtvarelishvili@proton.me>
-# SPDX-License-Identifier: MIT
-#
 # CI: tests, type check and build for pull requests and for main.
 # Deployment is done by Cloudflare Pages, which builds main on its own.
-# Author: Shota Mtvarelishvili <mtvarelishvili@proton.me> (https://shoti.github.io/)
 name: CI
 
 # Pull requests and main only: running on every branch push as well ran each check twice.

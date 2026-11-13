@@ -1,8 +1,4 @@
-# SPDX-FileCopyrightText: 2026 Shota Mtvarelishvili <mtvarelishvili@proton.me>
-# SPDX-License-Identifier: MIT
-#
 # Files Git should ignore.
-# Author: Shota Mtvarelishvili <mtvarelishvili@proton.me> (https://shoti.github.io/)
 dist/
 node_modules/
 .DS_Store

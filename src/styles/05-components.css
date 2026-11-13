@@ -1,9 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2026 Shota Mtvarelishvili <mtvarelishvili@proton.me>
- * SPDX-License-Identifier: MIT
- *
  * @file Shared components: buttons, cards, callouts, tabs and forms.
- * @author Shota Mtvarelishvili <mtvarelishvili@proton.me> (https://shoti.github.io/)
  */
 @layer components {
   /* ---------- Skip link ---------- */

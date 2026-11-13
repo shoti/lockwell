@@ -1,8 +1,4 @@
 #!/usr/bin/env bash
-# SPDX-FileCopyrightText: 2026 Shota Mtvarelishvili <mtvarelishvili@proton.me>
-# SPDX-License-Identifier: MIT
-#
-# Author: Shota Mtvarelishvili <mtvarelishvili@proton.me> (https://shoti.github.io/)
 # Rebuilds the subset FiraGO fonts in src/public/fonts/.
 # Only needed when changing fonts or character ranges — the results are committed,
 # so the normal build never needs this script or its tools.

@@ -1,9 +1,6 @@
 // @ts-check
-// SPDX-FileCopyrightText: 2026 Shota Mtvarelishvili <mtvarelishvili@proton.me>
-// SPDX-License-Identifier: MIT
 /**
  * @file The "continue where you left off" link built from saved progress.
- * @author Shota Mtvarelishvili <mtvarelishvili@proton.me> (https://shoti.github.io/)
  */
 import { areaOf, countDone } from './checklist.mjs';
 import { CLEARED_EVENT, readProgress } from './storage.mjs';

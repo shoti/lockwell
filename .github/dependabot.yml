@@ -1,8 +1,4 @@
-# SPDX-FileCopyrightText: 2026 Shota Mtvarelishvili <mtvarelishvili@proton.me>
-# SPDX-License-Identifier: MIT
-#
 # Dependabot: keeps the pinned GitHub Actions up to date.
-# Author: Shota Mtvarelishvili <mtvarelishvili@proton.me> (https://shoti.github.io/)
 version: 2
 updates:
   # Keeps the SHA-pinned GitHub Actions up to date. The project has no npm dependencies.
