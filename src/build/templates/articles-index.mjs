@@ -10,7 +10,8 @@ import { articleCard, breadcrumbs } from './components.mjs';
 /** @typedef {import('./layout.mjs').Ctx} Ctx */
 
 /**
- * Every article in this language, newest first.
+ * Every article in this language, newest first. The list starts right
+ * after the breadcrumb; the title is there for screen readers and search only.
  * @param {Ctx} ctx
  * @returns {import('./layout.mjs').PageContent}
  */
@@ -20,10 +21,7 @@ export function articlesIndexPage(ctx) {
 
   const body = html`<div class="container page">
   ${breadcrumbs(ctx, [{ name: t('nav.home'), route: '/' }, { name: title }])}
-  <header class="page-header">
-    <h1 class="page-header__title">${title}</h1>
-    <p class="lead">${t('articles.lead')}</p>
-  </header>
+  <h1 class="visually-hidden">${title}</h1>
   <div class="card-grid">
     ${content.articles[lang].map((article) => articleCard(ctx, article, 2))}
   </div>

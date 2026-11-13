@@ -588,7 +588,12 @@ describe('articles', () => {
     assert.match(article, /"datePublished":"2026-11-11","dateModified":"2026-11-11"/);
     assert.match(await read('articles/end-to-end-encryption/index.html'), /<html lang="ka"/);
 
-    assert.match(await read('en/articles/index.html'), /<h2 class="card__title"><a class="card__link" href="\/en\/articles\/end-to-end-encryption\/">/);
+    const list = await read('en/articles/index.html');
+    assert.match(list, /<h2 class="card__title"><a class="card__link" href="\/en\/articles\/end-to-end-encryption\/">/);
+    // The list starts with the articles: no visible title or intro (owner's choice), but the page keeps its <h1>.
+    assert.match(list, /<\/nav>\s*<h1 class="visually-hidden">Articles<\/h1>\s*<div class="card-grid">/);
+    assert.doesNotMatch(list, /class="lead"|Plain-language explanations/);
+    assert.doesNotMatch(await read('articles/index.html'), /class="lead"/);
     const home = await read('en/index.html');
     assert.match(home, /aria-labelledby="home__articles"/);
     assert.match(home, /<h3 class="card__title"><a class="card__link" href="\/en\/articles\/end-to-end-encryption\/">/);
