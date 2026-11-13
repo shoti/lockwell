@@ -195,9 +195,9 @@ function footer(ctx) {
       </p>
     </div>
     <p class="site-footer__legal">
-      ${site.author
+      ${site.author?.inFooter
         ? html`<span>${t('footer.copyright', { year: site.copyrightYear ?? '' })} <a href="${site.author.url}" rel="author external noreferrer">${site.author.name}</a></span>`
-        : null}
+        : html`<span>${t('footer.copyright', { year: site.copyrightYear ?? '' })} ${t('siteName')}</span>`}
     </p>
   </div>
 </footer>`;

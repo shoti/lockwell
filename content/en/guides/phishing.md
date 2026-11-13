@@ -47,6 +47,8 @@ The code an app or a bank sends you is only for you to type in yourself. Anyone 
 
 The text of a link can say one thing and lead somewhere else. Fake sites copy logos and use addresses that are one letter off, such as paypaI.com with a capital I. The safest habit: when a message asks you to log in or pay, don't use its link. Open the app, or type the address yourself.
 
+![If the address isn't the site you expect, don't type your password.](figure:link-anatomy)
+
 ### All devices
 
 1. Copy the link and paste it into our [link checker](/tools/link-checker/). It shows which site the address points to, without opening it. It can't see past shortened links.

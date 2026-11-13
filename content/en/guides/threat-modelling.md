@@ -40,6 +40,8 @@ Naming an adversary doesn't tell you what they are actually doing. Keep apart wh
 
 For each threat, weigh two things: how likely it is, and how bad it would be if it happened. The threats that are both likely and serious come first.
 
+![Your ratings are guesses: check them with someone you trust.](figure:risk-grid)
+
 1. For each threat, ask how likely it is and how bad the consequences would be, for you and for the people around you.
 2. Write down which threats you will take seriously, and which are too rare, too harmless or too hard to fight to worry about now.
 3. Check your conclusions with someone you trust. Another person may see a risk you missed or one you overrate.

@@ -26,6 +26,8 @@ content/
   en/guides/*.md       English guides (same file names)
   ka/articles/*.md     Georgian articles
   en/articles/*.md     English articles (same file names)
+  ka/figures/*.svg     Georgian figures (drawings that explain a step)
+  en/figures/*.svg     English figures (same file names)
   ka/pages/*.md        home.md, about.md, …
   en/pages/*.md
 ```
@@ -169,8 +171,8 @@ Text, lists and callouts. Link to the guide that has the steps:
 ## Supported Markdown
 
 `**bold**`, `*italic*`, `` `code` ``, `[link](https://…)`, lists (`-` and
-`1.`, one level only), headings `##`–`####`, and callouts. No raw HTML, images,
-tables or code blocks; the build rejects them.
+`1.`, one level only), headings `##`–`####`, callouts and figures (below). No
+raw HTML, other images, tables or code blocks; the build rejects them.
 
 - **Numbered lists count 1, 2, 3…** with no gaps. A list can't continue after
   a callout or paragraph; put the callout below the list instead.
@@ -187,6 +189,47 @@ tables or code blocks; the build rejects them.
   same language. Broken internal links fail the build.
 - Anchors: `[step](/guides/messaging/#account-pin)` or `[step](#account-pin)`
   link to an item or heading id. Anchors that don't exist fail the build.
+
+## Figures
+
+A figure is a drawing that makes a hard idea easier to see: what a VPN hides,
+how an account is taken over, why a black box isn't redaction. Add one only
+where the text alone is hard to follow. Put it on a line of its own:
+
+```md
+![The caption shown under the figure](figure:link-anatomy)
+```
+
+- The drawing is `content/<lang>/figures/link-anatomy.svg`, one file per
+  language with the same name. Both languages place the same figures in the
+  same checklist items; the build checks this.
+- The caption is one sentence: the takeaway, not a description of the picture.
+  It may use **bold**, *italic* and links.
+- A figure may appear once per page, not inside a callout or a list.
+- **Restate the guide, add nothing.** Every statement in a figure must already
+  be in the text around it, so its facts come from the same sources.
+- Figures are drawn into the page as inline SVG: they use the site's font,
+  follow the light and dark themes and print with the guide. Search doesn't
+  index them.
+
+**Drawing rules** (the build rejects anything else, with the line number):
+
+- One `<svg viewBox="0 0 340 H">` with `<title>` first (the name a screen
+  reader reads out) and an optional `<desc>` next (a full text version of what
+  the figure shows; write one, since the drawing's own text isn't read out).
+- Elements: `g`, `rect`, `circle`, `ellipse`, `line`, `polyline`, `polygon`,
+  `path`, `text`, `tspan`. No scripts, links, images, `style`, `id`, `fill` or
+  other presentation attributes, and no external references.
+- Colours and type come only from classes (`box`, `box-good`, `box-bad`,
+  `line-warn`, `fill-muted`, `t-sm`, `t-b`, `t-good`…; the full list is
+  `FIGURE_CLASSES` in `src/build/figures.mjs`). *Good* is teal, *bad* red,
+  *warn* amber, *info* blue, as on the rest of the site.
+- Draw 340 units wide. Text is 15 (default), 13 (`t-sm`) or 17 (`t-lg`), so
+  the smallest text is about 12px on a phone. Wrap long lines yourself:
+  Georgian lines are longer than English ones, so lay out each language
+  separately.
+- Text may only use characters in the site's font (Latin, Georgian, common
+  punctuation, arrows and ✓); the build names any character that is missing.
 
 ## Writing style
 

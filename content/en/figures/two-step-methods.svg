@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 387">
+  <title>Second steps, from strongest to weakest</title>
+  <desc>Passkey or security key: Strongest: works only on the real site Authenticator app or a prompt on your phone: Next best Code by SMS: Weakest: a number can be moved to another SIM card. Still far better than nothing. Password only: A stolen password is enough to get in</desc>
+  <text x="286" y="13" class="t-sm t-b t-muted" text-anchor="middle">Protection</text>
+  <rect x="0" y="22" width="340" height="80.1" rx="8" class="box"/>
+  <text x="12" y="48.4" class="t-b">Passkey or security key</text>
+  <text x="12" y="68.3" class="t-sm">Strongest: works only on the real</text>
+  <text x="12" y="85.4" class="t-sm">site</text>
+  <rect x="244" y="57.1" width="18" height="10" rx="3" class="fill-good"/>
+  <rect x="266" y="57.1" width="18" height="10" rx="3" class="fill-good"/>
+  <rect x="288" y="57.1" width="18" height="10" rx="3" class="fill-good"/>
+  <rect x="310" y="57.1" width="18" height="10" rx="3" class="fill-good"/>
+  <rect x="0" y="110.1" width="340" height="82.8" rx="8" class="box"/>
+  <text x="12" y="136.5" class="t-b">Authenticator app or a</text>
+  <text x="12" y="156.3" class="t-b">prompt on your phone</text>
+  <text x="12" y="176.2" class="t-sm">Next best</text>
+  <rect x="244" y="146.5" width="18" height="10" rx="3" class="fill-good"/>
+  <rect x="266" y="146.5" width="18" height="10" rx="3" class="fill-good"/>
+  <rect x="288" y="146.5" width="18" height="10" rx="3" class="fill-good"/>
+  <rect x="310" y="146.5" width="18" height="10" rx="3" class="box"/>
+  <rect x="0" y="200.9" width="340" height="97.3" rx="8" class="box"/>
+  <text x="12" y="227.3" class="t-b">Code by SMS</text>
+  <text x="12" y="247.2" class="t-sm t-warn">Weakest: a number can be moved</text>
+  <text x="12" y="264.3" class="t-sm t-warn">to another SIM card. Still far better</text>
+  <text x="12" y="281.5" class="t-sm t-warn">than nothing.</text>
+  <rect x="244" y="244.5" width="18" height="10" rx="3" class="fill-warn"/>
+  <rect x="266" y="244.5" width="18" height="10" rx="3" class="fill-warn"/>
+  <rect x="288" y="244.5" width="18" height="10" rx="3" class="box"/>
+  <rect x="310" y="244.5" width="18" height="10" rx="3" class="box"/>
+  <rect x="0" y="306.2" width="340" height="80.1" rx="8" class="box-soft"/>
+  <text x="12" y="332.6" class="t-b">Password only</text>
+  <text x="12" y="352.4" class="t-sm t-bad">A stolen password is enough to get</text>
+  <text x="12" y="369.6" class="t-sm t-bad">in</text>
+  <rect x="244" y="341.2" width="18" height="10" rx="3" class="box"/>
+  <rect x="266" y="341.2" width="18" height="10" rx="3" class="box"/>
+  <rect x="288" y="341.2" width="18" height="10" rx="3" class="box"/>
+  <rect x="310" y="341.2" width="18" height="10" rx="3" class="box"/>
+</svg>

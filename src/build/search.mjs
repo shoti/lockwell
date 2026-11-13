@@ -37,6 +37,8 @@ export function blocksText(nodes) {
     .map((node) => {
       if (node.type === 'callout') return blocksText(node.children);
       if (node.type === 'list') return node.items.map((item) => plainText(item.text)).join(' ');
+      // A figure restates the text around it; leaving it out keeps the search page small.
+      if (node.type === 'figure') return '';
       return plainText(node.text);
     })
     .join(' ');
@@ -52,6 +54,7 @@ export function blocksStrong(nodes) {
     .flatMap((node) => {
       if (node.type === 'callout') return [blocksStrong(node.children)];
       if (node.type === 'list') return node.items.flatMap((item) => strongTexts(item.text));
+      if (node.type === 'figure') return [];
       return strongTexts(node.text);
     })
     .join(' ');

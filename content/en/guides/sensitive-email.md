@@ -23,6 +23,8 @@ Security in a Box says ordinary email is stored unencrypted on your provider's s
 4. When you write to someone on another service, that service may keep a copy, Proton notes, whatever you use yourself.
 5. Keep subject lines bland. Proton recommends subjects that say as little as possible about the content.
 
+![Keep subject lines bland: providers can read them.](figure:email-envelope)
+
 EFF says metadata can reveal a great deal about you even when the content stays secret.
 
 ## Decide when not to use email {#when-not-to-email .essential}

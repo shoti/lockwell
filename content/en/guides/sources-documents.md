@@ -63,6 +63,8 @@ FPF warns that pictures inside a document keep their own metadata even after you
 
 A black box drawn over text can leave the text underneath, and anyone can copy it out. The text itself has to be removed.
 
+![Check every redaction: try to copy the text under each block.](figure:fake-redaction)
+
 ### PDF
 
 1. In Adobe Acrobat Pro: **All tools → Redact a PDF → Redact text and images**, select what to remove, then **Apply**. In the dialog, turn on the option to sanitize and remove hidden information, then **Continue** and save. Adobe says redaction removes only visible text and graphics; hidden data needs sanitizing too.

@@ -241,7 +241,9 @@ describe('site config (SEC-3)', async () => {
     assert.equal((await load('')).author, null);
     const author = { name: 'A Person', email: 'a@example.org', url: 'https://example.org/' };
     const site = await load('', { author, copyrightYear: 2026 });
-    assert.deepEqual(site.author, author);
+    assert.deepEqual(site.author, { ...author, inFooter: true }, 'named in the footer unless "inFooter" is false');
+    assert.equal((await load('', { author: { ...author, inFooter: false } })).author?.inFooter, false);
+    await assert.rejects(load('', { author: { ...author, inFooter: 'false' } }), /"author.inFooter" must be true or false/);
     assert.equal(site.copyrightYear, 2026);
     await assert.rejects(load('', { author: { ...author, name: ' ' } }), /"author.name" must be a non-empty string/);
     await assert.rejects(load('', { author: { ...author, email: 'a@b" onload="x' } }), /"author.email" must be a plain email/);

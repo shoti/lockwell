@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 318">
+  <title>რა შეიძლება ინახებოდეს ფოტოს ფაილში გამოსახულების გარდა</title>
+  <desc>ფაილში დამალულია: ადგილი: 41.7° N, 44.8° E, თარიღი: 12 ნოემბერი 2026, 18:42, ტელეფონის მოდელი, ორიგინალი ფოტოს პატარა ასლი. გაზიარებამდე წაშალეთ. ის, რაც ფოტოზე ჩანს, მაინც შეიძლება გასცეს, სად ხართ.</desc>
+  <rect x="0" y="21.1" width="120" height="90" rx="6" class="box-info"/>
+  <circle cx="92" cy="45.1" r="9" class="fill-warn"/>
+  <polygon points="4,107.1 40,59.1 62,81.1 82,65.1 116,107.1" class="fill-info"/>
+  <text x="136" y="12.5" class="t-sm t-b t-bad">ფაილში დამალულია:</text>
+  <circle cx="140" cy="29.7" r="2.5" class="fill-bad"/>
+  <text x="148" y="33.6" class="t-sm">ადგილი: 41.7° N, 44.8° E</text>
+  <circle cx="140" cy="48.9" r="2.5" class="fill-bad"/>
+  <text x="148" y="52.8" class="t-sm">თარიღი: 12 ნოემბერი 2026,</text>
+  <text x="148" y="70" class="t-sm">18:42</text>
+  <circle cx="140" cy="85.2" r="2.5" class="fill-bad"/>
+  <text x="148" y="89.1" class="t-sm">ტელეფონის მოდელი</text>
+  <circle cx="140" cy="104.4" r="2.5" class="fill-bad"/>
+  <text x="148" y="108.3" class="t-sm">ორიგინალი ფოტოს პატარა</text>
+  <text x="148" y="125.4" class="t-sm">ასლი</text>
+  <line x1="60" y1="140.1" x2="60" y2="162.3" class="line-good"/>
+  <polygon points="60,169.3 64.2,162.3 55.8,162.3" class="fill-good"/>
+  <text x="74" y="156.6" class="t-sm t-b t-good">გაზიარებამდე წაშალეთ</text>
+  <rect x="0" y="173.3" width="120" height="90" rx="6" class="box-info"/>
+  <circle cx="92" cy="197.3" r="9" class="fill-warn"/>
+  <polygon points="4,259.3 40,211.3 62,233.3 82,217.3 116,259.3" class="fill-info"/>
+  <text x="136" y="203.8" class="t-sm t-b t-good">ფაილში დამალულია:</text>
+  <circle cx="145" cy="223" r="9" class="box-good"/>
+  <path d="M141 223 L144.1 226.2 L149.5 219.9" class="line-good"/>
+  <text x="162" y="226.9" class="t-sm">არაფერი</text>
+  <line x1="0" y1="275.3" x2="340" y2="275.3" class="line line-thin"/>
+  <text x="0" y="295.8" class="t-sm t-muted">ის, რაც ფოტოზე ჩანს, მაინც შეიძლება გასცეს, სად</text>
+  <text x="0" y="312.9" class="t-sm t-muted">ხართ.</text>
+</svg>

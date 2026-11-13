@@ -35,6 +35,7 @@ export const PATHS = {
  * @property {string} name
  * @property {string} email
  * @property {string} url  Full https:// URL.
+ * @property {boolean} inFooter  Name the author in the footer; false shows the site name instead. Meta tags, structured data and the feed credit the author either way.
  */
 
 /**
@@ -96,7 +97,8 @@ function parseAuthor(value, file) {
   if (typeof value !== 'object' || Array.isArray(value)) {
     throw new Error(`${file}: "author" must be an object with "name", "email" and "url".`);
   }
-  const { name, email, url } = value;
+  const { name, email, url, inFooter = true } = value;
+  if (typeof inFooter !== 'boolean') throw new Error(`${file}: "author.inFooter" must be true or false, got "${inFooter}".`);
   if (typeof name !== 'string' || !name.trim()) throw new Error(`${file}: "author.name" must be a non-empty string.`);
   if (typeof email !== 'string' || !/^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/.test(email)) {
     throw new Error(`${file}: "author.email" must be a plain email address, got "${email}".`);
@@ -110,7 +112,7 @@ function parseAuthor(value, file) {
   if (!parsed || parsed.protocol !== 'https:') {
     throw new Error(`${file}: "author.url" must be a full https:// URL such as https://example.org/, got "${url}".`);
   }
-  return { name: name.trim(), email, url: parsed.href };
+  return { name: name.trim(), email, url: parsed.href, inFooter };
 }
 
 /**

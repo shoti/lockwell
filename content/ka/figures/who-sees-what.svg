@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 595">
+  <title>ვინ რას ხედავს: VPN-ის გარეშე, VPN-ით და Tor-ით</title>
+  <desc>VPN-ისა და Tor-ის გარეშე: ინტერნეტის პროვაიდერი: ყველა საიტს, რომელზეც შედიხართ; საიტი: თქვენს IP მისამართს, რომელიც დაახლოებით აჩვენებს, სად ხართ. VPN-ით: ინტერნეტის პროვაიდერი: მხოლოდ იმას, რომ VPN-ს იყენებთ; შუაში: VPN კომპანია: ვინ ხართ და ყველა საიტს; საიტი: VPN-ის მისამართს და არა თქვენსას. Tor-ით: ინტერნეტის პროვაიდერი: მხოლოდ იმას, რომ Tor-ს იყენებთ; შუაში: სამი რელე: არცერთმა არ იცის ორივე, ვინ ხართ და სად შედიხართ; საიტი: მხოლოდ იმას, რომ ვიღაც Tor-იდან შემოდის. რა გზითაც არ უნდა დაუკავშირდეთ, ანგარიშში შესვლით, cookie-ებითა და თვალთვალის სხვა ხერხებით საიტი მაინც შეიძლება მიხვდეს, ვინ ხართ.</desc>
+  <text x="0" y="12.5" class="t-sm t-muted">რას ხედავს თითოეული:</text>
+  <text x="50" y="33.6" class="t-sm t-b" text-anchor="middle">ინტერნეტის</text>
+  <text x="50" y="50.8" class="t-sm t-b" text-anchor="middle">პროვაიდერი</text>
+  <text x="170" y="33.6" class="t-sm t-b" text-anchor="middle">შუაში</text>
+  <text x="290" y="33.6" class="t-sm t-b" text-anchor="middle">საიტი</text>
+  <line x1="0" y1="63.5" x2="340" y2="63.5" class="line line-thin"/>
+  <text x="0" y="85.9" class="t-b">VPN-ისა და Tor-ის გარეშე</text>
+  <rect x="0" y="95.3" width="100" height="119" rx="8" class="box-bad"/>
+  <text x="50" y="141.5" class="t-sm" text-anchor="middle">ყველა საიტს,</text>
+  <text x="50" y="158.7" class="t-sm" text-anchor="middle">რომელზეც</text>
+  <text x="50" y="175.8" class="t-sm" text-anchor="middle">შედიხართ</text>
+  <rect x="240" y="95.3" width="100" height="119" rx="8" class="box-warn"/>
+  <text x="290" y="115.8" class="t-sm" text-anchor="middle">თქვენს IP</text>
+  <text x="290" y="132.9" class="t-sm" text-anchor="middle">მისამართს,</text>
+  <text x="290" y="150.1" class="t-sm" text-anchor="middle">რომელიც</text>
+  <text x="290" y="167.2" class="t-sm" text-anchor="middle">დაახლოებით</text>
+  <text x="290" y="184.4" class="t-sm" text-anchor="middle">აჩვენებს,</text>
+  <text x="290" y="201.6" class="t-sm" text-anchor="middle">სად ხართ</text>
+  <line x1="102" y1="154.8" x2="231" y2="154.8" class="line"/>
+  <polygon points="238,154.8 231,150.6 231,159" class="fill-muted"/>
+  <text x="170" y="142.1" class="t-sm t-muted" text-anchor="middle">პირდაპირ</text>
+  <line x1="0" y1="226.2" x2="340" y2="226.2" class="line line-thin"/>
+  <text x="0" y="248.6" class="t-b">VPN-ით</text>
+  <rect x="0" y="258" width="100" height="84.6" rx="8" class="box-warn"/>
+  <text x="50" y="278.5" class="t-sm" text-anchor="middle">მხოლოდ</text>
+  <text x="50" y="295.7" class="t-sm" text-anchor="middle">იმას, რომ</text>
+  <text x="50" y="312.8" class="t-sm" text-anchor="middle">VPN-ს</text>
+  <text x="50" y="330" class="t-sm" text-anchor="middle">იყენებთ</text>
+  <rect x="120" y="258" width="100" height="84.6" rx="8" class="box-bad"/>
+  <text x="170" y="278.5" class="t-sm" text-anchor="middle">VPN</text>
+  <text x="170" y="295.7" class="t-sm" text-anchor="middle">კომპანია:</text>
+  <text x="170" y="312.8" class="t-sm" text-anchor="middle">ვინ ხართ და</text>
+  <text x="170" y="330" class="t-sm" text-anchor="middle">ყველა საიტს</text>
+  <rect x="240" y="258" width="100" height="84.6" rx="8" class="box-good"/>
+  <text x="290" y="278.5" class="t-sm" text-anchor="middle">VPN-ის</text>
+  <text x="290" y="295.7" class="t-sm" text-anchor="middle">მისამართს</text>
+  <text x="290" y="312.8" class="t-sm" text-anchor="middle">და არა</text>
+  <text x="290" y="330" class="t-sm" text-anchor="middle">თქვენსას</text>
+  <line x1="102" y1="300.4" x2="111" y2="300.4" class="line"/>
+  <polygon points="118,300.4 111,296.2 111,304.6" class="fill-muted"/>
+  <line x1="222" y1="300.4" x2="231" y2="300.4" class="line"/>
+  <polygon points="238,300.4 231,296.2 231,304.6" class="fill-muted"/>
+  <line x1="0" y1="354.7" x2="340" y2="354.7" class="line line-thin"/>
+  <text x="0" y="377.1" class="t-b">Tor-ით</text>
+  <rect x="0" y="386.5" width="100" height="119" rx="8" class="box-warn"/>
+  <text x="50" y="424.1" class="t-sm" text-anchor="middle">მხოლოდ</text>
+  <text x="50" y="441.3" class="t-sm" text-anchor="middle">იმას, რომ</text>
+  <text x="50" y="458.4" class="t-sm" text-anchor="middle">Tor-ს</text>
+  <text x="50" y="475.6" class="t-sm" text-anchor="middle">იყენებთ</text>
+  <rect x="120" y="386.5" width="100" height="119" rx="8" class="box-good"/>
+  <text x="170" y="407" class="t-sm" text-anchor="middle">სამი რელე:</text>
+  <text x="170" y="424.1" class="t-sm" text-anchor="middle">არცერთმა არ</text>
+  <text x="170" y="441.3" class="t-sm" text-anchor="middle">იცის ორივე,</text>
+  <text x="170" y="458.4" class="t-sm" text-anchor="middle">ვინ ხართ და</text>
+  <text x="170" y="475.6" class="t-sm" text-anchor="middle">სად</text>
+  <text x="170" y="492.8" class="t-sm" text-anchor="middle">შედიხართ</text>
+  <rect x="240" y="386.5" width="100" height="119" rx="8" class="box-good"/>
+  <text x="290" y="415.5" class="t-sm" text-anchor="middle">მხოლოდ</text>
+  <text x="290" y="432.7" class="t-sm" text-anchor="middle">იმას, რომ</text>
+  <text x="290" y="449.9" class="t-sm" text-anchor="middle">ვიღაც</text>
+  <text x="290" y="467" class="t-sm" text-anchor="middle">Tor-იდან</text>
+  <text x="290" y="484.2" class="t-sm" text-anchor="middle">შემოდის</text>
+  <line x1="102" y1="446" x2="111" y2="446" class="line"/>
+  <polygon points="118,446 111,441.8 111,450.2" class="fill-muted"/>
+  <line x1="222" y1="446" x2="231" y2="446" class="line"/>
+  <polygon points="238,446 231,441.8 231,450.2" class="fill-muted"/>
+  <line x1="0" y1="517.4" x2="340" y2="517.4" class="line line-thin"/>
+  <text x="0" y="537.9" class="t-sm t-muted">რა გზითაც არ უნდა დაუკავშირდეთ, ანგარიშში</text>
+  <text x="0" y="555.1" class="t-sm t-muted">შესვლით, cookie-ებითა და თვალთვალის სხვა</text>
+  <text x="0" y="572.2" class="t-sm t-muted">ხერხებით საიტი მაინც შეიძლება მიხვდეს, ვინ</text>
+  <text x="0" y="589.4" class="t-sm t-muted">ხართ.</text>
+</svg>

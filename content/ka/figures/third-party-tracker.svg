@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 237">
+  <title>როგორ მოგყვებათ მესამე მხარის cookie საიტიდან საიტზე</title>
+  <desc>ახალი ამბები, ონლაინ მაღაზია, რეცეპტები. ads.example სამივე საიტზე გცნობთ და აკავშირებს, რას აკეთებთ თითოეულზე. მესამე მხარის cookie-ების დაბლოკვა ამ კავშირებს ასუსტებს.</desc>
+  <rect x="0" y="0" width="104" height="84.3" rx="8" class="box"/>
+  <text x="52" y="22.5" class="t-sm t-b" text-anchor="middle">ახალი</text>
+  <text x="52" y="39.6" class="t-sm t-b" text-anchor="middle">ამბები</text>
+  <rect x="8" y="52.3" width="87.9" height="22" rx="11" class="box-warn"/>
+  <text x="52" y="67.8" class="t-sm t-warn" text-anchor="middle">ads.example</text>
+  <rect x="118" y="0" width="104" height="84.3" rx="8" class="box"/>
+  <text x="170" y="22.5" class="t-sm t-b" text-anchor="middle">ონლაინ</text>
+  <text x="170" y="39.6" class="t-sm t-b" text-anchor="middle">მაღაზია</text>
+  <rect x="126" y="52.3" width="87.9" height="22" rx="11" class="box-warn"/>
+  <text x="170" y="67.8" class="t-sm t-warn" text-anchor="middle">ads.example</text>
+  <rect x="236" y="0" width="104" height="84.3" rx="8" class="box"/>
+  <text x="288" y="22.5" class="t-sm t-b" text-anchor="middle">რეცეპტები</text>
+  <rect x="244" y="52.3" width="87.9" height="22" rx="11" class="box-warn"/>
+  <text x="288" y="67.8" class="t-sm t-warn" text-anchor="middle">ads.example</text>
+  <line x1="52" y1="86.3" x2="134.1" y2="123.4" class="line-warn line-dash"/>
+  <polygon points="140.5,126.3 135.9,119.6 132.4,127.3" class="fill-warn"/>
+  <line x1="170" y1="86.3" x2="170" y2="119.3" class="line-warn line-dash"/>
+  <polygon points="170,126.3 174.2,119.3 165.8,119.3" class="fill-warn"/>
+  <line x1="288" y1="86.3" x2="205.9" y2="123.4" class="line-warn line-dash"/>
+  <polygon points="199.5,126.3 207.6,127.3 204.1,119.6" class="fill-warn"/>
+  <rect x="0" y="128.3" width="340" height="63.6" rx="8" class="box-bad"/>
+  <text x="170" y="154.7" class="t-b" text-anchor="middle">ads.example სამივე საიტზე გცნობთ და</text>
+  <text x="170" y="174.5" class="t-b" text-anchor="middle">აკავშირებს, რას აკეთებთ თითოეულზე.</text>
+  <circle cx="10" cy="210.9" r="9" class="box-good"/>
+  <path d="M6 210.9 L9.1 214.1 L14.5 207.8" class="line-good"/>
+  <text x="28" y="214.4" class="t-sm t-good">მესამე მხარის cookie-ების დაბლოკვა ამ</text>
+  <text x="28" y="231.6" class="t-sm t-good">კავშირებს ასუსტებს.</text>
+</svg>

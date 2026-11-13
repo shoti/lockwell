@@ -76,6 +76,8 @@ A VPN sends all your traffic through an encrypted tunnel to the VPN company's se
 
 It doesn't make you anonymous. The VPN company sees everything your internet provider used to see, and may keep it or hand it over when the law requires. Sites still recognise you by your logins, cookies and other tracking. It adds no protection between the VPN server and the site, so you still need HTTPS. Logging in to your bank through a VPN may set off its fraud checks.
 
+![A VPN moves your trust from your internet provider to the VPN company. Tor splits it between three relays.](figure:who-sees-what)
+
 Experts disagree on whether you need one. The EFF says a VPN isn't the most important security step for most people, now that most traffic is encrypted. Privacy Guides says most people should use one, mainly to hide their browsing from their internet provider. For anonymity, both point to Tor rather than a VPN.
 
 ### All devices

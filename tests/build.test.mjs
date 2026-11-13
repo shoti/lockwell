@@ -156,14 +156,19 @@ describe('site build', () => {
     }
   });
 
-  it('credits the author from site.json in the footer, meta tags and structured data', async () => {
+  it('credits the author from site.json in meta tags and structured data, but not in the footer during the beta', async () => {
     for (const path of ['index.html', 'en/index.html']) {
       const page = await read(path);
       assert.match(page, /<meta name="author" content="Shota Mtvarelishvili">/);
       const legal = /<p class="site-footer__legal">([\s\S]*?)<\/p>/.exec(page)?.[1].trim() ?? '';
-      assert.equal(legal, '<span>© 2026 <a href="https://github.com/shoti" rel="author external noreferrer">Shota Mtvarelishvili</a></span>', `${path}: the legal row is the copyright line only`);
-      assert.doesNotMatch(/<footer class="site-footer">[\s\S]*?<\/footer>/.exec(page)?.[0] ?? '', /mailto:|@proton/, `${path}: no email address in the footer`);
+      assert.equal(legal, '<span>© 2026 Lockwell</span>', `${path}: "author.inFooter" is false, so the footer credits the site`);
+      assert.doesNotMatch(/<footer class="site-footer">[\s\S]*?<\/footer>/.exec(page)?.[0] ?? '', /Mtvarelishvili|mailto:|@proton/, `${path}: no name or email address in the footer`);
       assert.match(page, /"copyrightHolder":\{"@type":"Person","name":"Shota Mtvarelishvili"/);
+    }
+    for (const path of ['about/index.html', 'en/about/index.html']) {
+      const main = /<main[\s\S]*?<\/main>/.exec(await read(path))?.[0] ?? '';
+      assert.ok(main.length > 0);
+      assert.doesNotMatch(main, /Mtvarelishvili|proton\.me|shoti\.github\.io/, `${path}: the About text names no author during the beta`);
     }
     const guide = await read('en/guides/accounts/index.html');
     assert.match(guide, /<meta property="article:author" content="https:\/\/github\.com\/shoti">/);
@@ -202,6 +207,22 @@ describe('site build', () => {
     // The guide's progress strip (64–80rem) would push its sidebar 4px below the guides list's.
     const strip = /\.progress-strip \{([^}]*)\}/.exec(css)?.[1] ?? '';
     assert.match(strip, /height: 4px;[\s\S]*margin-bottom: -4px;/);
+  });
+
+  it('credits the author in the footer when "author.inFooter" is true', async () => {
+    const contentDir = await contentCopy();
+    const file = join(contentDir, 'site.json');
+    const config = JSON.parse(await readFile(file, 'utf8'));
+    config.author.inFooter = true;
+    await writeFile(file, JSON.stringify(config));
+    const shown = join(workDir, 'author-in-footer');
+    await build({ outDir: shown, contentDir, siteUrl: 'https://example.org/' });
+    const legal = /<p class="site-footer__legal">([\s\S]*?)<\/p>/.exec(await readFile(join(shown, 'en/index.html'), 'utf8'))?.[1].trim();
+    assert.equal(legal, '<span>© 2026 <a href="https://github.com/shoti" rel="author external noreferrer">Shota Mtvarelishvili</a></span>');
+
+    config.author.inFooter = 'no';
+    await writeFile(file, JSON.stringify(config));
+    await assert.rejects(build({ outDir: shown, contentDir, siteUrl: 'https://example.org/' }), /"author\.inFooter" must be true or false/);
   });
 
   it('L16: loads nothing from other origins (scripts, styles, images, fonts, CSS urls)', async () => {
@@ -299,6 +320,30 @@ describe('build safety and options', () => {
     assert.match(guide, /data-js="checklist" data-guide="g[0-9a-f]{10}" data-storage="session"/);
     assert.match(guide, /forgotten when you close this tab/);
     assert.match(await read('en/index.html'), /data-js="card-progress" data-guide="g[0-9a-f]{10}" data-storage="session"/);
+  });
+
+  it('places figures as accessible inline SVG in both languages, and checks them', async () => {
+    await build({ outDir, siteUrl: 'https://example.org/' });
+    for (const path of ['guides/messaging/index.html', 'en/guides/messaging/index.html']) {
+      const page = await read(path);
+      const figure = /<figure class="figure" id="figure-account-takeover"><svg class="figure__art" [^>]*role="img" aria-labelledby="figure-account-takeover-title"[^>]*><title id="figure-account-takeover-title">[^<]+<\/title>/.exec(page);
+      assert.ok(figure, `${path} has the account-takeover figure`);
+      assert.match(page, /<figcaption class="figure__caption">[^<]+<\/figcaption><\/figure>/);
+    }
+
+    const missing = await contentCopy();
+    await appendFile(join(missing, 'en', 'pages', 'about.md'), '\n![Caption](figure:nope)\n');
+    await assert.rejects(build({ outDir, contentDir: missing, siteUrl: 'https://example.org/' }), /about\.md:\d+ — Figure "nope" doesn't exist/);
+
+    const mismatch = await contentCopy();
+    const file = join(mismatch, 'en', 'guides', 'messaging.md');
+    await writeFile(file, (await readFile(file, 'utf8')).replace(/\n!\[[^\]]+\]\(figure:account-takeover\)\n/, '\n'));
+    await assert.rejects(build({ outDir, contentDir: mismatch, siteUrl: 'https://example.org/' }), /Figures in "account-pin" must match/);
+
+    const unused = await contentCopy();
+    await cp(join(unused, 'en', 'figures', 'risk-grid.svg'), join(unused, 'en', 'figures', 'spare.svg'));
+    const result = await build({ outDir, contentDir: unused, siteUrl: 'https://example.org/' });
+    assert.ok(result.warnings.some((w) => /spare\.svg: not used/.test(w)), result.warnings.join('\n'));
   });
 
   it('BUG-11: warns that robots.txt is ignored when the site lives under a subpath', async () => {
