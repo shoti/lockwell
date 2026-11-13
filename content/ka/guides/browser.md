@@ -4,6 +4,7 @@ description: Chrome-ის, Safari-ის, Firefox-ისა და Edge-ის 
 summary: ბრაუზერი თითქმის ყველაფერს ხედავს, რასაც ინტერნეტში აკეთებთ. რამდენიმე პარამეტრი საკმარისია, რომ ეს ყველაფერი მის გარდა ნაკლებმა დაინახოს.
 audience: everyone
 group: habits
+icon: globe
 order: 6
 time: 30
 reviewed: 2026-11-11

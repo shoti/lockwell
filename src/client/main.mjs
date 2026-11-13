@@ -6,7 +6,7 @@
  * Progressive enhancement entry point. Every feature checks for its own
  * elements and does nothing if they are missing; the site works without JS.
  */
-import { initCardProgress, initChecklist, initGuideNav, initToc } from './checklist.mjs';
+import { initCardProgress, initChecklist, initStepSpy, initToc } from './checklist.mjs';
 import { initClearData } from './clear-data.mjs';
 import { initContinue } from './continue.mjs';
 import { initFilters } from './filters.mjs';
@@ -22,8 +22,8 @@ startFeatures(
     { name: 'theme', init: initTheme },
     { name: 'tabs', init: initTabs, layout: true },
     { name: 'contents list', init: initToc, layout: true },
-    { name: 'guide sidebar', init: initGuideNav },
     { name: 'checklist', init: initChecklist },
+    { name: 'current step', init: initStepSpy },
     { name: 'filters', init: initFilters },
     { name: 'card progress', init: initCardProgress },
     { name: 'continue', init: initContinue },

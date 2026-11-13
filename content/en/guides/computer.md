@@ -4,6 +4,7 @@ description: A checklist for Windows and Mac: automatic updates, a screen lock, 
 summary: Keep your Windows PC or Mac updated, locked and encrypted, without risking a lock-out.
 audience: everyone
 group: devices
+icon: laptop
 order: 9
 time: 45
 reviewed: 2026-11-11

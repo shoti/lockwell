@@ -4,6 +4,7 @@ description: რას ინახავენ ChatGPT, Gemini, Claude, Copilot
 summary: AI ჩატბოტები ინახავენ იმას, რასაც წერთ, და კომპანიის თანამშრომლებმა შეიძლება ეს წაიკითხონ. იცოდეთ, რას არ უნდა წერდეთ, და შეცვალეთ მნიშვნელოვანი პარამეტრები.
 audience: everyone
 group: habits
+icon: sparkle
 order: 8
 time: 30
 reviewed: 2026-11-12

@@ -52,9 +52,9 @@
     }
   }
 
-  /* Guide: sidebar with progress and contents next to the checklist. */
-  /* One column on phones, in page order: title block, "All guides" (guides
-     list only), the guide's progress and steps, then the text.
+  /* Guide: its progress and contents (the rail) next to the checklist. */
+  /* One column on phones, in page order: title block, the guide's progress
+     and steps, then the text.
      minmax(0, 1fr): a plain column would grow with a long unbroken line. */
   .guide-layout {
     display: grid;
@@ -62,106 +62,37 @@
     gap: var(--space-6);
   }
 
-  /* Wide screens: "All guides" stays on the left, in the same place on the
-     guides list and on every guide. On a guide, its own progress and steps
-     (the rail) sit above the text until there is room for a third column. */
+  /* Wide screens: a guide's text and its rail (progress and steps) form one
+     unit, side by side and centred under the header, so the rail sits right
+     next to what it describes. The title block (head) sits above the text
+     only, so the rail starts at the top of the page. Areas are named on the
+     guide only: the guides list has no rail and stays one column. */
   @media (min-width: 64rem) {
-    /* The page's title block (head) is a cell of this grid, not above it: the
-       sidebar then starts at the same height on every page, whatever the
-       length of a guide's title and summary. */
-    .guide-layout {
-      grid-template-columns: var(--nav-width) minmax(0, 1fr);
+    .guide-layout--guide {
+      grid-template-columns: minmax(0, 46rem) var(--rail-width);
       grid-template-areas:
-        "nav head"
-        "nav main";
+        "head rail"
+        "main rail";
       grid-template-rows: auto 1fr;
+      justify-content: center;
       gap: 0 var(--space-10);
       align-items: start;
     }
 
-    .guide-layout--guide {
-      grid-template-areas:
-        "nav head"
-        "nav rail"
-        "nav main";
-      grid-template-rows: auto auto 1fr;
-    }
-
-    .guide-head {
+    .guide-layout--guide > .guide-head {
       grid-area: head;
-    }
-
-    .guide-aside--rail {
-      margin-bottom: var(--space-6);
     }
 
     /* The aside must span the full row height: a sticky element can only
        move within its parent, and with align-items: start the parent would
-       be exactly as tall as the sidebar content. */
-    .guide-aside {
+       be exactly as tall as the rail's content. */
+    .guide-layout--guide > .guide-aside--rail {
+      grid-area: rail;
       align-self: stretch;
     }
 
-    .guide-aside--nav {
-      grid-area: nav;
-    }
-
-    .guide-aside--rail {
-      grid-area: rail;
-    }
-
-    .guide-main {
+    .guide-layout--guide > .guide-main {
       grid-area: main;
-    }
-
-    /* If the open track is taller than the screen, the list scrolls inside
-       the sidebar. The bar itself only shows while the pointer is over the
-       sidebar; wheel, touch and keyboard scrolling work either way.
-       It sticks exactly where it starts: below the header and the page's top
-       padding. It then sits in the same place on every page and at every
-       scroll position, and fits on screen whole, so its scroll position,
-       carried from page to page, keeps a clicked link under the pointer.
-       (Sticking higher made the list drop by the difference after following
-       a link from a scrolled page, most visibly for the last links.) */
-    .guide-aside--nav {
-      --nav-top: calc(var(--header-row) + 1px + var(--space-6));
-    }
-
-    .guide-aside--nav .guide-aside__inner {
-      position: sticky;
-      top: var(--nav-top);
-      max-height: calc(100vh - var(--nav-top) - var(--space-6));
-      overflow-y: auto;
-      scrollbar-width: thin;
-      scrollbar-color: transparent transparent;
-    }
-
-    .guide-aside--nav .guide-aside__inner:hover,
-    .guide-aside--nav .guide-aside__inner:focus-within {
-      scrollbar-color: var(--color-border-strong) transparent;
-    }
-
-    /* The track switch stays at the top of the sidebar while the list scrolls
-       under it; the ring in the sidebar's color hides what passes behind. */
-    .guide-nav__switch {
-      position: sticky;
-      top: 0;
-      z-index: 1;
-      box-shadow: 0 0 0 var(--space-2) var(--color-surface);
-    }
-  }
-
-  @media (min-width: 80rem) {
-    .guide-layout--guide {
-      grid-template-columns: var(--nav-width) minmax(0, 1fr) var(--rail-width);
-      grid-template-areas:
-        "nav head rail"
-        "nav main rail";
-      grid-template-rows: auto 1fr;
-    }
-
-    .guide-aside--rail {
-      margin-bottom: 0;
     }
 
     .guide-aside--rail .guide-aside__inner {
@@ -177,9 +108,9 @@
     max-width: 46rem;
   }
 
-  /* The guides list has no rail, so its rows can use some of that room. */
+  /* The guides list has no rail: its card grid uses the page's full width. */
   .guide-layout--index .guide-main {
-    max-width: 54rem;
+    max-width: none;
   }
 
   /* Long-form article: the header, the text and the footer share one readable column. */

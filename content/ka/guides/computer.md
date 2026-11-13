@@ -4,6 +4,7 @@ description: ჩამონათვალი Windows-ისა და Mac-ი�
 summary: Windows-ის კომპიუტერი ან Mac განახლებული, ჩაკეტილი და დაშიფრული გქონდეთ, ოღონდ ისე, რომ თავად არ დარჩეთ საკუთარი ფაილების გარეშე.
 audience: everyone
 group: devices
+icon: laptop
 order: 9
 time: 45
 reviewed: 2026-11-11

@@ -4,6 +4,7 @@ description: What Tor Browser hides and what it doesn't, the mistakes that give 
 summary: Tor Browser hides where you are from the sites you visit, but not that you use Tor. Most people lose their anonymity through their own habits, not a broken tool.
 audience: high-risk
 group: threats
+icon: incognito
 order: 11
 time: 40
 progress: session

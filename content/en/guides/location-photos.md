@@ -4,6 +4,7 @@ description: Stop live location shares you forgot, remove location from photos, 
 summary: Your phone and your photos can show where you live and where you are now. Decide who sees that.
 audience: everyone
 group: habits
+icon: pin
 order: 7
 time: 35
 reviewed: 2026-11-11

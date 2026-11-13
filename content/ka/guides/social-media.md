@@ -4,6 +4,7 @@ description: Facebook-ის, Instagram-ისა და TikTok-ის პარ
 summary: გადაწყვიტეთ, ვინ ნახოს თქვენი პოსტები, პროფილი და ის, სად ხართ, იმ აპლიკაციებში, რომლებსაც უკვე იყენებთ.
 audience: everyone
 group: habits
+icon: at
 order: 5
 time: 40
 reviewed: 2026-11-11

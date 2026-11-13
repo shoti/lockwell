@@ -41,6 +41,7 @@ description: One or two sentences for search results (about 150 characters).
 summary: One line shown under the title and on guide cards.
 audience: everyone
 group: start
+icon: chat
 order: 2
 time: 30
 reviewed: 2026-11-09
@@ -54,7 +55,8 @@ status: draft
 | `description` | Shown by Google. Say what the reader will be able to do. |
 | `summary` | Short lead under the title. |
 | `audience` | The track the guide belongs to: `everyone` (ordinary people who want sensible protection) or `high-risk` (activists, journalists, anyone with a reason to expect targeted attention). Required, the same in both languages. See "The two tracks" below. |
-| `group` | The topic group inside the track, the same in both languages. For `everyone`: `start`, `habits`, `devices`, `recovery`. For `high-risk`: `plan`, `basics`, `situations`, `threats`, `teams`. The guides list and its sidebar show guides under these headings. |
+| `group` | The topic group inside the track, the same in both languages. For `everyone`: `start`, `habits`, `devices`, `recovery`. For `high-risk`: `plan`, `basics`, `situations`, `threats`, `teams`. The guides list shows guides under these headings. |
+| `icon` | The subject icon on the guide's card, the same in both languages. One of the names in `GUIDE_ICONS` (`src/build/frontmatter.mjs`), each drawn in `src/build/templates/icons.mjs`. Give every guide its own; for a new subject, draw a new icon in the same style (24×24, 1.75 stroke, round ends) and add its name to both. |
 | `order` | Reading order within its track (1 = first): the lists, "Next guide" and "Continue" follow it. Each guide in a track needs its own number, the same in both languages, and the numbers must run group by group (all of `start`, then all of `habits`, and so on). |
 | `time` | Rough minutes to finish everything. |
 | `reviewed` | Date someone last checked every step on a real device. |

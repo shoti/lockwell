@@ -4,6 +4,7 @@ description: Signal დაწვრილებით: როგორ დარ
 summary: Signal იცავს იმას, რასაც წერთ, და არა იმას, ვინ ხართ ან რა ინახება მეორე ადამიანის ტელეფონზე. შეამოწმეთ, ვის ესაუბრებით, დამალეთ ნომერი და იცოდეთ, სად მთავრდება დაცვა.
 audience: high-risk
 group: basics
+icon: chatLock
 order: 4
 time: 40
 progress: session

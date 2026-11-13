@@ -4,6 +4,7 @@ description: რას იცავს დაშიფვრა და როდ
 summary: დაშიფვრა იცავს გამორთულ მოწყობილობას და არა განბლოკილს. იცოდეთ, რისი წაკითხვა შეიძლება მაინც, მოწყობილობაზე ნაკლები შეინახეთ და დაგეგმეთ, ვის დაურეკავთ.
 audience: high-risk
 group: situations
+icon: phoneAlert
 order: 8
 time: 40
 progress: session

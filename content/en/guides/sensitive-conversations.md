@@ -4,6 +4,7 @@ description: Signal in depth: checking you're talking to the right person, hidin
 summary: Signal protects what you write, not who you are or what is on the other person's phone. Check who you are talking to, hide your number and know the limits.
 audience: high-risk
 group: basics
+icon: chatLock
 order: 4
 time: 40
 progress: session

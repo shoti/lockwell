@@ -37,21 +37,17 @@
 
     /* Layout */
     /* One width for the header, the content and the footer of every page, so
-       nothing shifts sideways between pages. Wide enough for the guides'
-       sidebar, the text and the guide's own steps side by side. */
+       nothing shifts sideways between pages. */
     --page-max: 90rem;
-    --nav-width: 18rem;
-    /* Height of the header once it is one row (from 45rem). The "All guides"
-       sidebar sticks right below it (--nav-top in 04-layout.css), so keep the
-       two in step. */
+    /* Height of the header once it is one row (from 45rem). */
     --header-row: 4.25rem;
-    --rail-width: 15rem;
+    --rail-width: 17rem;
     --measure: 66ch;
     --gutter: clamp(1rem, 0.6rem + 2vw, 2rem);
     --tap: 2.75rem;
     /* Wide-layout breakpoint. CSS can't use variables in @media, so media
        queries repeat the value. checklist.mjs reads it from each sidebar list,
-       which may set its own (see .toc--rail), to decide whether it starts open. */
+       which may set its own, to decide whether it starts open. */
     --bp-wide: 64rem;
     /* Height of the platform tab bar; reserved before tabs.mjs builds it. */
     --tablist-height: 3rem;

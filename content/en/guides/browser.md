@@ -4,6 +4,7 @@ description: Settings for Chrome, Safari, Firefox and Edge: updates, extensions,
 summary: Your browser sees nearly everything you do online. A few settings cut down who else does.
 audience: everyone
 group: habits
+icon: globe
 order: 6
 time: 30
 reviewed: 2026-11-11

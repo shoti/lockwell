@@ -4,6 +4,7 @@ description: What to do with your phone before, during and after a protest: what
 summary: Your phone can show where you were, who you know and who was beside you. Prepare it before you go, protect the people in your photos, and know what to do if it is taken.
 audience: high-risk
 group: situations
+icon: megaphone
 order: 6
 time: 45
 progress: session

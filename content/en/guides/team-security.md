@@ -4,6 +4,7 @@ description: Security for newsrooms, NGOs and activist groups: shared accounts, 
 summary: Give each person their own access, require two-step verification, have more than one admin, remove access the day someone leaves, and agree in advance what to do in an emergency.
 audience: high-risk
 group: teams
+icon: users
 order: 13
 time: 45
 progress: session

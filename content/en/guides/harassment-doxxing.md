@@ -4,6 +4,7 @@ description: Find what is out there about you, remove what you can, limit who ca
 summary: Search yourself the way an attacker would, keep evidence before you report or delete, and put your physical safety first if your address is exposed.
 audience: high-risk
 group: threats
+icon: idCard
 order: 10
 time: 40
 progress: session

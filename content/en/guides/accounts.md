@@ -4,6 +4,7 @@ description: A step-by-step checklist to protect your email, social media and ot
 summary: Protect your email, social media and other accounts from takeover, the most common way people get hacked.
 audience: everyone
 group: start
+icon: key
 order: 1
 time: 60
 reviewed: 2026-11-11

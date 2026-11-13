@@ -188,20 +188,8 @@ describe('site build', () => {
     assert.match(await readFile(join(plainDir, 'en/feed.xml'), 'utf8'), /<author><name>Lockwell<\/name><\/author>/);
   });
 
-  it('the "All guides" sidebar sticks where it starts, so it sits in the same place on every page', async () => {
-    // A layout engine would be needed to see the jump itself; this pins the rule that prevents it.
-    // The sidebar starts below the header (one row, plus its 1px border) and the page's top padding.
-    // If it stuck any higher, following a link from a scrolled page would bring it back down by the difference.
+  it('the guide\'s progress strip takes no room, so a guide starts at the same height as the guides list', async () => {
     const css = await read('assets/site.css');
-    assert.match(css, /--nav-top: calc\(var\(--header-row\) \+ 1px \+ var\(--space-6\)\);/);
-    assert.match(css, /\.site-header \{\s*border-bottom: 1px solid/);
-    assert.match(css, /\.site-header__inner \{[^}]*min-height: var\(--header-row\);/);
-    assert.match(css, /\.page \{\s*padding-block: var\(--space-6\) /);
-    const nav = /\.guide-aside--nav \.guide-aside__inner \{([^}]*)\}/.exec(css)?.[1] ?? '';
-    assert.match(nav, /position: sticky;/);
-    assert.match(nav, /top: var\(--nav-top\);/);
-    assert.match(nav, /max-height: calc\(100vh - var\(--nav-top\) - var\(--space-6\)\);/, 'the whole sidebar fits on screen without scrolling the page');
-    // The guide's progress strip (64–80rem) would push its sidebar 4px below the guides list's.
     const strip = /\.progress-strip \{([^}]*)\}/.exec(css)?.[1] ?? '';
     assert.match(strip, /height: 4px;[\s\S]*margin-bottom: -4px;/);
   });
@@ -390,7 +378,7 @@ describe('continue link and print button', () => {
 
   it('the guides list reserves the same continue link', async () => {
     const page = await read('en/guides/index.html');
-    assert.match(page, /<p class="page-header__continue js-only"><a class="continue" data-js="continue">/, 'no href until JS finds saved progress');
+    assert.match(page, /<p class="page-header__continue page-header__continue--start"><a class="continue" data-js="continue">/, 'no href until JS finds saved progress');
     const css = await read('assets/site.css');
     assert.match(css, /\.page-header__continue \{[^}]*min-height: var\(--tap\);/, 'the line is reserved');
   });
@@ -740,56 +728,71 @@ describe('guides list rows', () => {
   });
 
   /**
-   * The rows of the English guides list, keyed by slug.
+   * The cards of the English guides list, keyed by slug.
    * @returns {Promise<Map<string, string>>}
    */
-  async function rows() {
+  async function cards() {
     const page = await read('en/guides/index.html');
     const found = new Map();
-    for (const row of page.split('<li class="guide-row">').slice(1)) {
-      const slug = /href="\/en\/guides\/([a-z0-9-]+)\/"/.exec(row)?.[1];
-      assert.ok(slug, 'every row links to its guide');
-      found.set(slug, row);
+    for (const card of page.split('<article class="card">').slice(1)) {
+      const slug = /<a class="card__link" href="\/en\/guides\/([a-z0-9-]+)\/"/.exec(card)?.[1];
+      assert.ok(slug, 'every card links to its guide');
+      found.set(slug, card.slice(0, card.indexOf('</article>')));
     }
     return found;
   }
 
-  it('lists every guide once, as a row in an ordered list per topic group, not as cards', async () => {
+  it('lists every guide once, as a card in a three-column grid per topic group, like the home page', async () => {
     const page = await read('en/guides/index.html');
     const guides = (await readdir(join('content', 'en', 'guides'))).filter((f) => f.endsWith('.md'));
-    assert.equal((await rows()).size, guides.length);
+    assert.equal((await cards()).size, guides.length);
     const { GROUPS } = await import('../src/build/frontmatter.mjs');
-    const lists = [...page.matchAll(/<h3 class="guide-group__topic" id="group-([a-z]+)">[^<]+<\/h3>\s*<ol class="guide-list" role="list" aria-labelledby="group-\1">/g)].map((m) => m[1]);
-    assert.deepEqual(lists, Object.values(GROUPS).flat(), 'one labelled list per group, tracks and groups in their fixed order');
-    assert.equal(page.match(/<ol class="guide-list"/g)?.length, lists.length, 'no list without a heading');
-    assert.doesNotMatch(page, /guide-row__number/, 'rows are not numbered: the groups carry the order');
-    assert.doesNotMatch(page, /class="card"/);
-    assert.match(await read('en/index.html'), /<h3 class="card__title">/, 'the home page keeps its cards');
+    const grids = [...page.matchAll(/<h3 class="guide-group__topic" id="group-([a-z]+)">[^<]+<\/h3>\s*<div class="card-grid card-grid--three">/g)].map((m) => m[1]);
+    assert.deepEqual(grids, Object.values(GROUPS).flat(), 'one grid per group, under its heading, tracks and groups in their fixed order');
+    assert.equal(page.match(/<div class="card-grid/g)?.length, grids.length, 'no grid without a heading');
+    assert.match(page, /<h4 class="card__title"><a class="card__link" href="\/en\/guides\/accounts\/">/, 'below the track (h2) and topic (h3) headings');
+    assert.doesNotMatch(page, /guide-row|guide-list|step-list|guide-contents/, 'no rows and no step lists any more');
+    const css = await read('assets/site.css');
+    assert.match(css, /@media \(min-width: 64rem\) \{\s*\.card-grid--three \{\s*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);/);
+    assert.match(css, /\.guide-layout--index \.guide-main \{\s*max-width: none;/, 'the grid uses the full page width');
   });
 
-  it('each row lists all of its steps, in order, linking into the guide', async () => {
-    for (const [slug, row] of await rows()) {
-      const ids = /data-items="([^"]+)"/.exec(row)?.[1].split(' ') ?? [];
-      const steps = [...row.matchAll(/<a class="step-list__link" href="\/en\/guides\/([a-z0-9-]+)\/#([a-z][a-z0-9-]*)" data-js="toc-link" data-item="\2">/g)];
+  it('each card shows the time, the number of steps and where its saved progress is kept', async () => {
+    const all = await cards();
+    for (const [slug, card] of all) {
+      const ids = /data-items="([^"]+)"/.exec(card)?.[1].split(' ') ?? [];
       assert.ok(ids.length > 0, slug);
-      assert.deepEqual(steps.map((m) => m[2]), ids, `${slug}: same steps as the guide, same order`);
-      assert.ok(steps.every((m) => m[1] === slug), `${slug}: links point into its own guide`);
-      assert.match(row, new RegExp(`<summary class="guide-row__toggle" aria-describedby="guide-${slug}__title">See all ${ids.length} steps</summary>`));
+      assert.match(card, new RegExp(`<span>${ids.length} steps?</span>`), `${slug}: step count`);
+      assert.match(card, /<span>\d+ min<\/span>/, `${slug}: time`);
     }
+    assert.match(all.get('accounts') ?? '', /data-js="card-progress" data-guide="g[0-9a-f]{10}" data-storage="local"/);
+    assert.match(all.get('protest') ?? '', /data-js="card-progress" data-guide="g[0-9a-f]{10}" data-storage="session"/);
   });
 
-  it('the steps start collapsed and work without JavaScript', async () => {
+  it('a started card shows its count and a bar along the bottom; a finished one says "Done" and fills its icon', async () => {
+    const card = (await cards()).get('phone') ?? '';
+    // The progress comes first in the markup so the icon after it can follow its state without :has().
+    assert.match(card, /<div class="card__top">\s*<span class="card-progress" data-js="card-progress"[^>]*>\s*<span class="card-progress__track" aria-hidden="true"><span class="card-progress__bar" data-js="progress-bar"><\/span><\/span>\s*<span class="card-progress__text"[^>]*><\/span>\s*<span class="card-progress__done" aria-hidden="true"><svg[\s\S]*?<\/svg>Done<\/span>/);
+    assert.match(card, /<\/span>\s*<span class="card__icon guide-card__icon">/);
+    assert.match(await read('guides/index.html'), /<span class="card-progress__done" aria-hidden="true"><svg[\s\S]*?<\/svg>შესრულებულია<\/span>/);
+    const css = await read('assets/site.css');
+    assert.match(css, /\.card__top > \.card-progress \{\s*order: 1;/, 'shown last in the row');
+    assert.match(css, /\.card \.card-progress__track \{\s*position: absolute;\s*inset-inline: 0;\s*bottom: 0;/);
+    assert.match(css, /\.card-progress\.is-complete ~ \.guide-card__icon \{/);
+    assert.doesNotMatch(css, /:has\([^)]*card-progress/, 'no :has() for the finished state');
+  });
+
+  it('the line under the intro is never empty: "Continue" for a returning visitor, where to start for a new one', async () => {
     const page = await read('en/guides/index.html');
-    assert.match(page, /<details class="guide-row__steps">/);
-    assert.doesNotMatch(page, /<details class="guide-row__steps" open/);
-    assert.doesNotMatch(page, /class="guide-row__steps[^"]*js-only/);
-  });
-
-  it('step lists know where their guide keeps progress, so finished steps can be marked', async () => {
-    const all = await rows();
-    assert.match(all.get('accounts') ?? '', /<ol class="step-list" role="list" data-js="guide-contents" data-guide="g[0-9a-f]{10}" data-storage="local">/);
-    assert.match(all.get('protest') ?? '', /data-js="guide-contents" data-guide="g[0-9a-f]{10}" data-storage="session">/);
-    assert.match(all.get('accounts') ?? '', /<span class="visually-hidden" data-js="toc-done" data-text="\(done\)"><\/span>/);
+    const line = /<p class="page-header__continue page-header__continue--start">([\s\S]*?)<\/p>/.exec(page)?.[1] ?? '';
+    assert.ok(line, 'shown without JS too (no js-only)');
+    assert.ok(line.indexOf('data-js="continue"') < line.indexOf('continue--start'), 'the start link comes after "Continue", so CSS can hide it while "Continue" shows');
+    assert.match(line, /<a class="continue continue--start" href="\/en\/guides\/accounts\/"><span>New here\? Start with:<\/span><span class="continue__title">Secure your accounts and passwords<\/span><span class="continue__count">60 min<\/span><svg/);
+    assert.match(await read('guides/index.html'), /<span>პირველად ხართ\? დაიწყეთ:<\/span>/);
+    const css = await read('assets/site.css');
+    assert.match(css, /\.page-header__continue--start \{\s*display: grid;\s*grid-template-columns: minmax\(0, 1fr\);/, 'one cell for both; a long line must not widen a phone');
+    assert.match(css, /\.page-header__continue--start > \.continue \{\s*grid-area: 1 \/ 1;/);
+    assert.match(css, /\.continue\.is-visible ~ \.continue--start,\s*\.js:not\(\.js-ready\) \.continue--start \{\s*visibility: hidden;/, 'no flash before "Continue" for a returning visitor');
   });
 
   it('jump links lead to both tracks with their guide counts', async () => {
@@ -797,20 +800,12 @@ describe('guides list rows', () => {
     const count = (/** @type {string} */ track) => {
       const start = page.indexOf(`<section class="guide-group" id="${track}"`);
       const end = page.indexOf('</section>', start);
-      return page.slice(start, end).split('<li class="guide-row">').length - 1;
+      return page.slice(start, end).split('<article class="card">').length - 1;
     };
     const nav = /<nav class="track-nav" aria-label="Guide groups">([\s\S]*?)<\/nav>/.exec(page)?.[1] ?? '';
     assert.match(nav, new RegExp(`href="#everyone">For everyone<span class="track-nav__count">${count('everyone')}</span>`));
     assert.match(nav, new RegExp(`href="#high-risk">For people at higher risk<span class="track-nav__count">${count('high-risk')}</span>`));
     assert.match(await read('guides/index.html'), /aria-label="გზამკვლევების ჯგუფები"/);
-  });
-
-  it('the row link covers the row, but the steps toggle stays above it', async () => {
-    const css = await read('assets/site.css');
-    assert.match(css, /\.guide-row \{[^}]*position: relative;/);
-    assert.match(css, /\.guide-row__link::after \{[^}]*inset: 0;/);
-    assert.match(css, /\.guide-row__steps \{[^}]*position: relative;\s*z-index: 1;/);
-    assert.doesNotMatch(/\.guide-list \{[^}]*\}/.exec(css)?.[0] ?? '', /overflow/, 'overflow would clip focus rings');
   });
 });
 
@@ -863,10 +858,10 @@ describe('guide tracks', () => {
     assert.ok(everyone > 0 && risk > everyone, 'both sections, in order');
     assert.match(page, /<h2 class="section__title" id="everyone__title">For everyone<\/h2>/);
     assert.match(page, /<h2 class="section__title" id="high-risk__title">For people at higher risk<\/h2>/);
-    const accounts = page.indexOf('<a class="guide-row__link" href="/en/guides/accounts/"');
+    const accounts = page.indexOf('<a class="card__link" href="/en/guides/accounts/"');
     assert.ok(accounts > everyone && accounts < risk, 'an everyone guide sits in the first section');
-    assert.ok(page.indexOf('<a class="guide-row__link" href="/en/guides/zz-fixture/"') > risk, 'a high-risk guide sits in the second section');
-    assert.match(page, /<h4 class="guide-row__title" id="guide-accounts__title">/, 'rows sit below the track (h2) and topic (h3) headings');
+    assert.ok(page.indexOf('<a class="card__link" href="/en/guides/zz-fixture/"') > risk, 'a high-risk guide sits in the second section');
+    assert.match(page, /<h4 class="card__title"><a class="card__link" href="\/en\/guides\/accounts\/">/, 'cards sit below the track (h2) and topic (h3) headings');
     assert.match(await read('guides/index.html'), /id="high-risk__title">მათთვის, ვინც მეტი რისკის ქვეშაა<\/h2>/);
   });
 
@@ -959,7 +954,7 @@ describe('final review fixes (output)', () => {
 
   it('R1, R4, R6, R8, R9, R10, R11: CSS rules are in place', async () => {
     const css = await readOut('assets/site.css');
-    assert.match(css, /\.guide-aside \{\s*align-self: stretch;/, 'R1 sidebar spans the row so it can stick');
+    assert.match(css, /\.guide-layout--guide > \.guide-aside--rail \{\s*grid-area: rail;\s*align-self: stretch;/, 'R1 the rail spans the row so it can stick');
     assert.equal((css.match(/font-display: optional;/g) ?? []).length, 2, 'R4 both fonts use optional');
     assert.doesNotMatch(css, /font-display: swap/);
     assert.match(css, /\.tab:focus-visible \{\s*outline-offset: -3px;/, 'R6 tab ring drawn inside');
@@ -1112,40 +1107,26 @@ describe('guides by topic, and the "All guides" sidebar', () => {
   /** The front matter value of `key` in an English guide. @param {string} slug @param {string} key */
   const meta = async (slug, key) => new RegExp(`^${key}: (.+)$`, 'm').exec(await readFile(join('content', 'en', 'guides', `${slug}.md`), 'utf8'))?.[1];
 
-  /**
-   * The sidebar of a page as [track, group, slug, current?] per link, in order.
-   * @param {string} page
-   */
-  function sidebar(page) {
-    const nav = /<nav class="toc__list guide-nav__body" aria-label="[^"]+">([\s\S]*?)<\/nav>/.exec(page)?.[1] ?? '';
-    /** @type {[string, string, string, boolean][]} */
-    const links = [];
-    let track = '';
-    let group = '';
-    for (const m of nav.matchAll(/<section class="guide-nav__track(?: is-selected)?" id="guide-nav-([a-z-]+)" data-js="nav-track">|<p class="guide-nav__group" id="guide-nav__([a-z]+)">|<a class="toc__link guide-nav__link" href="\/en\/guides\/([a-z0-9-]+)\/"( aria-current="page" data-js="nav-current")?>/g)) {
-      if (m[1]) track = m[1];
-      else if (m[2]) group = m[2];
-      else links.push([track, group, m[3], Boolean(m[4])]);
-    }
-    return links;
-  }
-
-  it('the guides list has a sidebar with every guide once, under its own track and topic', async () => {
-    const links = sidebar(await readOut('en/guides/index.html'));
+  it('there is no "All guides" sidebar: the list and every guide show only their own content', async () => {
     const guides = (await readdir(join('content', 'en', 'guides'))).filter((f) => f.endsWith('.md')).map((f) => f.replace('.md', ''));
-    assert.deepEqual(links.map(([, , slug]) => slug).sort(), guides.sort());
-    for (const [track, group, slug, current] of links) {
-      assert.equal(track, await meta(slug, 'audience'), `${slug}: track`);
-      assert.equal(group, await meta(slug, 'group'), `${slug}: group`);
-      assert.equal(current, false, 'no guide is "the current page" on the list itself');
+    for (const page of ['en/guides/index.html', 'guides/index.html', ...guides.map((slug) => `en/guides/${slug}/index.html`)]) {
+      const html = await readOut(page);
+      assert.doesNotMatch(html, /guide-nav|guide-aside--nav|data-js="nav-/, page);
+    }
+    const css = await readOut('assets/site.css');
+    assert.doesNotMatch(css, /guide-nav|--nav-top|--nav-width/);
+    for (const lang of ['ka', 'en']) {
+      const strings = JSON.parse(await readFile(join('content', 'i18n', `${lang}.json`), 'utf8')).guides;
+      assert.equal(strings.navLabel, undefined, `${lang}: no orphaned label`);
+      assert.equal(strings.everyone.short, undefined, `${lang}: no orphaned short track name`);
     }
   });
 
-  it('the sidebar and the rows list the guides in the same order: the reading order', async () => {
+  it('the cards list the guides in reading order, and "Next guide" follows it within a track', async () => {
     const page = await readOut('en/guides/index.html');
-    const fromSidebar = sidebar(page).map(([, , slug]) => slug);
-    const fromRows = [...page.matchAll(/<a class="guide-row__link" href="\/en\/guides\/([a-z0-9-]+)\/"/g)].map((m) => m[1]);
-    assert.deepEqual(fromSidebar, fromRows);
+    const fromRows = [...page.matchAll(/<a class="card__link" href="\/en\/guides\/([a-z0-9-]+)\/"/g)].map((m) => m[1]);
+    const guides = (await readdir(join('content', 'en', 'guides'))).filter((f) => f.endsWith('.md')).map((f) => f.replace('.md', ''));
+    assert.deepEqual([...fromRows].sort(), guides.sort(), 'every guide once');
     const next = async (/** @type {string} */ slug) => /<a class="next-link" href="\/en\/guides\/([a-z0-9-]+)\/">/.exec(await readOut(`en/guides/${slug}/index.html`))?.[1];
     for (let i = 0; i < fromRows.length - 1; i += 1) {
       const sameTrack = (await meta(fromRows[i], 'audience')) === (await meta(fromRows[i + 1], 'audience'));
@@ -1153,92 +1134,51 @@ describe('guides by topic, and the "All guides" sidebar', () => {
     }
   });
 
-  /** Which track of a page's sidebar is shown (with JS), by its panel and by its tab. @param {string} page */
-  const openTracks = (page) => {
-    const panels = [...page.matchAll(/<section class="guide-nav__track is-selected" id="guide-nav-([a-z-]+)"/g)].map((m) => m[1]);
-    const tabs = [...page.matchAll(/<button type="button" class="guide-nav__tab" role="tab" id="guide-nav-tab-([a-z-]+)" aria-controls="guide-nav-\1" aria-selected="true" tabindex="0" data-js="nav-tab">/g)].map((m) => m[1]);
-    assert.deepEqual(tabs, panels, 'the selected tab shows the selected list');
-    return panels;
-  };
-
-  it('the same sidebar is on the guides list and on every guide, open, with the guide being read marked', async () => {
-    const open = /<details class="toc guide-nav" data-js="toc" open>\s*<summary class="toc__summary">All guides<\/summary>/;
-    const list = await readOut('en/guides/index.html');
-    assert.match(list, open);
-    assert.deepEqual(openTracks(list), ['everyone'], 'on the list the first track is shown');
-    assert.match(list, /<aside class="guide-aside guide-aside--nav">/, 'shown on phones too, where the script closes it');
-
+  it('a guide page reads in order: title, its own progress and steps, then the text', async () => {
     const guide = await readOut('en/guides/protest/index.html');
-    assert.match(guide, open, 'not collapsed: the overview stays in view while reading');
-    assert.deepEqual(openTracks(guide), ['high-risk'], 'the track of the guide being read is shown');
-    assert.deepEqual(openTracks(await readOut('en/guides/accounts/index.html')), ['everyone']);
-    // A switch above the list picks the track; it never moves when the other track is chosen. Without JS it is
-    // hidden and both lists show, each under its own title.
-    assert.match(guide, /<nav class="toc__list guide-nav__body" aria-label="All guides">\s*<div class="guide-nav__switch js-only" role="tablist" aria-label="Guide groups" data-js="nav-tabs">\s*<button[^>]*id="guide-nav-tab-everyone"[^>]*>For everyone <span class="guide-nav__count">\d+<\/span><\/button>\s*<button[^>]*id="guide-nav-tab-high-risk" aria-controls="guide-nav-high-risk"[^>]*>Higher risk <span class="guide-nav__count">\d+<\/span><\/button>/);
-    assert.match(guide, /<button type="button" class="guide-nav__tab" role="tab" id="guide-nav-tab-everyone" aria-controls="guide-nav-everyone" aria-selected="false" tabindex="-1" data-js="nav-tab">/);
-    assert.match(guide, /<section class="guide-nav__track is-selected" id="guide-nav-high-risk" data-js="nav-track">\s*<p class="guide-nav__track-title">For people at higher risk<\/p>/);
-    assert.equal((guide.match(/<section class="guide-nav__track/g) ?? []).length, 2);
-    for (const page of [list, guide]) {
-      const count = (/** @type {string} */ track) => Number(new RegExp(`id="guide-nav-tab-${track}"[^>]*>[^<]+<span class="guide-nav__count">(\\d+)<`).exec(page)?.[1]);
-      assert.deepEqual([count('everyone'), count('high-risk')], ['everyone', 'high-risk'].map((track) => sidebar(page).filter(([t]) => t === track).length), 'each tab counts its guides');
-    }
-    assert.deepEqual(sidebar(guide).filter(([, , , current]) => current).map(([, , slug]) => slug), ['protest']);
-    assert.deepEqual(sidebar(guide).map(([, , slug]) => slug), sidebar(list).map(([, , slug]) => slug), 'same guides, same order');
-    assert.match(guide, /<a class="toc__link guide-nav__link" href="\/en\/guides\/protest\/" aria-current="page" data-js="nav-current">/, 'the script can bring it into view');
-    assert.match(guide, /<aside class="guide-aside guide-aside--nav guide-aside--page">\s*<div class="guide-aside__inner" data-js="nav-scroll">/);
-    const css = await readOut('assets/site.css');
-    assert.match(css, /\.js \.guide-nav__track:not\(\.is-selected\) \{\s*display: none;/, 'with JS only the chosen list shows, from the first paint');
-    assert.match(css, /\.guide-nav__switch \{\s*position: sticky;\s*top: 0;/, 'the switch stays in view while the list scrolls under it');
-    assert.match(css, /@media \(max-width: 63\.99rem\) \{\s*\.guide-aside--page \{\s*display: none;/, 'on a phone a guide starts with the guide; the breadcrumb leads to the overview');
-    assert.match(await readOut('guides/index.html'), /<summary class="toc__summary">ყველა გზამკვლევი<\/summary>/);
-  });
-
-  it('a guide page reads in order: title, "All guides", its own progress and steps, then the text', async () => {
-    const guide = await readOut('en/guides/protest/index.html');
-    const order = ['<div class="guide-head">', '<h1 class="page-header__title">', '<aside class="guide-aside guide-aside--nav guide-aside--page">', '<aside class="guide-aside guide-aside--rail" aria-label="In this guide">', '<div class="progress js-only" data-js="progress">', '<details class="toc toc--rail" data-js="toc" open>', '<div class="guide-main">'].map((part) => guide.indexOf(part));
+    const order = ['<div class="guide-head">', '<h1 class="page-header__title">', '<aside class="guide-aside guide-aside--rail" aria-label="In this guide">', '<div class="progress js-only" data-js="progress">', '<details class="toc toc--rail" data-js="toc" open>', '<div class="guide-main">'].map((part) => guide.indexOf(part));
     assert.ok(order.every((at) => at !== -1), `every part is on the page: ${order}`);
     assert.deepEqual(order, [...order].sort((x, y) => x - y), 'in this order, which is also the keyboard order');
-    assert.equal((guide.match(/data-js="toc"/g) ?? []).length, 2);
-    const css = await readOut('assets/site.css');
-    // The contents list is open only where it has its own column; the script reads this width from the element.
-    assert.match(css, /\.toc--rail \{\s*--bp-wide: 80rem;/);
-    assert.match(css, /@media \(min-width: 80rem\) \{\s*\.guide-layout--guide \{[^}]*grid-template-areas:\s*"nav head rail"\s*"nav main rail";/);
-    assert.match(css, /@media \(max-width: 79\.99rem\) \{\s*\.js \.toc--rail:not\(\[data-ready\]\) > \.toc__list \{\s*display: none;/, 'no jump while the script closes it');
+    assert.equal((guide.match(/data-js="toc"/g) ?? []).length, 1);
   });
 
-  it('the sidebar is a cell of the same grid on the list and on a guide, so it never changes place between pages', async () => {
-    for (const page of ['en/guides/index.html', 'en/guides/protest/index.html', 'en/guides/accounts/index.html']) {
+  it('from 64rem a guide\'s text and its rail sit side by side, centred, with progress and steps in one box', async () => {
+    for (const page of ['en/guides/protest/index.html', 'en/guides/accounts/index.html']) {
       const html = await readOut(page);
-      // Nothing of varying height (breadcrumb, title, summary) may sit between the container and the grid.
-      assert.match(html, /<div class="container page">\s*<div class="guide-layout guide-layout--(index|guide)"[^>]*>\s*<div class="guide-head">\s*<nav class="breadcrumbs"/, `${page}: the title block is a cell of the grid`);
-      assert.match(html, /<\/header>\s*<\/div>\s*<aside class="guide-aside guide-aside--nav[^"]*">\s*<div class="guide-aside__inner" data-js="nav-scroll">/, `${page}: the sidebar follows it in the page, and the grid puts it on the left`);
+      assert.match(html, /<div class="container page">\s*<div class="guide-layout guide-layout--guide"[^>]*>\s*<div class="guide-head">\s*<nav class="breadcrumbs"/, `${page}: the title block is a cell of the grid`);
+      assert.match(html, /<aside class="guide-aside guide-aside--rail" aria-label="In this guide">\s*<div class="guide-aside__inner rail-box">\s*<div class="progress js-only" data-js="progress">[\s\S]*?<\/div>\s*<details class="toc toc--rail" data-js="toc" open>/, `${page}: progress, then the steps, in one box`);
     }
+    assert.match(await readOut('en/guides/index.html'), /<div class="guide-layout guide-layout--index">\s*<div class="guide-head">[\s\S]*?<\/header>\s*<\/div>\s*<div class="guide-main">/, 'the list: title block, then the cards');
     const css = await readOut('assets/site.css');
-    assert.match(css, /\.guide-layout \{[^}]*grid-template-areas:\s*"nav head"\s*"nav main";/);
     assert.match(css, /\.guide-layout \{\s*display: grid;\s*grid-template-columns: minmax\(0, 1fr\);/, 'on phones a long line must not widen the page');
-    assert.match(css, /\.guide-layout--guide \{[^}]*grid-template-areas:\s*"nav head"\s*"nav rail"\s*"nav main";/);
+    assert.match(css, /@media \(min-width: 64rem\) \{\s*\.guide-layout--guide \{\s*grid-template-columns: minmax\(0, 46rem\) var\(--rail-width\);\s*grid-template-areas:\s*"head rail"\s*"main rail";\s*grid-template-rows: auto 1fr;\s*justify-content: center;/);
+    // Named areas exist only on a guide; placing the list's cells in them would add implicit tracks and overlap them.
+    assert.doesNotMatch(css, /\.guide-layout(--index)? \{[^}]*grid-template-areas/, 'only a guide has columns');
+    assert.doesNotMatch(css, /\n    \.guide-(head|main|aside--rail) \{\s*grid-area/, 'grid areas are never unscoped');
+    const rail = /\.guide-aside--rail \.guide-aside__inner \{([^}]*)\}/.exec(css)?.[1] ?? '';
+    assert.match(rail, /position: sticky;/);
+    // The steps list is open wherever the rail has its own column: the default width, no 80rem override.
+    assert.doesNotMatch(css, /\.toc--rail \{\s*--bp-wide/);
+    assert.doesNotMatch(css, /79\.99rem|min-width: 80rem\) \{\s*\.(guide|progress)/);
+    assert.match(css, /@media \(min-width: 64rem\) \{\s*\.progress-strip \{\s*display: none;/, 'the strip only where the rail is not beside the text');
+    assert.match(css, /\.rail-box \{\s*border: 1px solid var\(--color-border\);/);
+    assert.match(css, /:root:not\(\.js\) \.rail-box > \.toc \{\s*border-top: 0;/, 'without JS the steps list is alone in the box, with no rule above it');
   });
 
-  it('moving between pages cross-fades the content while the header and the sidebar stay put, without script', async () => {
+  it('moving between pages cross-fades the content while the header stays put, without script', async () => {
     const css = await readOut('assets/site.css');
     assert.match(css, /@media \(prefers-reduced-motion: no-preference\) \{\s*@view-transition \{\s*navigation: auto;\s*\}\s*\}/, 'and not at all for people who asked for less motion');
     assert.equal((css.match(/@view-transition/g) ?? []).length, 1);
     assert.match(css, /\.site-header \{\s*view-transition-name: site-header;/);
-    assert.match(css, /\.guide-aside--nav \{\s*view-transition-name: guide-nav;/);
-    // Between two pages with the sidebar it is swapped at once, never blended: two lists on top of each other read as
-    // movement. A page without it still fades it out (":only-child" is the old image alone).
-    assert.match(css, /::view-transition-old\(guide-nav\):not\(:only-child\) \{\s*display: none;/);
-    assert.match(css, /::view-transition-new\(guide-nav\):not\(:only-child\) \{\s*animation: none;/);
+    assert.equal((css.match(/view-transition-name:/g) ?? []).length, 1, 'the header is the only named part');
     // A name may be used once per page, or the browser skips the transition.
     for (const page of ['en/guides/index.html', 'en/guides/protest/index.html', 'en/index.html']) {
       const html = await readOut(page);
       assert.equal((html.match(/<header class="site-header">/g) ?? []).length, 1, page);
-      assert.ok((html.match(/class="guide-aside guide-aside--nav/g) ?? []).length <= 1, page);
     }
     // Navigation stays plain links: no script fetches or swaps pages (the CSP forbids both).
     const { contentSecurityPolicy } = await import('../src/build/assets.mjs');
     assert.match(contentSecurityPolicy(), /connect-src 'none'/);
-    assert.match(await readOut('en/guides/protest/index.html'), /<a class="toc__link guide-nav__link" href="\/en\/guides\/accounts\/">/);
   });
 
   it('every page has the same width from header to footer, so nothing shifts sideways between pages', async () => {
@@ -1253,21 +1193,6 @@ describe('guides by topic, and the "All guides" sidebar', () => {
     const css = await readOut('assets/site.css');
     assert.equal((css.match(/--page-max:/g) ?? []).length, 1, 'one width, defined once');
     assert.doesNotMatch(css, /\.container--/);
-  });
-
-  it('every sidebar link carries its guide\'s saved progress, as a mark that takes no room from the title', async () => {
-    const guide = await readOut('en/guides/accounts/index.html');
-    const nav = /<nav class="toc__list guide-nav__body"[\s\S]*?<\/nav>/.exec(guide)?.[0] ?? '';
-    const marked = [...nav.matchAll(/href="\/en\/guides\/([a-z0-9-]+)\/"(?: aria-current="page" data-js="nav-current")?>\s*<span class="guide-nav__text">[^<]+<\/span><span class="card-progress guide-nav__progress" data-js="card-progress" data-guide="g[0-9a-f]{10}" data-storage="(?:local|session)" data-items="[^"]+">/g)].map((m) => m[1]);
-    assert.deepEqual(marked, sidebar(guide).map(([, , slug]) => slug), 'the guide being read too: every link is built the same, so every title wraps the same');
-    assert.match(nav, /data-storage="session"/, 'high-risk guides are read from this tab\'s storage');
-    assert.match(nav, /<span class="visually-hidden" data-js="progress-text" data-template="\{done\} of \{total\} done"><\/span>/, 'screen readers get the count');
-    const css = await readOut('assets/site.css');
-    assert.match(css, /\.guide-nav__progress \{\s*position: absolute;/, 'out of the text flow');
-    assert.match(css, /\.guide-nav__progress\.is-complete \{/, 'a finished guide gets a tick');
-    const current = /\.guide-nav__link\[aria-current\] \{([^}]*)\}/.exec(css)?.[1] ?? '';
-    assert.match(current, /background:/);
-    assert.doesNotMatch(current, /font-weight/, 'a bolder current link is wider and wraps differently from page to page');
   });
 
   it('every group has a name in both languages', async () => {
@@ -1309,5 +1234,27 @@ describe('guides by topic, and the "All guides" sidebar', () => {
     await assert.rejects(buildWith('both', 'wifi', (s) => s.replace('group: devices', 'group: habits')), /guides\/wifi\.md — "group: habits" comes before "devices" \(\S+guides\/backups\.md\), but its "order" is higher/);
     // Moving the last guide of a group to the next group keeps the order valid, so only the translation check objects.
     await assert.rejects(buildWith('en', 'messaging', (s) => s.replace('group: start', 'group: habits')), /en\/guides\/messaging\.md — "group" must match \S+ka\/guides\/messaging\.md \(start\)/);
+  });
+
+  it('every guide has its own subject icon, the same in both languages, shown on its card', async () => {
+    const { GUIDE_ICONS } = await import('../src/build/frontmatter.mjs');
+    const { icons } = await import('../src/build/templates/icons.mjs');
+    for (const name of GUIDE_ICONS) assert.ok(Object.hasOwn(icons, name), `GUIDE_ICONS names "${name}", which icons.mjs must draw`);
+    const guides = (await readdir(join('content', 'en', 'guides'))).filter((f) => f.endsWith('.md')).map((f) => f.replace('.md', ''));
+    const used = await Promise.all(guides.map((slug) => meta(slug, 'icon')));
+    assert.ok(used.every(Boolean), 'every guide sets "icon"');
+    assert.equal(new Set(used).size, used.length, `no two guides share an icon: ${used.join(', ')}`);
+    const list = await readOut('en/guides/index.html');
+    for (const [i, slug] of guides.entries()) {
+      const card = new RegExp(`<article class="card">\\s*<div class="card__top">\\s*<span class="card-progress"[\\s\\S]*?</span>\\s*</span>\\s*<span class="card__icon guide-card__icon"><svg class="icon"[^>]*aria-hidden="true"[^>]*>[\\s\\S]*?</svg></span>\\s*<span class="guide-card__number"[\\s\\S]*?<a class="card__link" href="/en/guides/${slug}/">`);
+      assert.match(list, card, `${slug} (${used[i]})`);
+    }
+    assert.match(await readOut('en/index.html'), /<span class="card__icon guide-card__icon"><svg/, 'the home page cards too');
+  });
+
+  it('rejects a guide without an icon, with an unknown one, or with a translation that uses another', async () => {
+    await assert.rejects(buildWith('both', 'phone', (s) => s.replace(/^icon: .+\n/m, '')), /guides\/phone\.md:\d+ — Missing required front matter key "icon"/);
+    await assert.rejects(buildWith('both', 'phone', (s) => s.replace('icon: phoneLock', 'icon: rocket')), /guides\/phone\.md:\d+ — "icon" must be one of: key, phoneLock, [^.]+\. Got "rocket"/);
+    await assert.rejects(buildWith('en', 'phone', (s) => s.replace('icon: phoneLock', 'icon: laptop')), /en\/guides\/phone\.md — "icon" must match \S+ka\/guides\/phone\.md \(phoneLock\)/);
   });
 });

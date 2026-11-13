@@ -4,6 +4,7 @@ description: Prepare your phone and laptop before a trip, cross a border with le
 summary: At a border your devices can be searched or taken out of your sight. Carry less, prepare at home, switch off before the crossing and know what to do afterwards.
 audience: high-risk
 group: situations
+icon: suitcase
 order: 7
 time: 45
 progress: session

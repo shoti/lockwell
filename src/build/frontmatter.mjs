@@ -77,7 +77,7 @@ function isCalendarDate(value) {
 }
 
 /**
- * @typedef {'text' | 'text?' | 'int' | 'date' | 'date?' | 'status?' | 'progress?' | 'audience' | 'group'} FieldType
+ * @typedef {'text' | 'text?' | 'int' | 'date' | 'date?' | 'status?' | 'progress?' | 'audience' | 'group' | 'icon'} FieldType
  */
 
 /** The guide tracks, in the order they are listed. */
@@ -93,12 +93,23 @@ export const GROUPS = {
   'high-risk': ['plan', 'basics', 'situations', 'threats', 'teams'],
 };
 
+/**
+ * The subject icons a guide can show on its card (the "icon" key). Each is an
+ * entry of `icons` in templates/icons.mjs. Give every guide its own (a test
+ * checks the real guides; test fixtures may share one).
+ */
+export const GUIDE_ICONS = /** @type {const} */ ([
+  'key', 'phoneLock', 'phoneShield', 'phoneAlert', 'chat', 'chatLock', 'hook', 'at', 'globe', 'pin', 'sparkle', 'laptop',
+  'cloud', 'wifi', 'lifebuoy', 'map', 'userLock', 'mail', 'megaphone', 'suitcase', 'bug', 'idCard', 'incognito', 'folderLock', 'users',
+]);
+
 /** Allowed values for enum fields. For optional fields the first value is the default. */
 const ENUMS = {
   'status?': ['published', 'draft'],
   'progress?': ['local', 'session'],
   audience: AUDIENCES,
   group: Object.values(GROUPS).flat(),
+  icon: GUIDE_ICONS,
 };
 
 /**
@@ -146,7 +157,7 @@ function convertField(key, value, type, file, line) {
     if (!valid) throw new ContentError(file, line, `"${key}" must be a date in YYYY-MM-DD format, got "${value}".`);
     return value;
   }
-  if (type === 'status?' || type === 'progress?' || type === 'audience' || type === 'group') {
+  if (type === 'status?' || type === 'progress?' || type === 'audience' || type === 'group' || type === 'icon') {
     /** @type {readonly string[]} */
     const allowed = ENUMS[type];
     if (!allowed.includes(value)) throw new ContentError(file, line, `"${key}" must be one of: ${allowed.join(', ')}. Got "${value}".`);

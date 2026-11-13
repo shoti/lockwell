@@ -5,7 +5,6 @@
 import { AUDIENCES, GROUPS } from '../frontmatter.mjs';
 import { html } from '../html.mjs';
 import { formatDate } from '../i18n.mjs';
-import { renderInline } from '../markdown.mjs';
 import { toolRoute } from '../tools.mjs';
 import { icons } from './icons.mjs';
 
@@ -38,11 +37,13 @@ export function draftNotice(ctx, kind) {
 
 /**
  * A card title at the right heading level for where the card is used.
- * @param {number} level  2 or 3
+ * @param {number} level  2, 3 or 4 (the guides list puts cards under track and topic headings)
  * @param {import('../html.mjs').SafeHtml} content
  */
 function cardTitle(level, content) {
-  return level === 2 ? html`<h2 class="card__title">${content}</h2>` : html`<h3 class="card__title">${content}</h3>`;
+  if (level === 2) return html`<h2 class="card__title">${content}</h2>`;
+  if (level === 4) return html`<h4 class="card__title">${content}</h4>`;
+  return html`<h3 class="card__title">${content}</h3>`;
 }
 
 /**
@@ -74,7 +75,11 @@ export function progressAttrs(guide) {
 
 /**
  * Card linking to a guide. Saved progress is filled in by client JS in the
- * top row, which has a fixed height, so it never moves the card's content.
+ * top row, which has a fixed height, so it never moves the card's content:
+ * "3/9" (or "Done" once every step is ticked) at the end of the row, and a
+ * bar along the card's bottom edge. The progress comes first in the row's
+ * markup (CSS shows it last), so a finished guide can tint the icon after it
+ * without :has().
  * @param {Ctx} ctx
  * @param {Guide} guide
  * @param {number} headingLevel
@@ -85,13 +90,15 @@ export function guideCard(ctx, guide, headingLevel) {
   const title = html`<a class="card__link" href="${url(guide.route)}">${guide.title}</a>`;
   return html`<article class="card">
   <div class="card__top">
-    <span class="guide-card__number" aria-hidden="true">${String(guide.order).padStart(2, '0')}</span>
-    ${guide.draft ? draftBadge(ctx) : null}
     <span class="card-progress" data-js="card-progress" ${progressAttrs(guide)} data-items="${guide.items.map((item) => item.id).join(' ')}">
       <span class="card-progress__track" aria-hidden="true"><span class="card-progress__bar" data-js="progress-bar"></span></span>
       <span class="card-progress__text" data-js="progress-text" data-template="{done}/{total}" aria-hidden="true"></span>
+      <span class="card-progress__done" aria-hidden="true">${icons.check}${t('guide.doneShort')}</span>
       <span class="visually-hidden" data-js="progress-text" data-template="${t('guide.progress')}"></span>
     </span>
+    <span class="card__icon guide-card__icon">${icons[guide.icon]}</span>
+    <span class="guide-card__number" aria-hidden="true">${String(guide.order).padStart(2, '0')}</span>
+    ${guide.draft ? draftBadge(ctx) : null}
   </div>
   ${cardTitle(headingLevel, title)}
   <p class="card__summary">${guide.summary}</p>
@@ -117,7 +124,6 @@ export function guideTracks(ctx) {
     return {
       audience,
       title: ctx.t(`guides.${TRACK_STRINGS[audience]}.title`),
-      short: ctx.t(`guides.${TRACK_STRINGS[audience]}.short`),
       lead: ctx.t(`guides.${TRACK_STRINGS[audience]}.lead`),
       guides,
       groups: GROUPS[audience]
@@ -125,98 +131,6 @@ export function guideTracks(ctx) {
         .filter((group) => group.guides.length > 0),
     };
   }).filter((track) => track.guides.length > 0);
-}
-
-/**
- * "All guides": every guide by track and topic, for the left sidebar of the
- * guides list and of every guide (where the current guide is marked). It
- * starts open; checklist.mjs closes it on small screens.
- *
- * With JS, a switch above the list (tabs, one per track) shows one track at a
- * time: the track of the guide being read, or the first one on the guides
- * list. It is chosen here, so CSS shows the right list from the first paint;
- * checklist.mjs only handles a switch to the other track. The switch never
- * moves, unlike an accordion, where opening one track shifted the other under
- * the pointer. Without JS the switch is hidden and both tracks are listed, each
- * under its own title.
- * Saved progress shows as "3/7" in space every link reserves, so all titles
- * wrap the same way.
- * @param {Ctx} ctx
- * @param {Guide} [current]  The guide being read, on a guide page.
- */
-export function guideNav(ctx, current) {
-  const { t, url } = ctx;
-  const label = t('guides.navLabel');
-  const tracks = guideTracks(ctx);
-  const selected = current?.audience ?? tracks[0]?.audience;
-  return html`<details class="toc guide-nav" data-js="toc" open>
-  <summary class="toc__summary">${label}</summary>
-  <nav class="toc__list guide-nav__body" aria-label="${label}">
-    ${tracks.length > 1
-      ? html`<div class="guide-nav__switch js-only" role="tablist" aria-label="${t('guides.tracksLabel')}" data-js="nav-tabs">
-      ${tracks.map(
-        (track) => html`<button type="button" class="guide-nav__tab" role="tab" id="guide-nav-tab-${track.audience}" aria-controls="guide-nav-${track.audience}" aria-selected="${String(track.audience === selected)}" tabindex="${track.audience === selected ? '0' : '-1'}" data-js="nav-tab">${track.short} <span class="guide-nav__count">${track.guides.length}</span></button>`,
-      )}
-    </div>`
-      : null}
-    ${tracks.map(
-      (track) => html`<section class="guide-nav__track${track.audience === selected ? ' is-selected' : ''}" id="guide-nav-${track.audience}" data-js="nav-track">
-    <p class="guide-nav__track-title">${track.title}</p>
-    ${track.groups.map(
-      (group) => html`<p class="guide-nav__group" id="guide-nav__${group.key}">${group.title}</p>
-    <ul role="list" aria-labelledby="guide-nav__${group.key}">
-      ${group.guides.map(
-        (guide) => html`<li><a class="toc__link guide-nav__link" href="${url(guide.route)}"${guide === current ? html` aria-current="page" data-js="nav-current"` : null}>
-        <span class="guide-nav__text">${guide.title}</span><span class="card-progress guide-nav__progress" data-js="card-progress" ${progressAttrs(guide)} data-items="${guide.items.map((item) => item.id).join(' ')}"><span class="card-progress__text" data-js="progress-text" data-template="{done}/{total}" aria-hidden="true"></span><span class="visually-hidden" data-js="progress-text" data-template="${t('guide.progress')}"></span></span>
-      </a></li>`,
-      )}
-    </ul>`,
-    )}
-    </section>`,
-    )}
-  </nav>
-</details>`;
-}
-
-/**
- * A row on the guides list: what the guide is for, what it costs in time, and
- * all of its steps behind a native <details>, so the list stays short but a
- * reader can see what a guide covers without opening it. Saved progress and
- * finished steps are filled in by client JS in space that is always reserved.
- * @param {Ctx} ctx
- * @param {Guide} guide
- */
-export function guideRow(ctx, guide) {
-  const { t, url } = ctx;
-  const essential = guide.items.filter((item) => item.priority === 'essential').length;
-  const md = ctx.markdown(guide.file, guide.route);
-  const titleId = `guide-${guide.slug}__title`;
-  return html`<li class="guide-row">
-  <div class="guide-row__main">
-    <h4 class="guide-row__title" id="${titleId}"><a class="guide-row__link" href="${url(guide.route)}">${guide.title}</a></h4>
-    <span class="card-progress guide-row__progress" data-js="card-progress" ${progressAttrs(guide)} data-items="${guide.items.map((item) => item.id).join(' ')}">
-      <span class="card-progress__track" aria-hidden="true"><span class="card-progress__bar" data-js="progress-bar"></span></span>
-      <span class="card-progress__text" data-js="progress-text" data-template="{done}/{total}" aria-hidden="true"></span>
-      <span class="visually-hidden" data-js="progress-text" data-template="${t('guide.progress')}"></span>
-    </span>
-    <p class="guide-row__summary">${guide.summary}</p>
-    <ul class="meta guide-row__meta" role="list">
-      <li>${icons.clock}<span>${t('guide.minutes', { n: guide.time })}</span></li>
-      ${essential ? html`<li><span class="dot dot--essential" aria-hidden="true"></span><span>${t('guide.essentialCount', { n: essential })}</span></li>` : null}
-      ${guide.draft ? html`<li>${draftBadge(ctx)}</li>` : null}
-    </ul>
-  </div>
-  <details class="guide-row__steps">
-    <summary class="guide-row__toggle" aria-describedby="${titleId}">${t('guides.showSteps', { n: guide.items.length })}</summary>
-    <ol class="step-list" role="list" data-js="guide-contents" ${progressAttrs(guide)}>
-      ${guide.items.map(
-        (item) => html`<li><a class="step-list__link" href="${url(guide.route)}#${item.id}" data-js="toc-link" data-item="${item.id}">
-        <span class="dot dot--${item.priority}" aria-hidden="true"></span><span class="step-list__text">${renderInline(item.title, md, item.line)}</span><span class="visually-hidden" data-js="toc-done" data-text="${t('guide.doneLabel')}"></span>
-      </a></li>`,
-      )}
-    </ol>
-  </details>
-</li>`;
 }
 
 /**

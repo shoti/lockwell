@@ -4,6 +4,7 @@ description: How to recognise scam messages, links and phone calls, what never t
 summary: Most scams start with a message or a call that pushes you to act fast. Learn the signs, and what to do if you already clicked.
 audience: everyone
 group: habits
+icon: hook
 order: 4
 time: 30
 reviewed: 2026-11-11
