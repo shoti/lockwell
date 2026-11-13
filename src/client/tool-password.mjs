@@ -1,9 +1,6 @@
 // @ts-check
-// SPDX-FileCopyrightText: 2026 Shota Mtvarelishvili <mtvarelishvili@proton.me>
-// SPDX-License-Identifier: MIT
 /**
  * @file Tool "Password generator": passwords, passphrases and PINs from crypto.getRandomValues.
- * @author Shota Mtvarelishvili <mtvarelishvili@proton.me> (https://shoti.github.io/)
  */
 /**
  * Password and PIN generator. Every character comes from the browser's

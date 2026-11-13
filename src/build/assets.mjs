@@ -1,9 +1,6 @@
 // @ts-check
-// SPDX-FileCopyrightText: 2026 Shota Mtvarelishvili <mtvarelishvili@proton.me>
-// SPDX-License-Identifier: MIT
 /**
  * @file Static assets: public files, the concatenated stylesheet, versioned client modules, fonts, the head script, CSP and _headers.
- * @author Shota Mtvarelishvili <mtvarelishvili@proton.me> (https://shoti.github.io/)
  */
 /**
  * Static assets: public files, the stylesheet, client JavaScript, the

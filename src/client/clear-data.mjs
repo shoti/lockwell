@@ -1,9 +1,6 @@
 // @ts-check
-// SPDX-FileCopyrightText: 2026 Shota Mtvarelishvili <mtvarelishvili@proton.me>
-// SPDX-License-Identifier: MIT
 /**
  * @file The "Clear saved data" button: removes everything the site stored in this browser.
- * @author Shota Mtvarelishvili <mtvarelishvili@proton.me> (https://shoti.github.io/)
  */
 import { CLEARED_EVENT, clearAll } from './storage.mjs';
 

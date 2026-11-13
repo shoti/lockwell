@@ -1,9 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2026 Shota Mtvarelishvili <mtvarelishvili@proton.me>
- * SPDX-License-Identifier: MIT
- *
  * @file Cascade layer order for the concatenated stylesheet.
- * @author Shota Mtvarelishvili <mtvarelishvili@proton.me> (https://shoti.github.io/)
  */
 /*
  * Lockwell styles. Files are concatenated in name order into one stylesheet.

@@ -1,9 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2026 Shota Mtvarelishvili <mtvarelishvili@proton.me>
- * SPDX-License-Identifier: MIT
- *
  * @file Page layout: container, header, footer and grids.
- * @author Shota Mtvarelishvili <mtvarelishvili@proton.me> (https://shoti.github.io/)
  */
 @layer layout {
   .container {

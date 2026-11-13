@@ -1,9 +1,6 @@
 // @ts-check
-// SPDX-FileCopyrightText: 2026 Shota Mtvarelishvili <mtvarelishvili@proton.me>
-// SPDX-License-Identifier: MIT
 /**
  * @file Project paths, site configuration (content/site.json) and URL helpers.
- * @author Shota Mtvarelishvili <mtvarelishvili@proton.me> (https://shoti.github.io/)
  */
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';

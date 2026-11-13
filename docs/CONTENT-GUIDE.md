@@ -1,8 +1,3 @@
-<!--
-SPDX-FileCopyrightText: 2026 Shota Mtvarelishvili <mtvarelishvili@proton.me>
-SPDX-License-Identifier: MIT
--->
-
 # Content guide
 
 How to write and format Lockwell guides and articles. The build checks most of

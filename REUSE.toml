@@ -1,28 +1,30 @@
-# SPDX-FileCopyrightText: 2026 Shota Mtvarelishvili <mtvarelishvili@proton.me>
-# SPDX-License-Identifier: MIT
-#
-# Copyright and licence for files that can't carry a comment header
-# (REUSE specification 3.3, https://reuse.software/spec-3.3/).
-# Every other file states its own licence in an SPDX header. Licence texts
-# are in LICENSES/; LICENSE and LICENSE-CONTENT.md are the human-readable notices.
-# Author: Shota Mtvarelishvili <mtvarelishvili@proton.me> (https://shoti.github.io/)
+# Copyright and license for every file in the repository, in one place
+# (REUSE specification 3.3, https://reuse.software/spec-3.3/), so files need
+# no header of their own. When several tables match a file, the last one wins.
+# License texts are in LICENSES/; LICENSE and LICENSE-CONTENT.md are the
+# human-readable notices.
 
 version = 1
 SPDX-PackageName = "Lockwell"
-SPDX-PackageSupplier = "Shota Mtvarelishvili <mtvarelishvili@proton.me>"
+
+# Code, configuration and documentation (see LICENSE).
+[[annotations]]
+path = "**"
+SPDX-FileCopyrightText = "2026 Shota Mtvarelishvili and Lockwell contributors"
+SPDX-License-Identifier = "MIT"
 
 # Guides, articles, pages and UI text (see LICENSE-CONTENT.md).
 [[annotations]]
 path = "content/**"
 precedence = "override"
-SPDX-FileCopyrightText = "2026 Shota Mtvarelishvili <mtvarelishvili@proton.me>"
+SPDX-FileCopyrightText = "2026 Shota Mtvarelishvili and Lockwell contributors"
 SPDX-License-Identifier = "CC-BY-SA-4.0"
 
 # Images: icons and Open Graph pictures (see LICENSE-CONTENT.md).
 [[annotations]]
 path = ["src/public/*.png", "src/public/*.svg"]
 precedence = "override"
-SPDX-FileCopyrightText = "2026 Shota Mtvarelishvili <mtvarelishvili@proton.me>"
+SPDX-FileCopyrightText = "2026 Shota Mtvarelishvili and Lockwell contributors"
 SPDX-License-Identifier = "CC-BY-SA-4.0"
 
 # FiraGO fonts, subset for this site (see src/public/fonts/OFL.txt).
@@ -31,10 +33,3 @@ path = "src/public/fonts/**"
 precedence = "override"
 SPDX-FileCopyrightText = "2012-2018 Carrois Corporate GbR, HERE Europe B.V., The Mozilla Foundation, Telefonica S.A. and bBox Type GmbH"
 SPDX-License-Identifier = "OFL-1.1"
-
-# Configuration files in formats without comments.
-[[annotations]]
-path = ["package.json", "jsconfig.json", ".nvmrc"]
-precedence = "aggregate"
-SPDX-FileCopyrightText = "2026 Shota Mtvarelishvili <mtvarelishvili@proton.me>"
-SPDX-License-Identifier = "MIT"

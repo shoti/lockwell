@@ -1,9 +1,6 @@
 // @ts-check
-// SPDX-FileCopyrightText: 2026 Shota Mtvarelishvili <mtvarelishvili@proton.me>
-// SPDX-License-Identifier: MIT
 /**
  * @file A deliberately small Markdown subset parser and renderer that fails loudly on anything unsupported.
- * @author Shota Mtvarelishvili <mtvarelishvili@proton.me> (https://shoti.github.io/)
  */
 /**
  * A deliberately small Markdown subset (see docs/CONTENT-GUIDE.md):

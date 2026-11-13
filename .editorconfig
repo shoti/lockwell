@@ -1,8 +1,4 @@
-# SPDX-FileCopyrightText: 2026 Shota Mtvarelishvili <mtvarelishvili@proton.me>
-# SPDX-License-Identifier: MIT
-#
 # Editor settings shared by all contributors.
-# Author: Shota Mtvarelishvili <mtvarelishvili@proton.me> (https://shoti.github.io/)
 root = true
 
 [*]

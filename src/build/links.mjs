@@ -1,9 +1,6 @@
 // @ts-check
-// SPDX-FileCopyrightText: 2026 Shota Mtvarelishvili <mtvarelishvili@proton.me>
-// SPDX-License-Identifier: MIT
 /**
  * @file Validates Markdown link targets and turns language-neutral internal links into localised hrefs.
- * @author Shota Mtvarelishvili <mtvarelishvili@proton.me> (https://shoti.github.io/)
  */
 import { ContentError } from './errors.mjs';
 import { escapeHtml } from './html.mjs';

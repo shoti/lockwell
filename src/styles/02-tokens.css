@@ -1,9 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2026 Shota Mtvarelishvili <mtvarelishvili@proton.me>
- * SPDX-License-Identifier: MIT
- *
  * @file Design tokens: colours, spacing and type for the light and dark themes.
- * @author Shota Mtvarelishvili <mtvarelishvili@proton.me> (https://shoti.github.io/)
  */
 /*
  * Design tokens. Components use only these variables, never raw values,

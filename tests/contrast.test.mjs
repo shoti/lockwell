@@ -1,9 +1,6 @@
 // @ts-check
-// SPDX-FileCopyrightText: 2026 Shota Mtvarelishvili <mtvarelishvili@proton.me>
-// SPDX-License-Identifier: MIT
 /**
  * @file WCAG 2.2 AA contrast tests for the theme tokens.
- * @author Shota Mtvarelishvili <mtvarelishvili@proton.me> (https://shoti.github.io/)
  */
 /** WCAG 2.2 AA contrast for the theme tokens in src/styles/02-tokens.css, in both themes. */
 import assert from 'node:assert/strict';

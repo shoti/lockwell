@@ -1,8 +1,3 @@
-<!--
-SPDX-FileCopyrightText: 2026 Shota Mtvarelishvili <mtvarelishvili@proton.me>
-SPDX-License-Identifier: MIT
--->
-
 ## What changed
 
 ## Checklist

@@ -1,9 +1,6 @@
 // @ts-check
-// SPDX-FileCopyrightText: 2026 Shota Mtvarelishvili <mtvarelishvili@proton.me>
-// SPDX-License-Identifier: MIT
 /**
  * @file Shared page components: breadcrumbs, badges, cards and similar fragments.
- * @author Shota Mtvarelishvili <mtvarelishvili@proton.me> (https://shoti.github.io/)
  */
 import { AUDIENCES, GROUPS } from '../frontmatter.mjs';
 import { html } from '../html.mjs';

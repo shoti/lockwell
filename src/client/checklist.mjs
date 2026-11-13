@@ -1,9 +1,6 @@
 // @ts-check
-// SPDX-FileCopyrightText: 2026 Shota Mtvarelishvili <mtvarelishvili@proton.me>
-// SPDX-License-Identifier: MIT
 /**
  * @file Checklist progress (ticks, counts, saving through storage.mjs) and the sidebar lists that show it.
- * @author Shota Mtvarelishvili <mtvarelishvili@proton.me> (https://shoti.github.io/)
  */
 import { CLEARED_EVENT, PREFIX, progressKey, read, readProgress, write, writeProgress } from './storage.mjs';
 

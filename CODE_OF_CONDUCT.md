@@ -1,8 +1,3 @@
-<!--
-SPDX-FileCopyrightText: 2026 Shota Mtvarelishvili <mtvarelishvili@proton.me>
-SPDX-License-Identifier: MIT
--->
-
 # Code of conduct
 
 Lockwell exists to help people protect themselves. We want contributing to feel

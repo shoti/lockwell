@@ -3,11 +3,6 @@ name: New guide idea
 about: Suggest a topic that should have its own checklist
 labels: new guide
 ---
-<!--
-SPDX-FileCopyrightText: 2026 Shota Mtvarelishvili <mtvarelishvili@proton.me>
-SPDX-License-Identifier: MIT
--->
-
 **Topic:**
 
 **Who it's for** (everyone, students, journalists, activists…):

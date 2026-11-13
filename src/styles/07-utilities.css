@@ -1,9 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2026 Shota Mtvarelishvili <mtvarelishvili@proton.me>
- * SPDX-License-Identifier: MIT
- *
  * @file Utility classes, including hidden and visually-hidden.
- * @author Shota Mtvarelishvili <mtvarelishvili@proton.me> (https://shoti.github.io/)
  */
 @layer utilities {
   /* Keeps [hidden] working even on elements whose components set display. */
