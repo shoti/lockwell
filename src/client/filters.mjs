@@ -3,6 +3,7 @@
  * @file Step filters on guide pages (by priority and completion).
  */
 import { CLEARED_EVENT } from './storage.mjs';
+import { fillText } from './fill.mjs';
 
 /**
  * @typedef {object} FilterState
@@ -61,7 +62,7 @@ export function initFilters() {
     const active = state.essentialOnly || state.hideDone;
     if (status instanceof HTMLElement) {
       status.textContent = active
-        ? (status.dataset.template ?? '').replace('{shown}', String(shown)).replace('{total}', String(items.length))
+        ? fillText(status.dataset.template, { shown: String(shown), total: String(items.length) })
         : '';
     }
     if (empty instanceof HTMLElement) empty.hidden = shown > 0;

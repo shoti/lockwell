@@ -23,6 +23,8 @@ import { collectRoutes } from './routes.mjs';
 import { alternatesFor, robotsTxt, sitemapXml } from './seo.mjs';
 import { PATHS, href, loadSite, localePath } from './site.mjs';
 import { layout } from './templates/layout.mjs';
+import { TOOLS, toolRoute } from './tools.mjs';
+import { UPDATED as SUFFIXES_UPDATED } from '../client/public-suffix.mjs';
 import { notFoundPage } from './templates/not-found.mjs';
 
 /** @typedef {import('./site.mjs').Site} Site */
@@ -61,7 +63,7 @@ export async function build({ outDir = PATHS.dist, siteUrl, contentDir = PATHS.c
   try {
     const pages = await renderSite(tempDir, site, content);
     await swapIn(tempDir, outDir);
-    return { pages, warnings: [...content.warnings, ...siteWarnings(site)], outDir };
+    return { pages, warnings: [...content.warnings, ...siteWarnings(site), ...staleDataWarnings(now)], outDir };
   } catch (error) {
     await rm(tempDir, { recursive: true, force: true });
     throw error;
@@ -102,6 +104,21 @@ function siteWarnings(site) {
   return [
     `The site lives under ${site.basePath}, so search engines ignore its robots.txt (they only read /robots.txt at the domain root) and won't find the sitemap from it. Submit ${site.basePath}sitemap.xml in Google Search Console, or use a custom domain.`,
   ];
+}
+
+/** The link checker's copy of the Public Suffix List is refreshed by hand; after this long, say so. */
+const SUFFIXES_MAX_DAYS = 183;
+
+/**
+ * Warnings about data files copied into the repository that go out of date.
+ * @param {Date} [now]
+ * @param {string} [updated]  The date the Public Suffix List was downloaded.
+ * @returns {string[]}
+ */
+export function staleDataWarnings(now = new Date(), updated = SUFFIXES_UPDATED) {
+  const age = Math.floor((now.getTime() - Date.parse(`${updated}T00:00:00Z`)) / (24 * 60 * 60 * 1000));
+  if (age <= SUFFIXES_MAX_DAYS) return [];
+  return [`The Public Suffix List is ${age} days old (downloaded ${updated}); new free-hosting names are missing from the link checker. Run node scripts/update-psl.mjs, review the diff and run npm run check.`];
 }
 
 /**
@@ -157,7 +174,8 @@ async function renderSite(dir, site, content) {
 
   await writeFile(join(dir, 'sitemap.xml'), sitemapXml(site, sitemap));
   await writeFile(join(dir, 'robots.txt'), robotsTxt(site));
-  await writeFile(join(dir, '_headers'), headersFile(assets.csp));
+  const ownPolicies = TOOLS.filter((tool) => tool.requests).flatMap((tool) => site.languages.map((lang) => ({ path: localePath(site, lang, toolRoute(tool)), csp: assets.cspSelf })));
+  await writeFile(join(dir, '_headers'), headersFile(assets.csp, ownPolicies));
   await writeFile(join(dir, '.nojekyll'), '');
 
   return pages.size + 1;

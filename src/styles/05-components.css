@@ -2004,26 +2004,209 @@
     font-size: var(--step--1);
   }
 
-  /* Link checker verdict: the site name large, then what is wrong with the address. */
+  /*
+   * Link checker verdict: the site name large, then the whole address with the
+   * site standing out, then what is wrong with it. With no warning signs the
+   * card stays neutral: no approving colour, because the tool can't vouch for
+   * a site (tests/link-check.test.mjs checks this).
+   */
+  .verdicts {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4);
+  }
+
+  .verdicts:empty {
+    display: none;
+  }
+
   .verdict {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     gap: var(--space-2);
     padding: var(--space-4) var(--space-5);
-    border-inline-start: 4px solid var(--color-accent);
+    border: 1px solid var(--color-border);
+    border-inline-start: 4px solid var(--color-border-strong);
     border-radius: var(--radius);
-    background: var(--color-accent-soft);
+    background: var(--color-surface);
   }
 
-  .verdict[data-state="warn"],
-  .verdict[data-state="invalid"] {
+  .verdict__address {
+    font-family: var(--font-mono);
+    font-size: var(--step--1);
+    overflow-wrap: anywhere;
+  }
+
+  .verdict__address strong {
+    font-weight: 700;
+  }
+
+  .verdict__dim {
+    color: var(--color-text-muted);
+  }
+
+  .marked__added {
+    background: var(--color-accent-soft);
+    text-decoration-line: underline;
+  }
+
+  .compare {
+    display: grid;
+    gap: var(--space-3);
+    margin-top: var(--space-6);
+  }
+
+  /* File tools: one report card per chosen file, its findings in three groups, and its save area. */
+  .reports {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-5);
+  }
+
+  .reports:empty {
+    display: none;
+  }
+
+  .file-report {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3);
+    padding: var(--space-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+  }
+
+  .file-report__name {
+    font-size: var(--step-0);
+    overflow-wrap: anywhere;
+  }
+
+  .file-report__group {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-2);
+    padding-inline-start: var(--space-3);
+    border-inline-start: 4px solid var(--color-border-strong);
+  }
+
+  .file-report__group--removed {
+    border-inline-start-color: var(--color-accent);
+  }
+
+  .file-report__group--kept {
+    border-inline-start-color: var(--color-warning);
+  }
+
+  .file-report__title {
+    font-size: var(--step--1);
+    font-weight: 700;
+  }
+
+  .findings {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-2);
+    padding-inline-start: 1.2em;
+    overflow-wrap: anywhere;
+  }
+
+  .findings .facts__why {
+    display: block;
+  }
+
+  /* Photo tool: the preview picture stored inside a photo, and text notes from PNG files. */
+  .photo-preview {
+    display: grid;
+    justify-items: start;
+    gap: var(--space-2);
+  }
+
+  .photo-preview__picture {
+    max-inline-size: min(100%, 20rem);
+    block-size: auto;
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius);
+  }
+
+  .photo-texts {
+    display: grid;
+    gap: var(--space-2);
+    padding-inline-start: 1.2em;
+    overflow-wrap: anywhere;
+  }
+
+  .photo-texts__body {
+    white-space: pre-wrap;
+  }
+
+  .save {
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .save__name {
+    font-family: var(--font-mono);
+    font-size: var(--step--1);
+  }
+
+  .save__hint {
+    color: var(--color-text-muted);
+    font-size: var(--step--1);
+  }
+
+  /* Where files can't be shared, saving rests on the download alone: the hint comes forward. */
+  .save__hint.is-prominent {
+    padding: var(--space-2) var(--space-3);
+    border-inline-start: 4px solid var(--color-warning);
+    border-radius: var(--radius);
+    background: var(--color-warning-soft);
+    color: var(--color-text);
+  }
+
+  /* Share buttons, only where the browser can share (data-share, set by the head script). */
+  .share-only {
+    display: none;
+  }
+
+  [data-share] .share-only {
+    display: inline-flex;
+  }
+
+  /* Link cleaner: the parts of the original link that the clean copy leaves out. */
+  /* Removed and added pieces get a tinted box, so a single changed comma or space stands out. */
+  .marked__removed,
+  .marked__added {
+    padding-inline: 0.15em;
+    border-radius: 3px;
+    text-decoration-thickness: 2px;
+  }
+
+  .marked__removed {
+    background: var(--color-essential-soft);
+    text-decoration-line: line-through;
+  }
+
+  /* The "read a QR code" field, only where the browser has a barcode reader (set by the head script). */
+  .qr-only {
+    display: none;
+  }
+
+  [data-qr] .qr-only {
+    display: grid;
+  }
+
+  /* Where the browser has no QR reader, say so instead (set before paint by the head script). */
+  [data-qr] .qr-absent {
+    display: none;
+  }
+
+  .verdict[data-state="warn"] {
+    border-color: var(--color-warning-soft);
     border-inline-start-color: var(--color-warning);
     background: var(--color-warning-soft);
   }
 
-  .verdict[data-state="invalid"] .field__label {
-    display: none;
-  }
 
   .verdict__site {
     font-family: var(--font-mono);
@@ -2058,6 +2241,18 @@
 
   /* Image redaction */
   .redact,
+  /* The check of the saved copy: plain when every covered area is solid, a warning otherwise. */
+  .redact__verified {
+    font-size: var(--step--1);
+  }
+
+  .redact__verified[data-state="warn"] {
+    padding: var(--space-3) var(--space-4);
+    border-inline-start: 4px solid var(--color-warning);
+    border-radius: var(--radius);
+    background: var(--color-warning-soft);
+  }
+
   .redact__result {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -2151,15 +2346,43 @@
     box-shadow: inset 0 0 0 1px var(--color-accent);
   }
 
-  .button:disabled {
+  /* aria-disabled: busy, but kept focusable so the keyboard focus stays where it was. */
+  .button:disabled,
+  .button[aria-disabled="true"] {
     opacity: 0.45;
     cursor: not-allowed;
+  }
+
+  /* Tools index groups, and the guides a tool page points back to. */
+  .tool-group {
+    display: grid;
+    gap: var(--space-4);
+    margin-top: var(--space-8);
+  }
+
+  .tool-group__title,
+  .tool-guides__title {
+    font-size: var(--step-1);
+  }
+
+  .tool-guides {
+    display: grid;
+    gap: var(--space-3);
+    margin-top: var(--space-8);
+  }
+
+  .tool-guides__list {
+    display: grid;
+    gap: var(--space-2);
+    padding-inline-start: 1.2em;
   }
 
   /* Browser report: a summary box, then titled groups of facts. */
   .report,
   .autofill,
   .cannot,
+  .steps,
+  .compare-settings,
   .autofill__form {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -2203,7 +2426,89 @@
     color: var(--color-text-muted);
   }
 
+  /* How identifying a detail is (from published studies), shown next to its name. */
+  .rating {
+    display: inline-block;
+    margin-inline-start: var(--space-1);
+    padding: 0 var(--space-2);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius);
+    font-size: var(--step--1);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .rating--strong {
+    border-color: var(--color-warning);
+    background: var(--color-warning-soft);
+  }
+
+  /* The browser protects this value; or it changed since the visitor remembered the values. */
+  .facts__protected,
+  .facts__changed {
+    justify-self: start;
+    padding: var(--space-1) var(--space-2);
+    border-inline-start: 3px solid var(--color-accent);
+    border-radius: var(--radius);
+    background: var(--color-accent-soft);
+    font-size: var(--step--1);
+  }
+
+  .facts__changed {
+    border-inline-start-color: var(--color-warning);
+    background: var(--color-warning-soft);
+    font-weight: 600;
+  }
+
+  /* A value and its "Changed" mark, which keeps its place while it is not shown. */
+  .facts__line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .facts__changed:not([data-on]) {
+    visibility: hidden;
+  }
+
+  /* An explanation and the protection note that replaces it share one cell, so the row keeps its height. */
+  .facts__notes {
+    display: grid;
+  }
+
+  .facts__notes > * {
+    grid-area: 1 / 1;
+  }
+
+  .facts__notes:not([data-on]) > .facts__protected,
+  .facts__notes[data-on] > .facts__why {
+    visibility: hidden;
+  }
+
+  /* The head script names the browser family before the first paint; without scripts every paragraph shows. */
+  .js .steps__family {
+    display: none;
+  }
+
+  .js[data-browser="firefox"] [data-family="firefox"],
+  .js[data-browser="safari"] [data-family="safari"],
+  .js[data-browser="brave"] [data-family="brave"],
+  .js[data-browser="chromium"] [data-family="chromium"],
+  .js[data-browser="other"] [data-family="other"] {
+    display: block;
+  }
+
+  /* Bait for content blockers: out of sight, and removed as soon as it is checked. */
+  .bait {
+    position: absolute;
+    inset-inline-start: -9999px;
+    inline-size: 1px;
+  }
+
   /* Autofill demonstration */
+  .steps,
+  .compare-settings,
   .autofill,
   .cannot {
     padding-top: var(--space-6);

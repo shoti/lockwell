@@ -17,6 +17,7 @@ import { icons, logo } from './icons.mjs';
  * @property {string[]} fonts  Font hrefs to preload.
  * @property {string} headScript  Tiny inline script that runs before first paint (see assets.mjs).
  * @property {string} csp  Content-Security-Policy value.
+ * @property {string} cspSelf  The same, but letting the page connect to its own host (see PageContent.connect).
  * @property {Record<string, string | null>} ogImages  Social preview image path per language.
  */
 
@@ -43,6 +44,7 @@ import { icons, logo } from './icons.mjs';
  * @property {boolean} [noindex]
  * @property {'website' | 'article'} [ogType]
  * @property {string} [lastmod]
+ * @property {'self'} [connect]  The page may connect to its own host (only the browser check's opt-in IP lookup).
  */
 
 /**
@@ -71,7 +73,7 @@ export function layout(ctx, page) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="${raw(assets.csp)}">
+<meta http-equiv="Content-Security-Policy" content="${raw(page.connect === 'self' ? assets.cspSelf : assets.csp)}">
 <meta name="referrer" content="no-referrer">
 <title>${page.title}</title>
 <meta name="description" content="${page.description}">

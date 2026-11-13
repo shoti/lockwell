@@ -9,13 +9,14 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, before, describe, it } from 'node:test';
 import { build } from '../src/build/build.mjs';
-import { TOOLS } from '../src/build/tools.mjs';
-import { FONTS, autofillLeak, browserFacts, detectFonts, fingerprintSource, utcOffset } from '../src/client/tool-browser.mjs';
-import { imitatedBrand, inspectLink, nestedDomain, oneEditApart, punycodeDecode, scriptTrick, siteName, unicodeHost } from '../src/client/tool-check.mjs';
+import { TOOLS, TOOL_GROUPS } from '../src/build/tools.mjs';
+import { FONTS, TRACE_URL, autofillLeak, browserFacts, canvasNoise, canvasPattern, compareFacts, detectFonts, detectProtections, fingerprintSource, layoutSample, parseTrace, protectionNotes, rememberedFacts, utcOffset } from '../src/client/tool-browser.mjs';
+import { imitatedBrand, inspectLink, nestedDomain, oneEditApart, punycodeDecode, scriptTrick, siteOf, unicodeHost } from '../src/client/tool-check.mjs';
 import { KINDS as HIDDEN_KINDS } from '../src/client/tool-hidden.mjs';
 import { cleanText, cleanUrl, findLinks, isTracking } from '../src/client/tool-links.mjs';
-import { ZOOMS, boxFromDrag, commit, createHistory, currentDrawing, exportSize, frameRect, handleAt, hitShape, moveBox, moveShape, outputFrame, pixelRect, previewSize, redactedName, redo, resizeBox, resizeFromHandle, shapeBounds, stepZoom, undo } from '../src/client/tool-redact.mjs';
-import { charSets, entropyBits, generatePassword, guessTime, randomInt, strengthOf } from '../src/client/tool-password.mjs';
+import { ZOOMS, boxFromDrag, checkCovered, commit, createHistory, currentDrawing, exportSize, frameRect, handleAt, hitShape, isAnimated, moveBox, moveShape, outputFrame, pinchZoom, pixelRect, previewGrow, previewSize, redo, resizeBox, resizeFromHandle, shapeBounds, stepZoom, straightEnd, undo, unsavedWork } from '../src/client/tool-redact.mjs';
+import { charSets, entropyBits, generatePassphrase, generatePassword, guessTime, passphraseBits, pinOdds, randomInt, strengthOf } from '../src/client/tool-password.mjs';
+import { WORDS } from '../src/client/wordlist-en.mjs';
 
 const ALL = { lower: true, upper: true, digits: true, symbols: true, avoid: false };
 
@@ -158,10 +159,10 @@ describe('link checker', () => {
   });
 
   it('finds the registered site name, including two-part endings', () => {
-    assert.equal(siteName('login.example.com'), 'example.com');
-    assert.equal(siteName('a.b.example.com.ge'), 'example.com.ge');
-    assert.equal(siteName('shop.example.co.uk'), 'example.co.uk');
-    assert.equal(siteName('example.ge'), 'example.ge');
+    assert.equal(siteOf('login.example.com').site, 'example.com');
+    assert.equal(siteOf('a.b.example.com.ge').site, 'example.com.ge');
+    assert.equal(siteOf('shop.example.co.uk').site, 'example.co.uk');
+    assert.equal(siteOf('example.ge').site, 'example.ge');
   });
 
   it('says where a link really leads, reading the address from the end', () => {
@@ -177,7 +178,8 @@ describe('link checker', () => {
     assert.deepEqual(check('https://tbcbank-online.ge/').warnings, ['brandLookalike']);
     assert.deepEqual(check('https://secure-apple.com/id').warnings, ['brandLookalike']);
     assert.deepEqual(check('https://g00gle.com/').warnings, ['typo']);
-    assert.deepEqual(check('https://faceboook.com/').warnings, ['typo']);
+    assert.deepEqual(check('https://faceboook.com/').warnings, ['typo'], 'a doubled letter is a sign on its own');
+    assert.deepEqual(check('https://netfliix.com/').warnings, ['typo']);
     assert.deepEqual(check('https://arnazon.com/').warnings, ['typo'], '"rn" passing for "m"');
     assert.equal(oneEditApart('amazon', 'amazno'), true, 'swapped neighbours');
     assert.equal(oneEditApart('amazon', 'amazon'), false);
@@ -186,13 +188,15 @@ describe('link checker', () => {
 
   it('does not cry wolf at real addresses', () => {
     for (const link of [
-      'https://www.google.com/search?q=privacy', 'https://google.ge/', 'https://www.amazon.de/dp/B0', 'https://accounts.google.com/', 'https://lh3.googleusercontent.com/x',
-      'https://www.tbcbank.ge/', 'https://bankofgeorgia.ge/', 'https://web.whatsapp.com/', 'https://t.me/durov', 'https://pineapple.com/', 'https://lockwell.org/guides/accounts/',
+      'https://www.google.com/search?q=privacy', 'https://google.ge/', 'https://www.amazon.de/dp/B0', 'https://accounts.google.com/',
+      'https://www.tbcbank.ge/', 'https://bankofgeorgia.ge/', 'https://web.whatsapp.com/', 'https://pineapple.com/', 'https://lockwell.org/guides/accounts/',
       'https://en.wikipedia.org/wiki/Signal_(software)', 'https://signal.org/download/', 'https://my.gov.ge/',
     ]) {
       assert.deepEqual(check(link).warnings, [], link);
     }
-    assert.equal(imitatedBrand('example.com', 'www'), null);
+    assert.equal(imitatedBrand('example', 'example.com', 'www'), null);
+    // Places where anyone can publish are named as such, whoever owns the site.
+    for (const link of ['https://lh3.googleusercontent.com/x', 'https://t.me/durov']) assert.deepEqual(check(link).warnings, ['publicPage'], link);
   });
 
   it('flags look-alike letters from other alphabets, but not honest Georgian or Cyrillic names', () => {
@@ -231,7 +235,9 @@ describe('link checker', () => {
 
   it('accepts a link without https://, and rejects what is not a web link', () => {
     assert.equal(check('example.com/page').site, 'example.com');
-    for (const input of ['', 'just words', 'javascript:alert(1)', 'data:text/html,<script>', 'mailto:a@example.com']) assert.equal(inspectLink(input).status, 'invalid', input);
+    for (const input of ['', 'just words']) assert.equal(inspectLink(input).status, 'invalid', input);
+    // Addresses that are not web links say what they are (tests/link-check.test.mjs).
+    for (const input of ['javascript:alert(1)', 'data:text/html,<script>', 'mailto:a@example.com']) assert.equal(inspectLink(input).status, 'scheme', input);
   });
 
   it('never contacts the link', async () => {
@@ -256,6 +262,16 @@ describe('links inside a pasted message', () => {
       removed: ['utm_source', 'fbclid'],
       unwrapped: [],
       links: 2,
+      parts: [
+        { text: 'Hi!\nSee https://example.com/a?id=7', removed: false },
+        { text: '&utm_source=news&fbclid=abc', removed: true },
+        { text: ' and https://example.org/b?x=1.\nBye', removed: false },
+      ],
+      shared: [],
+      lookup: [],
+      short: [],
+      emails: [],
+      secrets: [],
     });
   });
 
@@ -267,7 +283,19 @@ describe('links inside a pasted message', () => {
 
   it('treats a single link as before, and text without links as not a link', () => {
     const single = cleanText('  https://example.com/?utm_medium=x  ');
-    assert.deepEqual(single, { status: 'ok', url: 'https://example.com/', removed: ['utm_medium'], unwrapped: [], links: 1 });
+    assert.deepEqual(single, {
+      status: 'ok',
+      url: 'https://example.com/',
+      removed: ['utm_medium'],
+      unwrapped: [],
+      links: 1,
+      parts: [{ text: 'https://example.com/', removed: false }, { text: '?utm_medium=x', removed: true }],
+      shared: [],
+      lookup: [],
+      short: [],
+      emails: [],
+      secrets: [],
+    });
     assert.deepEqual(cleanText('just some words'), { status: 'invalid' });
     assert.deepEqual(cleanText('nonsense'), { status: 'invalid' });
   });
@@ -301,6 +329,40 @@ describe('link checker: an address inside an address', () => {
     assert.equal(nestedDomain('com'), '', 'an ending with nothing in front of it is just a name');
     assert.equal(nestedDomain('a.b.c'), '');
     assert.equal(nestedDomain(''), '');
+  });
+});
+
+describe('password generator: passphrases and PINs', () => {
+  const words = WORDS.split(' ');
+
+  it('uses EFF’s long list: 7,776 different words', () => {
+    assert.equal(words.length, 7776);
+    assert.equal(new Set(words).size, 7776);
+    assert.ok(words.every((word) => /^[a-z]+(-[a-z]+)?$/.test(word)));
+  });
+
+  it('builds a passphrase from random words, with an optional capital and digit', () => {
+    let calls = 0;
+    const fixed = (/** @type {number} */ max) => (calls++ % max);
+    assert.equal(generatePassphrase(['alpha', 'bravo', 'charlie'], 3, { separator: '-', capital: false, digit: false }, fixed), 'alpha-bravo-charlie');
+    calls = 0;
+    const phrase = generatePassphrase(['alpha', 'bravo', 'charlie'], 3, { separator: ' ', capital: true, digit: true }, fixed);
+    assert.match(phrase, /^\S+ \S+ \S+$/);
+    assert.equal((phrase.match(/[A-Z]/g) ?? []).length, 1, 'one capital letter');
+    assert.equal((phrase.match(/\d/g) ?? []).length, 1, 'one digit');
+    const real = generatePassphrase(words, 6, { separator: '.', capital: false, digit: false });
+    assert.equal(real.split('.').length >= 6, true);
+  });
+
+  it('counts the strength honestly: 12.9 bits a word, plus what the capital and digit really add', () => {
+    assert.equal(passphraseBits(7776, 6, { capital: false, digit: false }), 77);
+    assert.equal(passphraseBits(7776, 6, { capital: true, digit: false }), 80, 'which of six words: log2(6) more');
+    assert.equal(passphraseBits(7776, 6, { capital: true, digit: true }), 86, 'which digit and where: log2(10) + log2(6) more');
+  });
+
+  it('describes a PIN by how many codes there are and what a lockout does', () => {
+    assert.deepEqual(pinOdds(6, 10), { codes: 1_000_000, oneIn: 100_000 });
+    assert.deepEqual(pinOdds(4, 10), { codes: 10_000, oneIn: 1_000 });
   });
 });
 
@@ -368,10 +430,77 @@ describe('image redaction', () => {
     assert.ok(Math.abs(big.width / big.height - 8000 / 6000) < 0.001, 'keeps the proportions');
   });
 
-  it('names the copy after the original and its saved type', () => {
-    assert.equal(redactedName('Screenshot 2026-11-11.png', 'image/png'), 'Screenshot 2026-11-11-redacted.png');
-    assert.equal(redactedName('IMG_1.HEIC', 'image/jpeg'), 'IMG_1-redacted.jpg');
-    assert.equal(redactedName('', 'image/jpeg'), 'image-redacted.jpg');
+  it('checks the saved picture: every covered area must be solid black in the decoded file', () => {
+    const [width, height] = [200, 100];
+    const image = { width, height };
+    const frame = { sx: 0, sy: 0, sw: width, sh: height, width, height };
+    /** A grey picture with black painted where `paint` would cover. @param {(x: number, y: number) => boolean} black */
+    const picture = (black) => {
+      const data = new Uint8ClampedArray(width * height * 4);
+      for (let y = 0; y < height; y += 1) {
+        for (let x = 0; x < width; x += 1) {
+          const value = black(x, y) ? 0 : 150;
+          data.set([value, value, value, 255], (y * width + x) * 4);
+        }
+      }
+      return data;
+    };
+    /** @type {import('../src/client/tool-redact.mjs').Shape[]} */
+    const shapes = [
+      { type: 'box', x: 0.1, y: 0.2, w: 0.3, h: 0.4 },
+      { type: 'ellipse', x: 0.6, y: 0.1, w: 0.3, h: 0.6 },
+      { type: 'line', points: [{ x: 0.1, y: 0.9 }, { x: 0.9, y: 0.9 }], size: 0.05 },
+    ];
+    const inBox = (/** @type {number} */ x, /** @type {number} */ y) => x >= 20 && x < 80 && y >= 20 && y < 60;
+    const inEllipse = (/** @type {number} */ x, /** @type {number} */ y) => ((x + 0.5 - 150) / 30) ** 2 + ((y + 0.5 - 40) / 30) ** 2 <= 1;
+    const onLine = (/** @type {number} */ x, /** @type {number} */ y) => x >= 15 && x < 185 && Math.abs(y + 0.5 - 90) <= 5;
+    const covered = picture((x, y) => inBox(x, y) || inEllipse(x, y) || onLine(x, y));
+    assert.deepEqual(checkCovered(covered, shapes, image, frame, 2), { checked: 3, thin: 0, solid: true });
+
+    const leak = covered.slice();
+    leak.set([200, 200, 200, 255], (40 * width + 50) * 4); // one light pixel in the middle of the box
+    assert.equal(checkCovered(leak, shapes, image, frame, 2).solid, false);
+    const missing = picture((x, y) => inBox(x, y) || onLine(x, y)); // the ellipse never got painted
+    assert.equal(checkCovered(missing, shapes, image, frame, 2).solid, false);
+    const faint = picture(() => false).map((value, index) => (index % 4 === 3 ? 255 : inBox(Math.floor(index / 4) % width, Math.floor(index / 4 / width)) ? 90 : value));
+    assert.equal(checkCovered(faint, shapes.slice(0, 1), image, frame, 2).solid, false, 'a see-through grey is not covered');
+
+    // Edges blur in a JPEG: pixels within the allowance of the outline are not judged.
+    const soft = covered.slice();
+    soft.set([120, 120, 120, 255], (20 * width + 20) * 4);
+    assert.equal(checkCovered(soft, shapes, image, frame, 2).solid, true);
+
+    // A crop: shapes outside the saved part are not checked; the rest are found at their new place.
+    const crop = outputFrame(width, height, { x: 0, y: 0, w: 0.5, h: 1 });
+    const left = picture((x, y) => x < 100 && (inBox(x, y) || onLine(x, y))).filter((_, index) => (Math.floor(index / 4) % width) < 100);
+    assert.deepEqual(checkCovered(left, shapes, image, crop, 2), { checked: 2, thin: 0, solid: true });
+  });
+
+  it('zooms with two fingers to the nearest step', () => {
+    assert.equal(pinchZoom(1, 100, 100), 1);
+    assert.equal(pinchZoom(1, 100, 210), 2, 'fingers spread twice as far');
+    assert.equal(pinchZoom(2, 100, 50), 1);
+    assert.equal(pinchZoom(1, 100, 900), ZOOMS[ZOOMS.length - 1], 'no further than the largest step');
+    assert.equal(pinchZoom(1, 100, 10), 1);
+    assert.equal(pinchZoom(1.5, 0, 50), 1.5, 'fingers that started on one spot change nothing');
+  });
+
+  it('draws straight marker lines, level when nearly level', () => {
+    const from = { x: 0.2, y: 0.5 };
+    assert.deepEqual(straightEnd(from, { x: 0.8, y: 0.52 }, 1), { x: 0.8, y: 0.5 }, 'a line of text: kept level');
+    assert.deepEqual(straightEnd(from, { x: 0.21, y: 0.9 }, 1), { x: 0.2, y: 0.9 }, 'nearly upright: kept upright');
+    assert.deepEqual(straightEnd(from, { x: 0.6, y: 0.9 }, 1), { x: 0.6, y: 0.9 }, 'a slant stays a slant');
+    // On a wide picture 0.04 of the height is little next to 0.6 of the width.
+    assert.deepEqual(straightEnd(from, { x: 0.8, y: 0.54 }, 3), { x: 0.8, y: 0.5 });
+  });
+
+  it('knows when a new picture would throw away covering that was not saved', () => {
+    const start = createHistory({ shapes: [], crop: null });
+    assert.equal(unsavedWork(start, false), false, 'nothing drawn yet');
+    const drawn = commit(start, { shapes: [{ type: 'box', x: 0, y: 0, w: 0.5, h: 0.5 }], crop: null });
+    assert.equal(unsavedWork(drawn, false), true);
+    assert.equal(unsavedWork(drawn, true), false, 'saved or copied');
+    assert.equal(unsavedWork(undo(drawn), false), false, 'undone back to the start');
   });
 
   it('finds the handle under a pointer, corners before edges', () => {
@@ -511,6 +640,179 @@ describe('image redaction', () => {
   });
 });
 
+describe('image redaction: review of 2026-11-13', () => {
+  /** @typedef {import('../src/client/tool-redact.mjs').Shape} Shape */
+  const full = (/** @type {number} */ width, /** @type {number} */ height) => ({ sx: 0, sy: 0, sw: width, sh: height, width, height });
+  /** A white picture with black wherever `black` says. @param {number} width @param {number} height @param {(x: number, y: number) => boolean} black */
+  const picture = (width, height, black) => {
+    const data = new Uint8ClampedArray(width * height * 4).fill(255);
+    for (let y = 0; y < height; y += 1) for (let x = 0; x < width; x += 1) if (black(x, y)) data.fill(0, (y * width + x) * 4, (y * width + x) * 4 + 3);
+    return data;
+  };
+  /** @param {number} x0 @param {number} y0 @param {number} x1 @param {number} y1 */
+  const rect = (x0, y0, x1, y1) => (/** @type {number} */ x, /** @type {number} */ y) => x >= x0 && x < x1 && y >= y0 && y < y1;
+  /** Distance from a point to a segment. @param {number} px @param {number} py @param {number[]} segment */
+  const toSegment = (px, py, [ax, ay, bx, by]) => {
+    const t = Math.max(0, Math.min(1, ((px - ax) * (bx - ax) + (py - ay) * (by - ay)) / ((bx - ax) ** 2 + (by - ay) ** 2 || 1)));
+    return Math.hypot(px - ax - t * (bx - ax), py - ay - t * (by - ay));
+  };
+  const PNG = 0;
+  const JPEG = 2;
+
+  it('4.3 keeps the zoom when one finger lifts during a pinch', () => {
+    assert.equal(pinchZoom(3, 100, 0), 3);
+    assert.equal(pinchZoom(4, 250, 0), 4);
+  });
+
+  it('4.2 judges every pixel of a large box, not a sample of them', () => {
+    const [width, height] = [4000, 3000];
+    const shape = /** @type {Shape} */ ({ type: 'box', x: 0.1, y: 0.1, w: 0.5, h: 0.5 }); // 2000 × 1500
+    // Black only on the grids the old sampling looked at (every 27th pixel from 408/308 with an 8 px margin, every 28th from 402/302 with 2 px).
+    const onGrid = (/** @type {number} */ x, /** @type {number} */ y, /** @type {number} */ step, /** @type {number} */ x0, /** @type {number} */ y0) => x >= x0 && y >= y0 && (x - x0) % step === 0 && (y - y0) % step === 0;
+    const grid = picture(width, height, (x, y) => x < 2400 && y < 1800 && (onGrid(x, y, 27, 408, 308) || onGrid(x, y, 28, 402, 302)));
+    for (const edge of [PNG, JPEG]) assert.equal(checkCovered(grid, [shape], { width, height }, full(width, height), edge).solid, false, `edge ${edge}`);
+    const solid = picture(width, height, rect(400, 300, 2400, 1800));
+    assert.equal(checkCovered(solid, [shape], { width, height }, full(width, height), PNG).solid, true);
+  });
+
+  it('4.2 finds a light ring along the edge, beyond what JPEG blurs', () => {
+    const [width, height] = [1000, 800];
+    const shape = /** @type {Shape} */ ({ type: 'box', x: 0.2, y: 0.2, w: 0.3, h: 0.1 }); // x 200–500, y 160–240
+    const image = { width, height };
+    const ring = (/** @type {number} */ n) => picture(width, height, rect(200 + n, 160 + n, 500 - n, 240 - n));
+    assert.equal(checkCovered(ring(2), [shape], image, full(width, height), PNG).solid, false, 'PNG keeps edges sharp: a 2 px ring shows');
+    assert.equal(checkCovered(ring(1), [shape], image, full(width, height), PNG).solid, false);
+    assert.equal(checkCovered(ring(2), [shape], image, full(width, height), JPEG).solid, true, 'JPEG blurs up to 2 px, measured');
+    assert.equal(checkCovered(ring(3), [shape], image, full(width, height), JPEG).solid, false);
+    assert.equal(checkCovered(ring(8), [shape], image, full(width, height), JPEG).solid, false, 'the old 8 px margin');
+  });
+
+  it('4.2 finds a box painted in the wrong place, from geometry of its own', () => {
+    const [width, height] = [1000, 800];
+    const shape = /** @type {Shape} */ ({ type: 'box', x: 0.2, y: 0.2, w: 0.3, h: 0.1 });
+    const image = { width, height };
+    for (const [off, edge] of [[8, JPEG], [3, JPEG], [1, PNG]]) {
+      const shifted = picture(width, height, rect(200 + off, 160 + off, 500 + off, 240 + off));
+      assert.equal(checkCovered(shifted, [shape], image, full(width, height), edge).solid, false, `${off} px off, edge ${edge}`);
+    }
+  });
+
+  it('4.2 judges a small JPEG box by all its inner pixels', () => {
+    const [width, height] = [1000, 800];
+    const shape = /** @type {Shape} */ ({ type: 'box', x: 0.2, y: 0.2, w: 0.016, h: 0.02 }); // 16 × 16
+    const one = picture(width, height, (x, y) => x === 208 && y === 168);
+    assert.equal(checkCovered(one, [shape], { width, height }, full(width, height), JPEG).solid, false);
+  });
+
+  it('4.2 judges all of a marker stroke, round caps and joins included', () => {
+    const [width, height] = [1000, 800];
+    const image = { width, height };
+    const straight = /** @type {Shape} */ ({ type: 'line', points: [{ x: 0.1, y: 0.5 }, { x: 0.9, y: 0.5 }], size: 0.06 }); // 60 px thick
+    const rows = picture(width, height, (_, y) => y === 378 || y === 400 || y === 422);
+    for (const edge of [PNG, JPEG]) assert.equal(checkCovered(rows, [straight], image, full(width, height), edge).solid, false, `three rows, edge ${edge}`);
+
+    // A turn: painted as two plain rectangles, without round caps or the round join.
+    const turn = /** @type {Shape} */ ({ type: 'line', points: [{ x: 0.2, y: 0.25 }, { x: 0.6, y: 0.25 }, { x: 0.6, y: 0.75 }], size: 0.04 }); // 40 px thick
+    const segments = [[200, 200, 600, 200], [600, 200, 600, 600]];
+    const butt = picture(width, height, (x, y) => rect(200, 180, 600, 220)(x, y) || rect(580, 200, 620, 600)(x, y));
+    assert.equal(checkCovered(butt, [turn], image, full(width, height), PNG).solid, false, 'the caps and the outer join are missing');
+    const round = picture(width, height, (x, y) => segments.some((segment) => toSegment(x + 0.5, y + 0.5, segment) <= 20));
+    assert.deepEqual(checkCovered(round, [turn], image, full(width, height), PNG), { checked: 1, thin: 0, solid: true }, 'a stroke painted round passes');
+    // Only the cap at the start left light.
+    const capless = picture(width, height, (x, y) => x >= 200 && segments.some((segment) => toSegment(x + 0.5, y + 0.5, segment) <= 20));
+    assert.equal(checkCovered(capless, [turn], image, full(width, height), PNG).solid, false, 'the round cap is judged');
+  });
+
+  it('4.2 gives no edge allowance where two areas meet or where the copy is cropped', () => {
+    const [width, height] = [400, 200];
+    const image = { width, height };
+    const shapes = /** @type {Shape[]} */ ([{ type: 'box', x: 0.1, y: 0.2, w: 0.25, h: 0.5 }, { type: 'box', x: 0.35, y: 0.2, w: 0.25, h: 0.5 }]); // x 40–140 and 140–240
+    const seam = picture(width, height, (x, y) => rect(40, 40, 240, 140)(x, y) && x !== 140);
+    assert.equal(checkCovered(seam, shapes, image, full(width, height), JPEG).solid, false, 'a light line where two boxes touch');
+    // Cropped through the second box: its cut side is the picture's edge, not a blurred one.
+    const frame = outputFrame(width, height, { x: 0, y: 0, w: 0.5, h: 1 }); // x 0–200
+    const cut = picture(200, height, (x, y) => rect(40, 40, 198, 140)(x, y));
+    assert.equal(checkCovered(cut, shapes, image, frame, JPEG).solid, false, 'light pixels at the crop edge');
+    assert.deepEqual(checkCovered(picture(200, height, rect(40, 40, 200, 140)), shapes, image, frame, JPEG), { checked: 2, thin: 0, solid: true });
+  });
+
+  it('4.2 says which areas were too thin to judge', () => {
+    const [width, height] = [300, 200];
+    const thin = /** @type {Shape} */ ({ type: 'line', points: [{ x: 0.1, y: 0.5 }, { x: 0.9, y: 0.5 }], size: 0.01 }); // 3 px thick
+    const painted = picture(width, height, (x, y) => x >= 30 && x < 270 && y >= 98 && y < 102);
+    assert.deepEqual(checkCovered(painted, [thin], { width, height }, full(width, height), JPEG), { checked: 0, thin: 1, solid: true });
+  });
+
+  it('the saved copy covers at least what the editor showed', () => {
+    let seed = 12345;
+    const random = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+    for (const [width, height] of [[4032, 3024], [3024, 4032], [1170, 2532], [6000, 4000], [8000, 6000]]) {
+      const out = outputFrame(width, height, null);
+      for (const zoom of ZOOMS) {
+        const preview = previewSize(width, height, zoom);
+        const shown = { sx: 0, sy: 0, sw: width, sh: height, ...preview };
+        for (let i = 0; i < 300; i += 1) {
+          const box = { x: random() * 0.8, y: random() * 0.8, w: 0.01 + random() * 0.19, h: 0.01 + random() * 0.19 };
+          const onScreen = frameRect(box, width, height, shown);
+          const saved = frameRect(box, width, height, out, previewGrow(width, height));
+          const [kx, ky] = [out.width / preview.width, out.height / preview.height];
+          assert.ok(saved.x <= onScreen.x * kx + 1e-6 && saved.y <= onScreen.y * ky + 1e-6, `${width}×${height} at ${zoom}: top left`);
+          assert.ok(saved.x + saved.w >= (onScreen.x + onScreen.w) * kx - 1e-6 && saved.y + saved.h >= (onScreen.y + onScreen.h) * ky - 1e-6, `${width}×${height} at ${zoom}: bottom right`);
+        }
+      }
+    }
+  });
+
+  it('accepts small boxes measured in screen pixels on a very long screenshot', () => {
+    // 1170 × 20000 shown 390 px wide: 1 % of the height would be 200 image pixels.
+    const min = { x: 6 / 390, y: 6 / (390 * (20000 / 1170)) };
+    const box = boxFromDrag({ x: 0.1, y: 0.1 }, { x: 0.5, y: 0.1015 }, min); // 30 px high
+    assert.ok(box && Math.abs(box.h - 0.0015) < 1e-9);
+    assert.equal(boxFromDrag({ x: 0.1, y: 0.1 }, { x: 0.5, y: 0.1001 }, min), null, 'still too small to be meant');
+    assert.ok(resizeBox({ x: 0.1, y: 0.1, w: 0.4, h: 0.05 }, 0, -0.049, min).h < 0.01);
+    assert.ok(resizeFromHandle({ x: 0.1, y: 0.1, w: 0.4, h: 0.05 }, 's', { x: 0.3, y: 0.1005 }, min).h < 0.01);
+  });
+
+  it('still reports unsaved work after more steps than the history keeps', () => {
+    /** @param {number} n @returns {import('../src/client/tool-redact.mjs').Drawing} */
+    const state = (n) => ({ shapes: Array.from({ length: n }, () => ({ type: /** @type {const} */ ('box'), x: 0, y: 0, w: 0.1, h: 0.1 })), crop: null });
+    let history = createHistory(state(0));
+    for (let n = 1; n <= 150; n += 1) history = commit(history, state(n));
+    for (let n = 0; n < 99; n += 1) history = undo(history);
+    assert.equal(history.index, 0);
+    assert.equal(unsavedWork(history, false), true, 'the 51 areas on screen were never saved');
+    assert.equal(unsavedWork(history, true), false);
+    assert.equal(unsavedWork(createHistory(state(0)), false), false);
+  });
+
+  it('scales a picture taller or wider than a canvas side allows', () => {
+    const tall = exportSize(1000, 20000);
+    assert.equal(tall.scaled, true);
+    assert.ok(tall.height <= 16384 && tall.width <= 16384);
+    assert.ok(Math.abs(tall.width / tall.height - 1000 / 20000) < 0.001);
+    const preview = previewSize(500, 30000, 4);
+    assert.ok(preview.height <= 16384);
+  });
+
+  it('tells an animated picture from a still one', () => {
+    const gifFrame = [0x21, 0xf9, 4, 0, 10, 0, 0, 0, 0x2c, 0, 0, 0, 0, 1, 0, 1, 0, 0, 2, 2, 0x4c, 1, 0];
+    const gif = (/** @type {number} */ frames) => new Uint8Array([...Buffer.from('GIF89a'), 1, 0, 1, 0, 0, 0, 0, ...Array.from({ length: frames }, () => gifFrame).flat(), 0x3b]);
+    assert.equal(isAnimated(gif(1)), false);
+    assert.equal(isAnimated(gif(3)), true);
+    const riff = (/** @type {string} */ fourcc, /** @type {number} */ flags) => {
+      const vp8x = [...Buffer.from('VP8X'), 10, 0, 0, 0, flags, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+      const body = [...Buffer.from('WEBP'), ...vp8x, ...Buffer.from(fourcc), 0, 0, 0, 0];
+      return new Uint8Array([...Buffer.from('RIFF'), body.length & 255, body.length >> 8, 0, 0, ...body]);
+    };
+    assert.equal(isAnimated(riff('ANIM', 0x02)), true);
+    assert.equal(isAnimated(riff('VP8 ', 0)), false);
+    const pngChunk = (/** @type {string} */ type) => [0, 0, 0, 0, ...Buffer.from(type), 0, 0, 0, 0];
+    assert.equal(isAnimated(new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, ...pngChunk('IHDR'), ...pngChunk('acTL'), ...pngChunk('IDAT')])), true);
+    assert.equal(isAnimated(new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, ...pngChunk('IHDR'), ...pngChunk('IDAT')])), false);
+    assert.equal(isAnimated(new Uint8Array([0xff, 0xd8, 0xff])), false);
+  });
+});
+
 describe('browser check', () => {
   /** @param {string[]} matching  Media queries that match. */
   const media = (matching) => (/** @type {string} */ query) => matching.includes(query);
@@ -535,7 +837,8 @@ describe('browser check', () => {
       platform: 'iPhone',
       cores: '8',
       memory: '4 GB',
-      screen: '390 × 844, ×3',
+      screen: '390 × 844',
+      pixelRatio: '3',
       window: '390 × 700',
       colors: '24-bit, P3, HDR',
       touch: 'yes',
@@ -554,6 +857,7 @@ describe('browser check', () => {
     const facts = browserFacts({ ...env, navigator: { language: 'en' }, screen: { width: 390, height: 844 }, window: { innerWidth: 1200, innerHeight: 800 }, media: media([]), referrer: 'https://example.com/' });
     assert.equal(facts.languages, 'en');
     assert.equal(facts.screen, '390 × 844');
+    assert.equal(facts.pixelRatio, '1');
     assert.deepEqual([facts.cores, facts.memory, facts.userAgent, facts.platform, facts.colors, facts.connection], ['unknown', 'unknown', 'unknown', 'unknown', 'unknown', 'unknown']);
     assert.deepEqual([facts.touch, facts.cookies, facts.dnt, facts.gpc, facts.theme, facts.motion], ['no', 'no', 'unset', 'unsupported', 'light', 'off']);
     assert.equal(facts.referrer, 'https://example.com/');
@@ -577,6 +881,9 @@ describe('browser check', () => {
     assert.doesNotMatch(source, /window=|referrer=|connection=/, 'things that change while browsing would break recognition');
     const resized = { ...facts, window: '100 × 100', referrer: 'https://example.com/', connection: '3g' };
     assert.equal(fingerprintSource(resized), source);
+    // The theme follows sunset on automatic settings; the pixel ratio follows page zoom; blockers get switched.
+    const evening = { ...facts, theme: 'light', pixelRatio: '1.25', blocker: 'notSeen' };
+    assert.equal(fingerprintSource(evening), source, 'the same browser keeps the same code');
     assert.notEqual(fingerprintSource({ ...facts, gpu: 'Other GPU' }), source);
     assert.equal(fingerprintSource(Object.fromEntries(Object.entries(facts).reverse())), source, 'the order the facts were read in does not matter');
   });
@@ -600,10 +907,111 @@ describe('browser check', () => {
     assert.deepEqual(autofillLeak(fields.map((field) => ({ ...field, value: '' }))), []);
   });
 
-  it('keeps what it reads in the page: no network, storage or URL in the tool', async () => {
+  it('keeps what it reads in the page: one opt-in request to its own host, the comparison only in this tab', async () => {
     const source = await readFile(new URL('../src/client/tool-browser.mjs', import.meta.url), 'utf8');
-    assert.doesNotMatch(source, /fetch\(|XMLHttpRequest|sendBeacon|WebSocket|RTCPeerConnection|localStorage|sessionStorage|location\.|history\./);
+    assert.doesNotMatch(source, /XMLHttpRequest|sendBeacon|WebSocket|RTCPeerConnection|localStorage|sessionStorage|location\.|history\./);
+    assert.deepEqual(source.match(/fetch\([^)]*\)/g), ['fetch(TRACE_URL, { cache: \'no-store\', credentials: \'omit\', signal: controller.signal })'], 'the IP lookup is the only request');
+    assert.equal(TRACE_URL, '/cdn-cgi/trace', 'to the same host, a path Cloudflare answers itself');
+    assert.match(source, /addEventListener\('click', async \(\) => \{\s*\/\/ Only on request/, 'only after the visitor asks');
+    const calls = [...source.matchAll(/\b(?:write|read|remove)\(COMPARE_KEY[^\n]*/g)].map((m) => m[0]);
+    assert.ok(calls.length >= 3 && calls.every((call) => call.includes("'session')")), 'the comparison is kept in this tab only');
     assert.match(source, /window\.addEventListener\('pagehide', clear\)/, 'autofilled values are erased on leaving');
+  });
+
+  it('notices the protections browsers announce through what they report', () => {
+    const base = { screen: { width: 1920, height: 1080 }, window: { innerWidth: 1280, innerHeight: 720, screenX: 40, screenY: 30 }, timeZone: 'Asia/Tbilisi', offsetMinutes: -240 };
+    assert.deepEqual(detectProtections(base), []);
+    // Safari's Advanced Fingerprinting Protection: screen size = window size, window at 0,0.
+    assert.deepEqual(detectProtections({ ...base, screen: { width: 1280, height: 720 }, window: { ...base.window, screenX: 0, screenY: 0 } }), ['screen']);
+    // Tor Browser and Firefox's resistFingerprinting: one time zone for everyone, windows rounded to 200 × 100.
+    assert.deepEqual(detectProtections({ ...base, timeZone: 'Atlantic/Reykjavik', offsetMinutes: 0 }), ['timeZone']);
+    assert.deepEqual(detectProtections({ ...base, timeZone: 'UTC', offsetMinutes: 0 }), ['timeZone']);
+    assert.deepEqual(detectProtections({ ...base, window: { ...base.window, innerWidth: 1000, innerHeight: 900 } }), ['window']);
+    assert.deepEqual(detectProtections({ ...base, window: { ...base.window, innerWidth: 390, innerHeight: 664 } }), [], 'an ordinary phone');
+  });
+
+  it('notices a canvas the browser changed on purpose', () => {
+    const pixels = (/** @type {number[]} */ ...changes) => {
+      const data = canvasPattern();
+      for (const at of changes) data[at] += 1;
+      return data;
+    };
+    assert.equal(canvasNoise(pixels(), canvasPattern()), false);
+    assert.equal(canvasNoise(pixels(21), canvasPattern()), true, 'one channel off by one is noise');
+  });
+
+  it('reads the address and country from the trace answer, and nothing else', () => {
+    const answer = 'fl=1f\nh=lockwell.org\nip=203.0.113.7\nts=1\nvisit_scheme=https\nuag=Mozilla/5.0\ncolo=TBS\nloc=GE\ntls=TLSv1.3\n';
+    assert.deepEqual(parseTrace(answer), { ip: '203.0.113.7', country: 'GE' });
+    assert.deepEqual(parseTrace('ip=2001:db8::1\nloc=DE'), { ip: '2001:db8::1', country: 'DE' });
+    assert.equal(parseTrace('<html>error</html>'), null);
+    assert.equal(parseTrace('ip=<script>\nloc=GE'), null, 'only an address is shown');
+    assert.deepEqual(parseTrace('ip=203.0.113.7\nloc=xx1'), { ip: '203.0.113.7', country: '' });
+  });
+
+  it('shows the keyboard layout through a few keys', () => {
+    const georgian = new Map([['KeyQ', 'ქ'], ['KeyW', 'წ'], ['KeyE', 'ე'], ['KeyR', 'რ'], ['KeyT', 'ტ'], ['KeyY', 'ყ']]);
+    assert.equal(layoutSample((code) => georgian.get(code)), 'ქწერტყ');
+    assert.equal(layoutSample((code) => ({ KeyQ: 'a', KeyW: 'z', KeyE: 'e', KeyR: 'r', KeyT: 't', KeyY: 'y' })[code]), 'azerty');
+    assert.equal(layoutSample(() => undefined), '');
+  });
+
+  it('compares with values remembered before a settings change', () => {
+    const before = { languages: 'ka', canvas: 'aaaa', fingerprint: '1111', window: '100 × 100' };
+    const after = { languages: 'ka', canvas: 'bbbb', fingerprint: '2222', window: '200 × 100', gpu: 'new' };
+    assert.deepEqual(compareFacts(before, after), ['canvas', 'fingerprint', 'gpu'], 'window size changes on its own and is not counted');
+  });
+
+  describe('review of 2026-11-13', () => {
+    /** Probe environments from the review (review-redact-browser/browser.mjs). @param {number} sw @param {number} sh @param {number} iw @param {number} ih */
+    const env = (sw, sh, iw, ih, timeZone = 'Asia/Tbilisi', offsetMinutes = -240, screenX = 0, screenY = 0) => ({ screen: { width: sw, height: sh }, window: { innerWidth: iw, innerHeight: ih, screenX, screenY }, timeZone, offsetMinutes });
+
+    it('5.1 says nothing about protection from one sign that ordinary browsers also give', () => {
+      for (const [label, place] of /** @type {const} */ ([
+        ['Chrome in full screen, 1920 × 1080', env(1920, 1080, 1920, 1080)],
+        ['Chrome in full screen, 1600 × 900 (also on the 200 × 100 grid)', env(1600, 900, 1600, 900)],
+        ['a 1200 × 800 window', env(1920, 1080, 1200, 800, 'Asia/Tbilisi', -240, 100, 50)],
+        ['anyone in Iceland', env(1920, 1080, 1280, 913, 'Atlantic/Reykjavik', 0, 10, 10)],
+        ['a computer set to UTC', env(1920, 1080, 1280, 913, 'UTC', 0, 10, 10)],
+        ['a tablet at 800 × 1100', env(800, 1280, 800, 1100)],
+      ])) {
+        assert.deepEqual(protectionNotes(detectProtections(place)), { rows: [], shifting: false }, label);
+      }
+    });
+
+    it('5.1 names protections only with two independent signs, and says the code shifts only for canvas noise', () => {
+      const tor = protectionNotes(detectProtections(env(1400, 900, 1400, 900, 'Atlantic/Reykjavik', 0)));
+      assert.deepEqual(tor, { rows: ['screen', 'timeZone', 'window'], shifting: false }, 'uniform values protect, but they do not make the code change');
+      assert.deepEqual(protectionNotes(['canvas']), { rows: ['canvas'], shifting: true }, 'changed pixels are seen directly');
+      assert.deepEqual(protectionNotes(['canvas', 'timeZone']), { rows: ['canvas', 'timeZone'], shifting: true });
+    });
+
+    it('5.3 looks for canvas noise with several colours, which Firefox does not skip', () => {
+      const pattern = canvasPattern();
+      assert.equal(pattern.length, 16 * 16 * 4);
+      const colours = new Set();
+      for (let i = 0; i < pattern.length; i += 4) colours.add(pattern.slice(i, i + 4).join());
+      assert.ok(colours.size >= 4, 'not a single colour (Firefox leaves uniform canvases alone: nsRFPService::RandomizeElements)');
+      assert.equal(canvasNoise(pattern.slice(), pattern), false);
+      const noisy = pattern.slice();
+      noisy[4 * 37 + 1] ^= 0x2; // Firefox flips one of the two lowest bits of a colour channel
+      assert.equal(canvasNoise(noisy, pattern), true);
+    });
+
+    it('5.4 reads remembered values only when they are a set of values', () => {
+      assert.deepEqual(rememberedFacts('{"gpu":"x","canvas":"y"}'), { gpu: 'x', canvas: 'y' });
+      for (const text of ['null', '[]', '5', '"text"', '{"gpu":3}', 'not json', '{}']) assert.equal(rememberedFacts(text), null, text);
+    });
+
+    it('5.5 keeps the code the same when the phone turns, the clocks change or the voices arrive late', () => {
+      const facts = { screen: '390 × 844', timeZone: 'Europe/Berlin (UTC+1)', voices: '0', gpu: 'Apple GPU', languages: 'ka' };
+      const source = fingerprintSource(facts);
+      assert.equal(fingerprintSource({ ...facts, screen: '844 × 390' }), source, 'turned sideways');
+      assert.equal(fingerprintSource({ ...facts, timeZone: 'Europe/Berlin (UTC+2)' }), source, 'summer time');
+      assert.equal(fingerprintSource({ ...facts, voices: '61' }), source, 'the voice list came in after the reading');
+      assert.notEqual(fingerprintSource({ ...facts, timeZone: 'Asia/Tbilisi (UTC+4)' }), source);
+      assert.notEqual(fingerprintSource({ ...facts, screen: '430 × 932' }), source);
+    });
   });
 
   it('has a translated word for every token, in both languages', async () => {
@@ -644,6 +1052,29 @@ describe('tool pages', () => {
     assert.match(await read('en/index.html'), /aria-labelledby="home__tools"/);
   });
 
+  it('groups the tools index by task, every tool once', async () => {
+    for (const lang of ['', 'en/']) {
+      const index = await read(`${lang}tools/index.html`);
+      const groups = [...index.matchAll(/<section class="tool-group" aria-labelledby="tools__(\w+)">\s*<h2[^>]*>[^<]+<\/h2>([\s\S]*?)<\/section>/g)];
+      assert.deepEqual(groups.map((m) => m[1]), TOOL_GROUPS.map((group) => group.key), lang);
+      const listed = groups.flatMap((m) => [...m[2].matchAll(/href="[^"]*\/tools\/([a-z-]+)\/"/g)].map((link) => link[1]));
+      assert.deepEqual([...listed].sort(), TOOLS.map((tool) => tool.slug).sort(), `${lang}: each tool in exactly one group`);
+    }
+  });
+
+  it('a tool page lists the guides that link to it, found at build time', async () => {
+    const page = await read('en/tools/photo-metadata/index.html');
+    const section = /<section class="tool-guides" aria-labelledby="tool__guides">([\s\S]*?)<\/section>/.exec(page)?.[1] ?? '';
+    for (const slug of ['location-photos', 'protest', 'sources-documents']) assert.match(section, new RegExp(`href="/en/guides/${slug}/"`), slug);
+    assert.doesNotMatch(section, /guides\/accounts\//);
+    assert.match(await read('tools/link-checker/index.html'), /<section class="tool-guides"[\s\S]*?href="\/guides\/phishing\/"/, 'Georgian too');
+    for (const tool of TOOLS) {
+      const html = await read(`en/tools/${tool.slug}/index.html`);
+      const count = (/<section class="tool-guides"[\s\S]*?<\/section>/.exec(html)?.[0].match(/<li>/g) ?? []).length;
+      assert.ok(count === 0 || /<section class="tool-guides"/.test(html), tool.slug);
+    }
+  });
+
   it('without JavaScript the page says the tool needs it, and still explains the tool', async () => {
     const page = await read('en/tools/password-generator/index.html');
     assert.match(page, /<p class="draft-notice no-js-only" data-js="tool-fallback">/);
@@ -665,6 +1096,26 @@ describe('tool pages', () => {
     assert.doesNotMatch(csp, /blob:|data:|unsafe/);
   });
 
+  it('lets only the browser check page talk to its own host (for the opt-in IP lookup), in the page and in _headers', async () => {
+    const policy = async (/** @type {string} */ page) => /Content-Security-Policy" content="([^"]+)"/.exec(await read(page))?.[1] ?? '';
+    for (const lang of ['', 'en/']) {
+      const csp = await policy(`${lang}tools/browser-check/index.html`);
+      assert.match(csp, /connect-src 'self';/, lang);
+      assert.doesNotMatch(csp, /blob:|data:|unsafe|https?:/);
+      for (const other of TOOLS.filter((tool) => tool.slug !== 'browser-check')) assert.match(await policy(`${lang}tools/${other.slug}/index.html`), /connect-src 'none'/, other.slug);
+    }
+    assert.match(await policy('en/index.html'), /connect-src 'none'/);
+    const headers = await read('_headers');
+    const all = headers.indexOf('/*\n');
+    for (const path of ['/tools/browser-check/', '/en/tools/browser-check/']) {
+      const at = headers.indexOf(`${path}\n`);
+      assert.ok(at > all, `${path}: a rule after the one for every page, so it can replace its policy`);
+      const rule = headers.slice(at).split(/\n(?=\S)/)[0];
+      assert.match(rule, /\n  ! Content-Security-Policy\n  Content-Security-Policy: [^\n]*connect-src 'self';[^\n]*frame-ancestors 'none'/, path);
+    }
+    for (const lang of ['', 'en/']) assert.ok((await read(`${lang}tools/browser-check/index.html`)).includes('data-js="browser-ip"'));
+  });
+
   it('header: Tools is linked everywhere; About is a wide-screen header link', async () => {
     const page = await read('en/tools/index.html');
     assert.match(page, /<li><a class="site-nav__link" href="\/en\/tools\/" aria-current="page">Tools<\/a><\/li>/);
@@ -673,15 +1124,32 @@ describe('tool pages', () => {
 
   it('every label a tool can show exists in the page (the client builds no text of its own)', async () => {
     const photo = await read('en/tools/photo-metadata/index.html');
-    for (const row of ['location', 'camera', 'taken', 'software', 'exif', 'xmp', 'iptc', 'comment', 'thumbnail', 'trailing', 'text', 'other']) {
-      assert.match(photo, new RegExp(`<div class="facts__row" data-row="${row}" hidden><dt>[^<]+</dt>`), row);
+    const values = ['location', 'altitude', 'direction', 'gpsTime', 'place', 'taken', 'camera', 'lens', 'serial', 'lensSerial', 'owner', 'artist', 'copyright', 'caption', 'keywords', 'uniqueId', 'software', 'profile', 'texts'];
+    const flags = ['exif', 'xmp', 'iptc', 'photoshop', 'comment', 'thumbnail', 'trailing', 'c2pa', 'hdr', 'unread', 'other'];
+    for (const row of [...values, ...flags]) {
+      assert.match(photo, new RegExp(`<div class="facts__row" data-row="${row}"( data-flag)? hidden><dt>[^<]+</dt>`), row);
     }
-    for (const message of ['found', 'none', 'unsupported', 'heic', 'too-large', 'damaged']) assert.match(photo, new RegExp(`data-${message}="[^"]+"`), message);
+    for (const kept of ['thumbnail', 'xmp', 'exif', 'auxiliary', 'profile', 'other']) assert.match(photo, new RegExp(`<li data-kept="${kept}" hidden>[^<]+`), `kept ${kept}`);
+    for (const message of ['found', 'none', 'unsupported', 'compact', 'optimised', 'too-large', 'batch-limit', 'damaged', 'several', 'one', 'compressed', 'more', 'ok', 'metadata-only', 'failed']) {
+      assert.match(photo, new RegExp(`data-${message}="[^"]+"`), message);
+    }
+    assert.match(photo, /data-js="photo-value" data-unnamed="[^"]+"/, 'a profile without a name is said to have none');
+    assert.match(photo, /<input class="checkbox checkbox--small" type="checkbox" data-js="photo-drop-profile">/, 'a colour profile that is not a standard one can be dropped');
+    assert.match(photo, /<p class="visually-hidden" role="status" data-js="photo-summary"/, 'the report is announced once complete');
+    for (const unit of ['{value} m', '{value}°', '{value} UTC']) assert.ok(photo.includes(`data-template="${unit}"`), unit);
+    assert.match(photo, /data-js="photo-example"/);
+    assert.match(photo, /data-copy-from="photo-coordinates"/, 'coordinates can be copied');
+    assert.doesNotMatch(photo, /maps\.|openstreetmap|geo:/i, 'no map link: it would send the location elsewhere');
     const browser = await read('en/tools/browser-check/index.html');
     const instant = Object.keys(browserFacts({ navigator: {}, screen: { width: 1, height: 1 }, window: { innerWidth: 1, innerHeight: 1 }, timeZone: '', offsetMinutes: 0, media: () => false, referrer: '' }));
-    for (const key of [...instant, 'os', 'model', 'gpu', 'canvas', 'fonts', 'fingerprint']) {
+    for (const key of [...instant, 'os', 'model', 'gpu', 'canvas', 'fonts', 'keyboard', 'voices', 'blocker', 'fingerprint']) {
       assert.match(browser, new RegExp(`data-row="${key}"`), key);
     }
+    for (const family of ['firefox', 'safari', 'brave', 'chromium', 'other']) assert.match(browser, new RegExp(`<p class="steps__family" data-family="${family}">[^<]+ <a href="/en/guides/browser/#[a-z-]+">`), family);
+    for (const key of ['screen', 'timeZone', 'window', 'canvas']) assert.match(browser, new RegExp(`data-row="${key}"[\\s\\S]*?data-protected>[^<]+<`), `protected ${key}`);
+    for (const rating of ['strong', 'some', 'barely']) assert.match(browser, new RegExp(`<span class="rating rating--${rating}">[^<]+</span>`), rating);
+    for (const message of ['remembered', 'failed', 'forgotten', 'changed', 'same']) assert.match(browser, new RegExp(`data-js="browser-compare-status"[^>]* data-${message}="[^"]+"`), message);
+    assert.match(browser, /data-js="browser-fingerprint-protected">[^<]+</);
   });
 
   it('UX-8: file tools have a chooser in the page\'s language, built on a real file input', async () => {
@@ -693,7 +1161,7 @@ describe('tool pages', () => {
       for (const [slug, id] of [['photo-metadata', 'photo'], ['image-redaction', 'redact'], ['document-metadata', 'document']]) {
         const page = await read(`${lang}tools/${slug}/index.html`);
         const box = /<div class="file">([\s\S]*?)<\/div>/.exec(page)?.[1] ?? '';
-        assert.match(box, new RegExp(`^\\s*<input class="file__input" type="file" id="${id}__file" accept="[^"]+" data-js="${id}-file">`), `${lang}${slug}: a real input, first so the focus ring rule can reach the button`);
+        assert.match(box, new RegExp(`^\\s*<input class="file__input" type="file" id="${id}__file" accept="[^"]+" data-js="${id}-file"( multiple)?>`), `${lang}${slug}: a real input, first so the focus ring rule can reach the button`);
         assert.ok(page.includes(`<label class="field__label" for="${id}__file">${t.items[id].file}</label>`), `${lang}${slug}: the input has a visible label`);
         // What the visitor sees is ours; screen readers get the native control, so the copies are hidden from them.
         assert.ok(box.includes(`<span>${t.chooseFile}</span></span>`), `${lang}${slug}: button text`);
@@ -718,29 +1186,76 @@ describe('tool pages', () => {
     }
   });
 
+  it('the password generator offers passphrases, PIN odds, hiding, and presets for sites with rules', async () => {
+    for (const lang of ['', 'en/']) {
+      const page = await read(`${lang}tools/password-generator/index.html`);
+      assert.match(page, /value="passphrase" data-js="password-mode"/, `${lang}: passphrase mode`);
+      assert.match(page, /<input class="range" type="range" id="password__words" min="4" max="10" step="1" value="6" data-js="password-words">/, `${lang}: word count`);
+      for (const separator of ['hyphen', 'space', 'dot', 'none']) assert.match(page, new RegExp(`id="password__sep-${separator}" value="[^"]*" data-js="password-separator"`), `${lang}: separator ${separator}`);
+      for (const name of ['password-capital', 'password-digit', 'password-mask', 'password-hide', 'password-pin', 'password-preset-symbols', 'password-preset-16']) assert.match(page, new RegExp(`data-js="${name}"`), `${lang}: ${name}`);
+      assert.match(page, /data-js="password-pin"[^>]* data-codes="[^"]*\{codes\}[^"]*" data-lockout="[^"]*\{tries\}[^"]*\{odds\}/, `${lang}: PIN odds`);
+      assert.match(page, /data-js="password-hide" aria-pressed="false" data-show="[^"]+" data-hide="[^"]+"/, `${lang}: hide toggle`);
+      assert.match(page, /EFF/, `${lang}: credits the word list`);
+    }
+  });
+
   it('the password generator starts with every character set on and look-alikes allowed', async () => {
     const page = await read('en/tools/password-generator/index.html');
     const checked = Object.fromEntries([...page.matchAll(/<input class="checkbox checkbox--small" type="checkbox" id="password__(\w+)" data-js="password-\w+"( checked)?>/g)].map((m) => [m[1], Boolean(m[2])]));
-    assert.deepEqual(checked, { lower: true, upper: true, digits: true, symbols: true, avoid: false });
+    assert.deepEqual(checked, { lower: true, upper: true, digits: true, symbols: true, avoid: false, capital: false, digit: false });
     assert.match(page, /value="password" data-js="password-mode" checked>/);
     assert.doesNotMatch(page, /value="pin" data-js="password-mode" checked>/);
+  });
+
+  it('browser check (review of 2026-11-13): nothing appears late and pushes the page down', async () => {
+    for (const lang of ['', 'en/']) {
+      const page = await read(`${lang}tools/browser-check/index.html`);
+      // 5.6: the steps for this browser are chosen by the head script before the first paint, in CSS.
+      const steps = [...page.matchAll(/<p[^>]*data-family="(\w+)"[^>]*>/g)];
+      assert.deepEqual(steps.map((step) => step[1]).sort(), ['brave', 'chromium', 'firefox', 'other', 'safari']);
+      for (const [tag] of steps) assert.doesNotMatch(tag, /\bhidden\b/, 'not revealed late');
+      for (const pattern of [/data-changed hidden/, /data-protected hidden/, /data-js="browser-fingerprint-protected" hidden/, /data-js="browser-compare-forget" hidden/]) assert.doesNotMatch(page, pattern);
+      // 5.4: remembering waits for the slow readings.
+      assert.match(page, /<button[^>]*data-js="browser-compare-remember" disabled>/);
+      assert.match(page, /<button[^>]*data-js="browser-compare-forget" disabled>/);
+      // 5.2 (owner decision 4): no camera, microphone or permission rows.
+      assert.doesNotMatch(page, /data-row="(?:devices|permissions)"/);
+      // The blocker row can say "Not seen" rather than "No".
+      assert.match(page, /data-token-not-seen="[^"]+"/);
+    }
+    const css = await read('assets/site.css');
+    for (const family of ['firefox', 'safari', 'brave', 'chromium', 'other']) assert.ok(css.includes(`[data-browser="${family}"] [data-family="${family}"]`), family);
   });
 
   it('the browser report explains the IP address once, in the network group', async () => {
     const page = await read('en/tools/browser-check/index.html');
     const groups = [...page.matchAll(/<section class="report__group" aria-labelledby="browser__(\w+)">([\s\S]*?)<\/section>/g)];
-    assert.deepEqual(groups.map((m) => m[1]), ['place', 'device', 'settings', 'signature', 'network']);
+    assert.deepEqual(groups.map((m) => m[1]), ['place', 'device', 'settings', 'signature', 'extra', 'network']);
     const withIp = groups.filter((m) => m[2].includes('<dt>IP address</dt>')).map((m) => m[1]);
     assert.deepEqual(withIp, ['network']);
   });
 
   it('document and hidden-character pages hold every row and message their code can show', async () => {
-    const page = await read('en/tools/document-metadata/index.html');
-    for (const row of ['author', 'lastAuthor', 'company', 'manager', 'title', 'subject', 'keywords', 'comments', 'created', 'modified', 'printed', 'revision', 'editTime', 'software', 'template', 'producer', 'tracked', 'commentsPart', 'custom', 'xmp']) {
-      assert.match(page, new RegExp(`<div class="facts__row" data-row="${row}" hidden><dt>[^<]+</dt><dd[^>]*>`), row);
+    for (const lang of ['', 'en/']) {
+      const page = await read(`${lang}tools/document-metadata/index.html`);
+      const template = /<template data-js="document-template">([\s\S]*?)<\/template>/.exec(page)?.[1] ?? '';
+      for (const row of ['author', 'lastAuthor', 'company', 'manager', 'title', 'subject', 'keywords', 'comments', 'created', 'modified', 'printed', 'printedBy', 'revision', 'editTime', 'software', 'template', 'producer']) {
+        assert.match(template, new RegExp(`<div class="facts__row" data-row="${row}" hidden><dt>[^<]+</dt><dd[^>]*>`), `${lang}: ${row}`);
+      }
+      const source = await readFile(new URL('../src/client/tool-document.mjs', import.meta.url), 'utf8');
+      // Every finding the code can report has a row in the group of each status it can have.
+      for (const [, key, status] of source.matchAll(/findings\.(?:add|addValues)\('(\w+)', '(removed|kept|unchecked)'/g)) {
+        const group = new RegExp(`data-group="${status}"[\\s\\S]*?</section>`).exec(template)?.[0] ?? '';
+        assert.match(group, new RegExp(`data-finding="${key}"`), `${lang}: ${key} (${status})`);
+      }
+      for (const message of ['found', 'none', 'unsupported', 'old', 'locked', 'encrypted', 'too-large', 'damaged', 'zip64', 'browser']) assert.match(template, new RegExp(`data-js="document-message"[^>]* data-${message}="[^"]+"`), `${lang}: ${message}`);
+      // The report is announced once it is complete, for one file or several, without taking room on the page.
+      assert.match(page, /<p class="visually-hidden" role="status" data-js="document-summary" data-one="[^"]+" data-several="[^"]*\{n\}[^"]*"><\/p>/, `${lang}: summary`);
+      assert.match(page, /accept="[^"]*\.docm[^"]*\.ppsx[^"]*"/, `${lang}: macro-enabled files and slide shows`);
+      for (const name of ['document-file', 'document-summary', 'document-reports', 'document-all', 'document-example']) assert.match(page, new RegExp(`data-js="${name}"`), `${lang}: ${name}`);
+      for (const name of ['document-name', 'document-pdf', 'document-verified', 'save', 'save-neutral', 'save-download', 'save-share', 'save-status', 'save-hint']) assert.match(template, new RegExp(`data-js="${name}"`), `${lang}: ${name}`);
+      assert.match(page, /type="file" id="document__file" accept="[^"]*\.odt[^"]*" data-js="document-file" multiple>/, `${lang}: several files, OpenDocument too`);
     }
-    for (const message of ['found', 'none', 'unsupported', 'old', 'too-large', 'damaged', 'browser']) assert.match(page, new RegExp(`data-${message}="[^"]+"`), message);
-    for (const name of ['document-file', 'document-facts', 'document-save', 'document-download', 'document-pdf', 'document-kept']) assert.match(page, new RegExp(`data-js="${name}"`), name);
 
     for (const lang of ['', 'en/']) {
       const hidden = await read(`${lang}tools/hidden-characters/index.html`);
@@ -751,12 +1266,69 @@ describe('tool pages', () => {
     }
   });
 
+  it('link checker page holds a verdict template with every warning, and every message its code can show', async () => {
+    const source = await readFile(new URL('../src/client/tool-check.mjs', import.meta.url), 'utf8');
+    const warnings = (/@typedef \{([^}]+)\} Warning/.exec(source)?.[1] ?? '').match(/'(\w+)'/g)?.map((w) => w.slice(1, -1)) ?? [];
+    assert.ok(warnings.length >= 20, 'the Warning type lists every warning');
+    for (const lang of ['', 'en/']) {
+      const page = await read(`${lang}tools/link-checker/index.html`);
+      const template = /<template data-js="check-template">([\s\S]*?)<\/template>/.exec(page)?.[1] ?? '';
+      for (const warning of warnings) assert.match(template, new RegExp(`<li data-js="check-warning" data-warning="${warning}" data-template="[^"]+" hidden>`), `${lang}: ${warning}`);
+      for (const name of ['site', 'before', 'site-part', 'after', 'ascii', 'shown', 'defanged', 'verdict']) assert.match(template, new RegExp(`data-js="check-${name}"`), `${lang}: ${name}`);
+      // A shortened or mail-security link only shows its first stop: the label must not say that is where it leads.
+      assert.match(template, /<p class="field__label" data-js="check-leads" data-first="[^"]+">[^<]+<\/p>/, `${lang}: a label for links whose destination is hidden`);
+      for (const message of ['invalid', 'data', 'javascript', 'other', 'several', 'capped', 'qr-none', 'qr-failed']) assert.match(page, new RegExp(`data-js="check-summary"[^>]* data-${message}="[^"]+"`), `${lang}: ${message}`);
+      assert.match(page, /data-js="check-results"/);
+      const example = /data-js="check-example" data-example="([^"]+)"/.exec(page)?.[1] ?? '';
+      assert.match(example, /gpost-ge\.info\/pay/, `${lang}: the example has a link written without https://`);
+      assert.match(page, /<div class="field qr-only">[\s\S]*?data-js="check-qr"/, `${lang}: the QR field is shown only where the browser can read QR codes`);
+    }
+    const css = await read('assets/site.css');
+    assert.match(css, /\.qr-only \{\s*display: none;/);
+    assert.match(css, /\[data-qr\] \.qr-only \{\s*display: grid;/);
+    for (const lang of ['', 'en/']) {
+      const checker = await read(`${lang}tools/link-checker/index.html`);
+      assert.match(checker, /data-js="check-summary" data-one="[^"]+"/, 'one link is announced too');
+      assert.match(checker, /<p class="facts__why qr-absent">[^<]+<\/p>/, 'where pictures can’t be read, the page says so');
+      assert.match(checker, /<p class="verdict__address" dir="ltr" translate="no">/);
+    }
+  });
+
+  it('link cleaner page holds the example, the share button, the before-and-after view and every message', async () => {
+    for (const lang of ['', 'en/']) {
+      const page = await read(`${lang}tools/link-cleaner/index.html`);
+      assert.match(page, /data-js="links-example" data-example="[^"]*utm_source[^"]*"/, `${lang}: example`);
+      assert.match(page, /<button class="[^"]*share-only[^"]*" type="button" data-js="links-share"/, `${lang}: share button, only where sharing works`);
+      assert.match(page, /data-js="links-diff"/, `${lang}: before and after`);
+      for (const message of ['removed', 'clean', 'invalid', 'unwrapped', 'several', 'shared', 'lookup']) assert.match(page, new RegExp(`data-js="links-message"[^>]* data-${message}="[^"]+"`), `${lang}: ${message}`);
+    }
+    const css = await read('assets/site.css');
+    assert.match(css, /\.share-only \{\s*display: none;/);
+    assert.match(css, /\[data-share\] \.share-only \{\s*display: inline-flex;/);
+  });
+
+  it('hidden-character page has an example, a text-file chooser, the normalise option and the comparison', async () => {
+    for (const lang of ['', 'en/']) {
+      const page = await read(`${lang}tools/hidden-characters/index.html`);
+      assert.match(page, /data-js="hidden-example" data-example="[^"]+"/, `${lang}: example`);
+      assert.match(page, /type="file" id="hidden__file" accept="\.txt,\.md,\.csv,text\/plain" data-js="hidden-file"/, `${lang}: text file`);
+      assert.match(page, /id="hidden__normalise" data-js="hidden-normalise">/, `${lang}: normalise, off by default`);
+      assert.match(page, /data-js="hidden-other"/, `${lang}: second copy`);
+      for (const message of ['same', 'found', 'too-long', 'too-different', 'needs-first']) assert.match(page, new RegExp(`data-js="hidden-compare-summary"[^>]* data-${message}="[^"]+"`), `${lang}: ${message}`);
+      for (const message of ['unsupported', 'too-large']) assert.match(page, new RegExp(`data-js="hidden-file-message"[^>]* data-${message}="[^"]+"`), `${lang}: ${message}`);
+    }
+  });
+
   it('image redaction page holds every control and message its code uses', async () => {
     for (const lang of ['', 'en/']) {
       const page = await read(`${lang}tools/image-redaction/index.html`);
-      for (const name of ['file', 'message', 'editor', 'view', 'canvas', 'count', 'size', 'zoom-value', 'zoom-in', 'zoom-out', 'undo', 'redo', 'remove', 'uncrop', 'clear', 'check', 'result', 'result-canvas', 'result-info', 'result-status', 'download', 'copy']) {
+      for (const name of ['file', 'message', 'editor', 'view', 'canvas', 'count', 'size', 'straight', 'zoom-value', 'zoom-in', 'zoom-out', 'undo', 'redo', 'remove', 'uncrop', 'clear', 'check', 'result', 'result-canvas', 'result-info', 'result-status', 'verified', 'copy', 'replace', 'replace-yes', 'replace-no', 'example', 'add', 'move-left', 'move-right', 'move-up', 'move-down', 'narrower', 'wider', 'shorter', 'taller']) {
         assert.match(page, new RegExp(`data-js="redact-${name}"`), name);
       }
+      const result = /data-js="redact-result"[\s\S]*?<\/div>\s*<\/div>\s*$/m.exec(page)?.[0] ?? page;
+      assert.match(result, /data-js="save-download"/, 'saved through the shared save area (sharing, neutral name)');
+      for (const message of ['ok', 'ok-jpeg', 'thin', 'empty', 'blocked', 'animated']) assert.match(page, new RegExp(`data-${message}="[^"]+"`), message);
+      for (const name of ['move-left', 'wider']) assert.match(page, new RegExp(`aria-label="[^"]+" title="[^"]+" data-js="redact-${name}"`), `${name} has a name`);
       for (const mode of ['box', 'ellipse', 'marker', 'crop']) assert.match(page, new RegExp(`data-js="redact-mode" data-mode="${mode}"`), mode);
       for (const message of ['unsupported', 'too-large', 'resized', 'encode-failed', 'template', 'cropped', 'done', 'failed']) assert.match(page, new RegExp(`data-${message}="[^"]+"`), message);
       assert.match(page, /<button class="[^"]*button--icon" type="button" aria-label="[^"]+" title="[^"]+" data-js="redact-zoom-in">/, 'icon-only buttons have a name');
@@ -780,9 +1352,9 @@ describe('tool pages', () => {
     const password = await read('en/tools/password-generator/index.html');
     for (const time of ['instant', 'minutes', 'hours', 'days', 'months', 'years', 'centuries', 'forever']) assert.match(password, new RegExp(`data-js="password-time"[^>]* data-${time}="[^"]+"`), time);
     assert.match(await read('en/tools/link-cleaner/index.html'), /data-several="[^"]*\{n\}/);
-    assert.match(await read('en/tools/link-checker/index.html'), /data-js="check-several" data-template="[^"]*\{n\}/);
+    assert.match(await read('en/tools/link-checker/index.html'), /data-js="check-summary"[^>]* data-several="[^"]*\{n\}/);
     assert.match(await read('en/tools/photo-metadata/index.html'), /paste a photo/);
-    assert.match(await read('en/tools/document-metadata/index.html'), /drop a file here/);
+    assert.match(await read('en/tools/document-metadata/index.html'), /drop several files/);
   });
 
   it('autofill demonstration: two visible fields, six unseen ones, and a form that can go nowhere', async () => {

@@ -93,6 +93,11 @@ export class FakeElement extends FakeEventTarget {
   append(child) {
     this.children = [...this.children.filter((c) => c !== child), child];
   }
+
+  /** @param {FakeElement[]} children */
+  replaceChildren(...children) {
+    this.children = children;
+  }
 }
 
 export class FakeButton extends FakeElement {

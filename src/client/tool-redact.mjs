@@ -12,6 +12,8 @@
  * pixelation can sometimes be reversed. The image never leaves the browser.
  */
 import { receiveFiles } from './files.mjs';
+import { initSave } from './save.mjs';
+import { fillText } from './fill.mjs';
 
 /**
  * A rectangle as fractions of the image (0 to 1), so it means the same on
@@ -35,12 +37,16 @@ import { receiveFiles } from './files.mjs';
 /** @typedef {{ entries: Drawing[], index: number, tag: string }} History */
 /** @typedef {'box' | 'ellipse' | 'marker' | 'crop'} Mode */
 
-/** Smallest box side, as a fraction of the image: smaller drags are slips, not boxes. */
+/** Smallest box side when no screen size is known, as a fraction of the image. */
 const MIN_SIDE = 0.01;
-/** How far an arrow key moves or resizes the selected shape. */
-const KEY_STEP = 0.01;
+/** Smallest box side on screen, in CSS pixels: smaller drags are slips, not boxes. */
+const MIN_SCREEN = 6;
+/** How far an arrow key or a move or resize button changes the selected shape, in CSS pixels on screen. */
+const STEP_SCREEN = 8;
 /** Browsers refuse or mangle canvases beyond this many pixels (about 16 megapixels on iPhones). */
 const MAX_PIXELS = 16_000_000;
+/** Safari refuses canvases longer than this on either side, whatever their area. */
+const MAX_SIDE = 16_384;
 const MAX_BYTES = 40 * 1024 * 1024;
 /** Width of the editing preview at 100% zoom; the saved copy always uses the full image. */
 const PREVIEW_WIDTH = 1600;
@@ -55,17 +61,21 @@ const clamp = (value) => Math.min(1, Math.max(0, value));
 
 /* ---------- Geometry ---------- */
 
+/** @type {Point} */
+const MIN_BOX = { x: MIN_SIDE, y: MIN_SIDE };
+
 /**
  * The box between two corners of a drag, kept inside the image.
  * @param {Point} from
  * @param {Point} to
+ * @param {Point} [min]  Smallest side in each direction, as fractions of the image (see `screenFraction`).
  * @returns {Box | null}  null when the drag was too small to be a box.
  */
-export function boxFromDrag(from, to) {
+export function boxFromDrag(from, to, min = MIN_BOX) {
   const [x1, x2] = [clamp(Math.min(from.x, to.x)), clamp(Math.max(from.x, to.x))];
   const [y1, y2] = [clamp(Math.min(from.y, to.y)), clamp(Math.max(from.y, to.y))];
   const box = { x: x1, y: y1, w: x2 - x1, h: y2 - y1 };
-  return box.w >= MIN_SIDE && box.h >= MIN_SIDE ? box : null;
+  return box.w >= min.x && box.h >= min.y ? box : null;
 }
 
 /**
@@ -84,10 +94,11 @@ export function moveBox(box, dx, dy) {
  * @param {T} box
  * @param {number} dw
  * @param {number} dh
+ * @param {Point} [min]  Smallest side in each direction, as fractions of the image.
  * @returns {T}  The same corner, resized between the smallest size and the image's edge.
  */
-export function resizeBox(box, dw, dh) {
-  return { ...box, w: Math.min(1 - box.x, Math.max(MIN_SIDE, box.w + dw)), h: Math.min(1 - box.y, Math.max(MIN_SIDE, box.h + dh)) };
+export function resizeBox(box, dw, dh, min = MIN_BOX) {
+  return { ...box, w: Math.min(1 - box.x, Math.max(min.x, box.w + dw)), h: Math.min(1 - box.y, Math.max(min.y, box.h + dh)) };
 }
 
 /**
@@ -114,14 +125,15 @@ export function handleAt(box, point, reach) {
  * @param {T} box
  * @param {Handle} handle
  * @param {Point} point
+ * @param {Point} [min]  Smallest side in each direction, as fractions of the image.
  * @returns {T}
  */
-export function resizeFromHandle(box, handle, point) {
+export function resizeFromHandle(box, handle, point, min = MIN_BOX) {
   let [left, top, right, bottom] = [box.x, box.y, box.x + box.w, box.y + box.h];
-  if (handle.includes('w')) left = clamp(Math.min(point.x, right - MIN_SIDE));
-  if (handle.includes('e')) right = clamp(Math.max(point.x, left + MIN_SIDE));
-  if (handle.includes('n')) top = clamp(Math.min(point.y, bottom - MIN_SIDE));
-  if (handle.includes('s')) bottom = clamp(Math.max(point.y, top + MIN_SIDE));
+  if (handle.includes('w')) left = clamp(Math.min(point.x, right - min.x));
+  if (handle.includes('e')) right = clamp(Math.max(point.x, left + min.x));
+  if (handle.includes('n')) top = clamp(Math.min(point.y, bottom - min.y));
+  if (handle.includes('s')) bottom = clamp(Math.max(point.y, top + min.y));
   return { ...box, x: left, y: top, w: right - left, h: bottom - top };
 }
 
@@ -192,14 +204,15 @@ export function moveShape(shape, dx, dy) {
  * @param {number} imageWidth
  * @param {number} imageHeight
  * @param {Frame} frame
+ * @param {number} [grow]  Image pixels added on every side (see previewGrow).
  * @returns {Box}
  */
-export function frameRect(box, imageWidth, imageHeight, frame) {
+export function frameRect(box, imageWidth, imageHeight, frame, grow = 0) {
   const [kx, ky] = [frame.width / frame.sw, frame.height / frame.sh];
-  const x = Math.max(0, Math.floor((box.x * imageWidth - frame.sx) * kx + TOLERANCE));
-  const y = Math.max(0, Math.floor((box.y * imageHeight - frame.sy) * ky + TOLERANCE));
-  const right = Math.min(frame.width, Math.ceil(((box.x + box.w) * imageWidth - frame.sx) * kx - TOLERANCE));
-  const bottom = Math.min(frame.height, Math.ceil(((box.y + box.h) * imageHeight - frame.sy) * ky - TOLERANCE));
+  const x = Math.max(0, Math.floor((box.x * imageWidth - grow - frame.sx) * kx + TOLERANCE));
+  const y = Math.max(0, Math.floor((box.y * imageHeight - grow - frame.sy) * ky + TOLERANCE));
+  const right = Math.min(frame.width, Math.ceil(((box.x + box.w) * imageWidth + grow - frame.sx) * kx - TOLERANCE));
+  const bottom = Math.min(frame.height, Math.ceil(((box.y + box.h) * imageHeight + grow - frame.sy) * ky - TOLERANCE));
   return { x, y, w: Math.max(0, right - x), h: Math.max(0, bottom - y) };
 }
 
@@ -215,16 +228,16 @@ export function pixelRect(box, width, height) {
 
 /**
  * Size of the saved copy: the image's own size, or scaled down to what a
- * canvas can hold.
+ * canvas can hold, in area and on each side.
  * @param {number} width
  * @param {number} height
  * @param {number} [maxPixels]
  * @returns {{ width: number, height: number, scaled: boolean }}
  */
 export function exportSize(width, height, maxPixels = MAX_PIXELS) {
-  if (width * height <= maxPixels) return { width, height, scaled: false };
-  const factor = Math.sqrt(maxPixels / (width * height));
-  return { width: Math.floor(width * factor), height: Math.floor(height * factor), scaled: true };
+  const factor = Math.min(Math.sqrt(maxPixels / (width * height)), MAX_SIDE / Math.max(width, height));
+  if (factor >= 1) return { width, height, scaled: false };
+  return { width: Math.max(1, Math.floor(width * factor)), height: Math.max(1, Math.floor(height * factor)), scaled: true };
 }
 
 /**
@@ -259,6 +272,21 @@ export function previewSize(imageWidth, imageHeight, zoom) {
 }
 
 /**
+ * How far, in image pixels, the editor may show a box beyond its exact
+ * edge: one preview pixel at the coarsest zoom, because the preview rounds
+ * outwards on its own grid. The saved copy grows its boxes by this much, so
+ * it never covers less than the editor showed.
+ * @param {number} imageWidth
+ * @param {number} imageHeight
+ */
+export function previewGrow(imageWidth, imageHeight) {
+  const preview = previewSize(imageWidth, imageHeight, ZOOMS[0]);
+  const ratio = Math.max(imageWidth / preview.width, imageHeight / preview.height);
+  // On the same grid both round the same way.
+  return ratio > 1 + TOLERANCE ? ratio : 0;
+}
+
+/**
  * The next zoom level in a direction, or the same one at either end.
  * @param {number} zoom
  * @param {1 | -1} direction
@@ -269,13 +297,291 @@ export function stepZoom(zoom, direction) {
 }
 
 /**
- * "IMG_1234.JPG" → "IMG_1234-redacted.jpg"
- * @param {string} name
- * @param {string} type  MIME type of the saved copy.
+ * The zoom step nearest to where two fingers have moved since they touched
+ * down: spreading them twice as far doubles the zoom.
+ * @param {number} zoom  The zoom when the second finger touched down.
+ * @param {number} startDistance  The distance between the fingers then.
+ * @param {number} distance  The distance now; 0 once a finger has lifted.
  */
-export function redactedName(name, type) {
-  const base = name.replace(/\.[^.]*$/, '') || 'image';
-  return `${base}-redacted.${type === 'image/png' ? 'png' : 'jpg'}`;
+export function pinchZoom(zoom, startDistance, distance) {
+  if (startDistance <= 0 || distance <= 0) return zoom;
+  const wanted = (zoom * distance) / startDistance;
+  return ZOOMS.reduce((best, step) => (Math.abs(Math.log(step / wanted)) < Math.abs(Math.log(best / wanted)) ? step : best));
+}
+
+/** Within this angle of level or upright, a straight line is made exactly level or upright. */
+const SNAP_DEGREES = 10;
+
+/**
+ * Where a straight marker line ends: at the pointer, or level or upright
+ * when it is nearly so (lines of text are level).
+ * @param {Point} from
+ * @param {Point} to
+ * @param {number} aspect  Image width / height: fractions of each are not the same length.
+ * @returns {Point}
+ */
+export function straightEnd(from, to, aspect) {
+  const end = { x: clamp(to.x), y: clamp(to.y) };
+  const angle = (Math.atan2(Math.abs(end.y - from.y), Math.abs(end.x - from.x) * aspect) * 180) / Math.PI;
+  if (angle <= SNAP_DEGREES) return { x: end.x, y: from.y };
+  if (angle >= 90 - SNAP_DEGREES) return { x: from.x, y: end.y };
+  return end;
+}
+
+/**
+ * True when covering is on screen and was neither saved nor copied, so
+ * opening another picture would lose it. Judged by what is drawn, not by the
+ * step count: the history forgets its oldest steps.
+ * @param {History} history
+ * @param {boolean} saved
+ */
+export const unsavedWork = (history, saved) => {
+  const { shapes, crop } = currentDrawing(history);
+  return !saved && (shapes.length > 0 || crop !== null);
+};
+
+/** A channel above this is too light for a covered pixel (JPEG adds a little noise to black). */
+const DARK = 48;
+/**
+ * How far JPEG lightens the edge of a black area, in pixels. Measured on
+ * 2026-11-13 with black boxes of 9 to 40 pixels at every offset to the
+ * 8 × 8 blocks, on red, green, blue, magenta, cyan, yellow and white, at the
+ * quality this tool saves with (0.92): light pixels reached 2 pixels in, never
+ * 3, both in Brave (Chromium's encoder) and in macOS ImageIO, which Safari's
+ * canvas uses.
+ */
+export const JPEG_EDGE = 2;
+/** Half a pixel's diagonal: a pixel whose centre is this far inside a round edge lies wholly inside it. */
+const HALF_DIAGONAL = Math.SQRT1_2;
+
+/**
+ * The pixels of a canvas showing `frame` that lie wholly inside a shape,
+ * worked out from the shape's own numbers, not from the code that paints it.
+ * A stroke counts a pixel when its centre is at least half a pixel's diagonal
+ * inside, which includes its round caps and joins.
+ * @typedef {{ left: number, top: number, width: number, height: number, mask: Uint8Array }} Covered
+ *   `mask`: width × height, 1 for each pixel inside, from (left, top) on the canvas.
+ * @param {Shape} shape
+ * @param {{ width: number, height: number }} image
+ * @param {Frame} frame
+ * @returns {Covered}
+ */
+function coveredPixels(shape, image, frame) {
+  const [kx, ky] = [frame.width / frame.sw, frame.height / frame.sh];
+  const toX = (/** @type {number} */ fraction) => (fraction * image.width - frame.sx) * kx;
+  const toY = (/** @type {number} */ fraction) => (fraction * image.height - frame.sy) * ky;
+  const radius = shape.type === 'line' ? (shape.size * image.width * kx) / 2 : 0;
+  const points = shape.type === 'line' ? shape.points.map((point) => ({ x: toX(point.x), y: toY(point.y) })) : [];
+  const bounds =
+    shape.type === 'line'
+      ? [Math.min(...points.map((p) => p.x)) - radius, Math.min(...points.map((p) => p.y)) - radius, Math.max(...points.map((p) => p.x)) + radius, Math.max(...points.map((p) => p.y)) + radius]
+      : [toX(shape.x), toY(shape.y), toX(shape.x + shape.w), toY(shape.y + shape.h)];
+  const left = Math.max(0, Math.floor(bounds[0]));
+  const top = Math.max(0, Math.floor(bounds[1]));
+  const width = Math.max(0, Math.min(frame.width, Math.ceil(bounds[2])) - left);
+  const height = Math.max(0, Math.min(frame.height, Math.ceil(bounds[3])) - top);
+  const mask = new Uint8Array(width * height);
+  /** Marks pixels from..to (canvas columns, both included) in canvas row y. @param {number} y @param {number} from @param {number} to */
+  const span = (y, from, to) => {
+    const [a, b] = [Math.max(left, from), Math.min(left + width - 1, to)];
+    if (b >= a) mask.fill(1, (y - top) * width + a - left, (y - top) * width + b - left + 1);
+  };
+  if (shape.type === 'box') {
+    const [x0, y0, x1, y1] = bounds;
+    for (let y = Math.max(top, Math.ceil(y0 - TOLERANCE)); y + 1 <= y1 + TOLERANCE && y < top + height; y += 1) span(y, Math.ceil(x0 - TOLERANCE), Math.floor(x1 + TOLERANCE) - 1);
+  } else if (shape.type === 'ellipse') {
+    const [x0, y0, x1, y1] = bounds;
+    const [cx, cy, rx, ry] = [(x0 + x1) / 2, (y0 + y1) / 2, (x1 - x0) / 2, (y1 - y0) / 2];
+    for (let y = top; y < top + height; y += 1) {
+      // The row's corner farther from the middle is the one that has to fit.
+      const far = Math.max(Math.abs(y - cy), Math.abs(y + 1 - cy)) / ry;
+      if (far > 1 + TOLERANCE) continue;
+      const half = rx * Math.sqrt(Math.max(0, 1 - far * far));
+      span(y, Math.ceil(cx - half - TOLERANCE), Math.floor(cx + half + TOLERANCE) - 1);
+    }
+  } else {
+    const reach = radius - HALF_DIAGONAL;
+    if (reach <= 0) return { left, top, width, height, mask };
+    const segments = points.length === 1 ? [[points[0], points[0]]] : points.slice(1).map((point, index) => [points[index], point]);
+    for (const [a, b] of segments) {
+      const length = Math.hypot(b.x - a.x, b.y - a.y);
+      const [nx, ny] = length ? [(-(b.y - a.y) / length) * reach, ((b.x - a.x) / length) * reach] : [0, 0];
+      // The segment's band, a rectangle, as its four sides.
+      const corners = [{ x: a.x + nx, y: a.y + ny }, { x: b.x + nx, y: b.y + ny }, { x: b.x - nx, y: b.y - ny }, { x: a.x - nx, y: a.y - ny }];
+      const firstRow = Math.max(top, Math.floor(Math.min(a.y, b.y) - reach));
+      const lastRow = Math.min(top + height - 1, Math.ceil(Math.max(a.y, b.y) + reach));
+      for (let y = firstRow; y <= lastRow; y += 1) {
+        const middle = y + 0.5;
+        let [from, to] = [Infinity, -Infinity];
+        // The round ends.
+        for (const end of [a, b]) {
+          const dy = middle - end.y;
+          if (Math.abs(dy) > reach) continue;
+          const half = Math.sqrt(reach * reach - dy * dy);
+          [from, to] = [Math.min(from, end.x - half), Math.max(to, end.x + half)];
+        }
+        // The band between them.
+        if (length) {
+          for (let i = 0; i < 4; i += 1) {
+            const [p, q] = [corners[i], corners[(i + 1) % 4]];
+            if ((p.y - middle) * (q.y - middle) > 0) continue;
+            const x = p.y === q.y ? [p.x, q.x] : [p.x + ((middle - p.y) * (q.x - p.x)) / (q.y - p.y)];
+            [from, to] = [Math.min(from, ...x), Math.max(to, ...x)];
+          }
+        }
+        // Pixels whose centre lies in from..to.
+        if (to >= from) span(y, Math.ceil(from - 0.5 - TOLERANCE), Math.floor(to - 0.5 + TOLERANCE));
+      }
+    }
+  }
+  return { left, top, width, height, mask };
+}
+
+/**
+ * Keeps only the pixels at least `edge + 1` pixels from any pixel outside
+ * the mask, in rows, columns and diagonals. Pixels beyond the canvas count as
+ * inside: where a crop cuts an area there is no edge for JPEG to blur.
+ * @param {Uint8Array} mask  1 where a shape covers, changed in place.
+ * @param {number} width
+ * @param {number} height
+ * @param {number} edge
+ */
+function erode(mask, width, height, edge) {
+  const line = new Int32Array(Math.max(width, height));
+  /** One row or column: `at(i)` is its i-th pixel's index in the mask. @param {number} count @param {(i: number) => number} at */
+  const pass = (count, at) => {
+    let run = edge + 1;
+    for (let i = 0; i < count; i += 1) {
+      run = mask[at(i)] ? run + 1 : 0;
+      line[i] = run;
+    }
+    run = edge + 1;
+    for (let i = count - 1; i >= 0; i -= 1) {
+      run = mask[at(i)] ? run + 1 : 0;
+      if (line[i] <= edge || run <= edge) line[i] = -1;
+    }
+    // Cleared only now, once the whole line has been measured.
+    for (let i = 0; i < count; i += 1) if (line[i] === -1) mask[at(i)] = 0;
+  };
+  // A square neighbourhood is a row's neighbourhood of each pixel in a column's: rows first, then columns.
+  for (let y = 0; y < height; y += 1) pass(width, (x) => y * width + x);
+  for (let x = 0; x < width; x += 1) pass(height, (y) => y * width + x);
+}
+
+/**
+ * Checks a saved picture, decoded back to pixels: every pixel that lies
+ * wholly inside a covered area must be black. Pixels within `edge` of the
+ * covered region's outline are not judged (JPEG blurs them; see JPEG_EDGE);
+ * where areas touch or a crop cuts one there is no outline, so none are
+ * skipped there.
+ * @param {Uint8ClampedArray} pixels  RGBA of the decoded copy, frame.width × frame.height.
+ * @param {Shape[]} shapes
+ * @param {{ width: number, height: number }} image  The full image's size.
+ * @param {Frame} frame  What the copy shows (see outputFrame).
+ * @param {number} edge  0 for PNG, JPEG_EDGE for JPEG.
+ * @returns {{ checked: number, thin: number, solid: boolean }}  checked: areas in the copy with pixels judged;
+ *   thin: areas in the copy too thin to have any.
+ */
+export function checkCovered(pixels, shapes, image, frame, edge) {
+  const { width, height } = frame;
+  /** @type {Uint8Array | null} */
+  let judged = null;
+  if (edge > 0) {
+    judged = new Uint8Array(width * height);
+    for (const shape of shapes) {
+      const covered = coveredPixels(shape, image, frame);
+      for (let row = 0; row < covered.height; row += 1) {
+        for (let column = 0; column < covered.width; column += 1) {
+          if (covered.mask[row * covered.width + column]) judged[(covered.top + row) * width + covered.left + column] = 1;
+        }
+      }
+    }
+    erode(judged, width, height, edge);
+  }
+  let [checked, thin] = [0, 0];
+  for (const shape of shapes) {
+    const covered = coveredPixels(shape, image, frame);
+    let seen = 0;
+    for (let row = 0; row < covered.height; row += 1) {
+      for (let column = 0; column < covered.width; column += 1) {
+        const at = (covered.top + row) * width + covered.left + column;
+        if (!covered.mask[row * covered.width + column] || (judged && !judged[at])) continue;
+        seen += 1;
+        if (pixels[at * 4] > DARK || pixels[at * 4 + 1] > DARK || pixels[at * 4 + 2] > DARK) return { checked, thin, solid: false };
+      }
+    }
+    if (seen) checked += 1;
+    else if (inFrame(shape, image, frame)) thin += 1;
+  }
+  return { checked, thin, solid: true };
+}
+
+/**
+ * Whether any of a shape shows in the copy.
+ * @param {Shape} shape
+ * @param {{ width: number, height: number }} image
+ * @param {Frame} frame
+ */
+function inFrame(shape, image, frame) {
+  const bounds = shapeBounds(shape, image.width / image.height);
+  const [left, top] = [bounds.x * image.width - frame.sx, bounds.y * image.height - frame.sy];
+  return left + bounds.w * image.width > 0 && top + bounds.h * image.height > 0 && left < frame.sw && top < frame.sh;
+}
+
+/* ---------- Animated pictures ---------- */
+
+/**
+ * Whether a picture moves: a GIF with more than one frame, an animated PNG
+ * or WebP, or an AVIF or HEIF image sequence. A browser opens only the first
+ * frame of these, so that is all the saved copy can hold.
+ * @param {Uint8Array} bytes  The file, or at least its start (a GIF needs all of its first frame).
+ */
+export function isAnimated(bytes) {
+  const text = (/** @type {number} */ at, /** @type {number} */ length) => String.fromCharCode(...bytes.subarray(at, at + length));
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  if (text(0, 4) === 'GIF8') return gifFrames(bytes) > 1;
+  if (text(1, 3) === 'PNG') {
+    // acTL comes before the first IDAT in an animated PNG.
+    for (let at = 8; at + 8 <= bytes.length; at += 12 + view.getUint32(at)) {
+      const type = text(at + 4, 4);
+      if (type === 'acTL') return true;
+      if (type === 'IDAT') return false;
+    }
+    return false;
+  }
+  if (text(0, 4) === 'RIFF' && text(8, 4) === 'WEBP') return text(12, 4) === 'VP8X' && bytes.length > 20 && (bytes[20] & 0x02) !== 0;
+  if (text(4, 4) === 'ftyp' && bytes.length >= 8) {
+    const size = Math.min(bytes.length, view.getUint32(0));
+    for (let at = 8; at + 4 <= size; at += 4) if (['avis', 'hevs', 'msf1'].includes(text(at, 4))) return true;
+  }
+  return false;
+}
+
+/**
+ * Counts a GIF's frames, stopping at the second.
+ * @param {Uint8Array} bytes
+ */
+function gifFrames(bytes) {
+  /** Skips data sub-blocks from `at`; returns where they end. @param {number} at */
+  const skipBlocks = (at) => {
+    while (at < bytes.length && bytes[at] !== 0) at += bytes[at] + 1;
+    return at + 1;
+  };
+  let at = 13 + (bytes[10] & 0x80 ? 3 * 2 ** ((bytes[10] & 7) + 1) : 0);
+  let frames = 0;
+  while (at < bytes.length && frames < 2) {
+    if (bytes[at] === 0x21) {
+      at = skipBlocks(at + 2);
+    } else if (bytes[at] === 0x2c) {
+      frames += 1;
+      const flags = bytes[at + 9];
+      at += 10 + (flags & 0x80 ? 3 * 2 ** ((flags & 7) + 1) : 0);
+      at = skipBlocks(at + 1); // past the LZW code size
+    } else {
+      break;
+    }
+  }
+  return frames;
 }
 
 /* ---------- Undo and redo ---------- */
@@ -315,8 +621,9 @@ export const redo = (history) => ({ ...history, index: Math.min(history.entries.
  * @param {ImageBitmap} image
  * @param {Shape[]} shapes
  * @param {Frame} [frame]  Defaults to the whole image on the whole canvas.
+ * @param {number} [grow]  Image pixels added to every side of boxes and ellipses (see previewGrow).
  */
-export function paint(canvas, image, shapes, frame = { sx: 0, sy: 0, sw: image.width, sh: image.height, width: canvas.width, height: canvas.height }) {
+export function paint(canvas, image, shapes, frame = { sx: 0, sy: 0, sw: image.width, sh: image.height, width: canvas.width, height: canvas.height }, grow = 0) {
   const context = canvas.getContext('2d');
   if (!context) throw new Error('This browser cannot draw on a canvas.');
   // A JPEG has no transparency: without a background, see-through areas would turn black.
@@ -343,7 +650,7 @@ export function paint(canvas, image, shapes, frame = { sx: 0, sy: 0, sw: image.w
       }
       continue;
     }
-    const { x, y, w, h } = frameRect(shape, image.width, image.height, frame);
+    const { x, y, w, h } = frameRect(shape, image.width, image.height, frame, grow);
     if (w === 0 || h === 0) continue;
     if (shape.type === 'box') {
       context.fillRect(x, y, w, h);
@@ -374,7 +681,11 @@ export function init(root) {
   const resultCanvas = /** @type {HTMLCanvasElement} */ (find('result-canvas'));
   const resultInfo = /** @type {HTMLElement} */ (find('result-info'));
   const resultStatus = /** @type {HTMLElement} */ (find('result-status'));
-  const saveLink = /** @type {HTMLAnchorElement} */ (find('download'));
+  const verified = /** @type {HTMLElement} */ (find('verified'));
+  const saveBox = /** @type {HTMLElement} */ (find('result').querySelector('[data-js="save"]'));
+  const save = initSave(saveBox);
+  const straight = /** @type {HTMLInputElement} */ (find('straight'));
+  const replace = /** @type {HTMLElement} */ (find('replace'));
   const modeButtons = /** @type {HTMLButtonElement[]} */ ([...root.querySelectorAll('[data-js="redact-mode"]')]);
   /** @param {string} name */
   const button = (name) => /** @type {HTMLButtonElement} */ (find(name));
@@ -398,13 +709,23 @@ export function init(root) {
    *   | { kind: 'stroke', line: Line }
    *   | { kind: 'move', from: Point, moved: boolean }
    *   | { kind: 'resize', handle: Handle }
-   *   | { kind: 'pan' }}
+   *   | { kind: 'pan', zoom: number, distance: number }}
    */
   let gesture = null;
   /** Fingers on the canvas, to tell a two-finger pan from drawing. @type {Map<number, Point>} */
   const pointers = new Map();
-  /** The encoded copy on show, kept so it can be copied as well as saved. @type {HTMLCanvasElement | null} */
+  /**
+   * The checked copy on show: its canvas, so it can be copied as well as
+   * saved, and what was checked, so a copy for the clipboard can be checked too.
+   * @type {{ canvas: HTMLCanvasElement, blob: Blob, shapes: Shape[], frame: Frame } | null}
+   */
   let output = null;
+  /** Counts checks: one that is no longer the latest, or whose picture or covering changed meanwhile, is dropped. */
+  let checks = 0;
+  /** The covering drawn so far was saved, shared or copied. */
+  let saved = false;
+  /** A picture chosen while unsaved covering is on screen, waiting for the visitor's answer. @type {File | null} */
+  let pending = null;
 
   const drawing = () => draft ?? currentDrawing(history);
   const aspect = () => (image ? image.width / image.height : 1);
@@ -416,12 +737,18 @@ export function init(root) {
     return shape && shape.type !== 'line' ? shape : null;
   };
 
+  /** Gives a canvas's memory back to the browser. @param {HTMLCanvasElement} done */
+  const release = (done) => {
+    done.width = 0;
+    done.height = 0;
+  };
+
   const hideResult = () => {
+    if (output) release(output.canvas);
+    output = null;
     if (result.hidden) return;
     result.hidden = true;
-    URL.revokeObjectURL(saveLink.href);
-    saveLink.removeAttribute('href');
-    output = null;
+    save.clear();
   };
 
   const render = () => {
@@ -475,22 +802,29 @@ export function init(root) {
     }
 
     const { index, entries } = history;
-    count.textContent = [(count.dataset.template ?? '').replace('{n}', String(shapes.length)), crop ? count.dataset.cropped : ''].filter(Boolean).join(' ');
+    count.textContent = [fillText(count.dataset.template, { n: String(shapes.length) }), crop ? count.dataset.cropped : ''].filter(Boolean).join(' ');
     button('undo').disabled = index === 0;
     button('redo').disabled = index === entries.length - 1;
     button('remove').disabled = mode === 'crop' || !shapes[selected];
+    // Moving needs a selected shape or a crop; resizing a box, an ellipse or a crop.
+    const movable = mode === 'crop' ? Boolean(crop) : Boolean(shapes[selected]);
+    const sizable = mode === 'crop' ? Boolean(crop) : Boolean(shapes[selected]) && shapes[selected].type !== 'line';
+    for (const name of ['move-left', 'move-right', 'move-up', 'move-down']) button(name).disabled = !movable;
+    for (const name of ['narrower', 'wider', 'shorter', 'taller']) button(name).disabled = !sizable;
     button('uncrop').disabled = !crop;
     button('clear').disabled = shapes.length === 0 && !crop;
     button('zoom-out').disabled = zoom === ZOOMS[0];
     button('zoom-in').disabled = zoom === ZOOMS[ZOOMS.length - 1];
     zoomValue.textContent = `${Math.round(zoom * 100)}%`;
     sizeInput.disabled = mode !== 'marker';
+    straight.disabled = mode !== 'marker';
     modeButtons.forEach((other) => other.setAttribute('aria-pressed', String(other.dataset.mode === mode)));
   };
 
   /** A finished change: a new step in the history. @param {Drawing} next @param {number} [select] @param {string} [tag] */
   const apply = (next, select = selected, tag = '') => {
     history = commit(history, next, tag);
+    saved = false;
     draft = null;
     selected = select;
     hideResult();
@@ -500,6 +834,7 @@ export function init(root) {
   /** @param {(history: History) => History} step */
   const travel = (step) => {
     history = step(history);
+    saved = false;
     draft = null;
     selected = -1;
     hideResult();
@@ -528,6 +863,16 @@ export function init(root) {
 
   /** @param {File} chosen */
   const open = async (chosen) => {
+    // Covering that wasn't saved would be lost: ask first, in the page.
+    if (image && unsavedWork(history, saved)) {
+      pending = chosen;
+      replace.hidden = false;
+      // The safe answer has the focus: Enter or Space must not throw the work away.
+      /** @type {HTMLButtonElement} */ (find('replace-no')).focus();
+      return;
+    }
+    pending = null;
+    replace.hidden = true;
     image?.close();
     image = null;
     editor.hidden = true;
@@ -537,7 +882,9 @@ export function init(root) {
       message.textContent = message.dataset.tooLarge ?? '';
       return;
     }
+    let moving = false;
     try {
+      moving = isAnimated(new Uint8Array(await chosen.arrayBuffer()));
       image = await createImageBitmap(chosen);
     } catch (error) {
       console.warn('[lockwell] The chosen file could not be opened as an image.', error);
@@ -548,8 +895,14 @@ export function init(root) {
     // PNG stays PNG (screenshots keep sharp text); everything else is saved as JPEG.
     type = chosen.type === 'image/png' ? 'image/png' : 'image/jpeg';
     const size = exportSize(image.width, image.height);
-    if (size.scaled) message.textContent = (message.dataset.resized ?? '').replace('{w}', String(size.width)).replace('{h}', String(size.height));
+    message.textContent = [
+      size.scaled ? fillText(message.dataset.resized, { w: String(size.width), h: String(size.height) }) : '',
+      moving ? (message.dataset.animated ?? '') : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
     history = createHistory({ shapes: [], crop: null });
+    saved = false;
     draft = null;
     selected = -1;
     zoom = 1;
@@ -564,20 +917,51 @@ export function init(root) {
     if (chosen) open(chosen);
   });
   receiveFiles(root, open, { paste: true });
+  find('replace-yes').addEventListener('click', () => {
+    const next = pending;
+    saved = true; // The visitor chose to let the covering go.
+    if (next) open(next);
+  });
+  find('replace-no').addEventListener('click', () => {
+    pending = null;
+    replace.hidden = true;
+    // Forget the file that wasn't opened: its name no longer shows, and choosing it again fires a change.
+    file.value = '';
+    canvas.focus();
+  });
+  find('example').addEventListener('click', async () => {
+    try {
+      open(new File([await examplePicture()], 'example.png', { type: 'image/png' }));
+    } catch (error) {
+      console.error('[lockwell] Could not make the example picture.', error);
+    }
+  });
 
   /* ---------- Pointer ---------- */
 
+  /** The distance between the first two fingers on the canvas. */
+  const spread = () => {
+    const [a, b] = [...pointers.values()];
+    return a && b ? Math.hypot(a.x - b.x, a.y - b.y) : 0;
+  };
   /** Where a pointer is, as fractions of the image. @param {PointerEvent} event */
   const point = (event) => {
     const area = canvas.getBoundingClientRect();
     return { x: (event.clientX - area.left) / area.width, y: (event.clientY - area.top) / area.height };
   };
-  /** How close to a handle counts: a fingertip is less exact than a mouse. @param {PointerEvent} event */
-  const reach = (event) => {
+  /**
+   * A distance on screen as fractions of the image, never less than one of
+   * the image's own pixels: sizes and steps look the same at every zoom.
+   * @param {number} pixels  CSS pixels.
+   */
+  const onScreen = (pixels) => {
     const area = canvas.getBoundingClientRect();
-    const pixels = event.pointerType === 'mouse' ? 9 : 20;
-    return { x: pixels / area.width, y: pixels / area.height };
+    const [width, height] = [area.width || canvas.width, area.height || canvas.height];
+    return { x: Math.max(pixels / width, 1 / (image?.width ?? 1)), y: Math.max(pixels / height, 1 / (image?.height ?? 1)) };
   };
+  const minBox = () => onScreen(MIN_SCREEN);
+  /** How close to a handle counts: 24 px across for a mouse (WCAG 2.5.8), more for a fingertip. @param {PointerEvent} event */
+  const reach = (event) => onScreen(event.pointerType === 'mouse' ? 12 : 20);
   /** The topmost shape under a point. @param {Point} at */
   const shapeAt = (at) => drawing().shapes.findLastIndex((shape) => hitShape(shape, at, aspect()));
   const markerSize = () => Number(sizeInput.value) / 100;
@@ -590,17 +974,23 @@ export function init(root) {
   };
 
   canvas.addEventListener('pointerdown', (event) => {
-    if (!image) return;
+    // Only a left button, a pen or a finger: a right-click's release may never reach the canvas.
+    if (!image || event.button !== 0) return;
     pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    // Every pointer is captured, so its release or loss always comes back here.
+    try {
+      canvas.setPointerCapture(event.pointerId);
+    } catch (error) {
+      console.warn('[lockwell] Could not follow this pointer outside the image.', error);
+    }
     if (pointers.size > 1) {
-      // A second finger: this is a pan, not a drawing.
+      // A second finger: this is a pan or a pinch, not a drawing.
       draft = null;
-      gesture = { kind: 'pan' };
+      gesture = { kind: 'pan', zoom, distance: spread() };
       render();
       return;
     }
-    if (!event.isPrimary || event.button !== 0) return;
-    canvas.setPointerCapture(event.pointerId);
+    if (!event.isPrimary) return;
     const at = point(event);
     const box = target();
     const handle = box && handleAt(box, at, reach(event));
@@ -639,17 +1029,28 @@ export function init(root) {
     if (gesture.kind === 'pan') {
       // Each finger contributes half, so two fingers moving together pan one to one.
       if (before) view.scrollBy((before.x - event.clientX) / 2, (before.y - event.clientY) / 2);
+      // Fingers moving apart or together: zoom in steps. Once one has lifted, the zoom stays where it is.
+      if (pointers.size < 2) return;
+      const next = pinchZoom(gesture.zoom, gesture.distance, spread());
+      if (next !== zoom) setZoom(next);
       return;
     }
     if (gesture.kind === 'stroke') {
       const { points } = gesture.line;
+      if (straight.checked || event.shiftKey) {
+        // One straight line from where the stroke began, for covering a line of text.
+        gesture.line.points = [points[0], straightEnd(points[0], at, aspect())];
+        draft = { ...currentDrawing(history), shapes: [...currentDrawing(history).shapes, gesture.line] };
+        render();
+        return;
+      }
       const last = points[points.length - 1];
       const next = { x: clamp(at.x), y: clamp(at.y) };
       // Skip movements too small to see: long strokes stay light.
       if (Math.hypot(next.x - last.x, next.y - last.y) < 0.002) return;
       points.push(next);
     } else if (gesture.kind === 'draw') {
-      const box = boxFromDrag(gesture.from, at);
+      const box = boxFromDrag(gesture.from, at, minBox());
       if (mode === 'crop') draft = box ? { shapes, crop: box } : null;
       else draft = box ? { crop, shapes: [...shapes, { type: mode === 'ellipse' ? 'ellipse' : 'box', ...box }] } : null;
     } else if (gesture.kind === 'move') {
@@ -659,7 +1060,7 @@ export function init(root) {
       else draft = { crop, shapes: shapes.map((shape, index) => (index === selected ? moveShape(shape, dx, dy) : shape)) };
     } else {
       const { handle } = gesture;
-      changeTarget((box) => resizeFromHandle(box, handle, at));
+      changeTarget((box) => resizeFromHandle(box, handle, at, minBox()));
     }
     render();
   });
@@ -687,6 +1088,8 @@ export function init(root) {
   };
   canvas.addEventListener('pointerup', endGesture);
   canvas.addEventListener('pointercancel', endGesture);
+  // Capture lost without a release (the tab hid, the element changed): the pointer is gone all the same.
+  canvas.addEventListener('lostpointercapture', endGesture);
 
   /* ---------- Keyboard and buttons ---------- */
 
@@ -706,6 +1109,27 @@ export function init(root) {
     else apply({ crop, shapes: [...shapes, { type: mode === 'ellipse' ? 'ellipse' : 'box', x: 0.375, y: 0.4, w: 0.25, h: 0.2 }] }, shapes.length);
   };
 
+  /**
+   * Moves or resizes the selected shape (or the crop) by one step: from the
+   * arrow keys, and from the buttons for those who can't drag.
+   * @param {number} x  -1, 0 or 1.
+   * @param {number} y
+   * @param {boolean} resize
+   */
+  const nudge = (x, y, resize) => {
+    const { shapes, crop } = currentDrawing(history);
+    const shape = mode === 'crop' ? null : shapes[selected];
+    const step = onScreen(STEP_SCREEN);
+    const [dx, dy] = [x * step.x, y * step.y];
+    const tag = `${resize ? 'resize' : 'move'}:${mode === 'crop' ? 'crop' : selected}`;
+    if (mode === 'crop' && crop) {
+      apply({ shapes, crop: resize ? resizeBox(crop, dx, dy, minBox()) : moveBox(crop, dx, dy) }, selected, tag);
+    } else if (shape) {
+      const changed = resize && shape.type !== 'line' ? resizeBox(shape, dx, dy, minBox()) : moveShape(shape, dx, dy);
+      apply({ crop, shapes: shapes.map((other, index) => (index === selected ? changed : other)) }, selected, tag);
+    }
+  };
+
   canvas.addEventListener('keydown', (event) => {
     const arrows = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
     const { shapes, crop } = currentDrawing(history);
@@ -718,14 +1142,8 @@ export function init(root) {
     } else if (event.key === 'Enter') {
       addInMiddle();
     } else if (event.key in arrows && (shape || (mode === 'crop' && crop))) {
-      const [dx, dy] = arrows[/** @type {keyof typeof arrows} */ (event.key)].map((step) => step * KEY_STEP);
-      const tag = `${event.shiftKey ? 'resize' : 'move'}:${mode === 'crop' ? 'crop' : selected}`;
-      if (mode === 'crop' && crop) {
-        apply({ shapes, crop: event.shiftKey ? resizeBox(crop, dx, dy) : moveBox(crop, dx, dy) }, selected, tag);
-      } else if (shape) {
-        const changed = event.shiftKey && shape.type !== 'line' ? resizeBox(shape, dx, dy) : moveShape(shape, dx, dy);
-        apply({ crop, shapes: shapes.map((other, index) => (index === selected ? changed : other)) }, selected, tag);
-      }
+      const [x, y] = arrows[/** @type {keyof typeof arrows} */ (event.key)];
+      nudge(x, y, event.shiftKey);
     } else if (event.key === 'Delete' || event.key === 'Backspace') {
       removeSelected();
     } else if ((event.key === 'PageDown' || event.key === 'PageUp') && mode !== 'crop' && shapes.length > 0) {
@@ -752,6 +1170,13 @@ export function init(root) {
   button('clear').addEventListener('click', () => apply({ shapes: [], crop: null }, -1));
   button('zoom-in').addEventListener('click', () => setZoom(stepZoom(zoom, 1)));
   button('zoom-out').addEventListener('click', () => setZoom(stepZoom(zoom, -1)));
+  button('add').addEventListener('click', addInMiddle);
+  for (const [name, x, y, resize] of /** @type {const} */ ([
+    ['move-left', -1, 0, false], ['move-right', 1, 0, false], ['move-up', 0, -1, false], ['move-down', 0, 1, false],
+    ['narrower', -1, 0, true], ['wider', 1, 0, true], ['shorter', 0, -1, true], ['taller', 0, 1, true],
+  ])) {
+    button(name).addEventListener('click', () => nudge(x, y, resize));
+  }
 
   /* ---------- Result ---------- */
 
@@ -761,47 +1186,205 @@ export function init(root) {
       source.toBlob((blob) => (blob ? resolve(blob) : reject(new Error(`The browser could not encode the image as ${mime}.`))), mime, 0.92);
     });
 
+  /**
+   * The pixels of a decoded picture, read back from a canvas.
+   * @param {ImageBitmap} decoded
+   * @param {number} width
+   * @param {number} height
+   */
+  const pixelsOf = (decoded, width, height) => {
+    const reader = document.createElement('canvas');
+    [reader.width, reader.height] = [width, height];
+    try {
+      const context = /** @type {CanvasRenderingContext2D} */ (reader.getContext('2d', { willReadFrequently: true }));
+      context.drawImage(decoded, 0, 0);
+      return context.getImageData(0, 0, width, height).data;
+    } finally {
+      release(reader);
+    }
+  };
+
+  /**
+   * Whether this page may read pixels back from a canvas. Tor Browser,
+   * Mullvad Browser and Firefox with fingerprinting resistance hand back
+   * blank or made-up pixels until the visitor allows it; Brave changes a
+   * few by a little, which the tolerance allows.
+   */
+  const canReadBack = () => {
+    const probe = document.createElement('canvas');
+    [probe.width, probe.height] = [2, 1];
+    try {
+      const context = /** @type {CanvasRenderingContext2D} */ (probe.getContext('2d', { willReadFrequently: true }));
+      context.fillStyle = '#000';
+      context.fillRect(0, 0, 1, 1);
+      context.fillStyle = '#f00';
+      context.fillRect(1, 0, 1, 1);
+      const data = context.getImageData(0, 0, 2, 1).data;
+      return [0, 0, 0, 255, 255, 0, 0, 255].every((value, index) => Math.abs(data[index] - value) <= 8);
+    } catch (error) {
+      console.warn('[lockwell] This browser does not let the page read a canvas back.', error);
+      return false;
+    } finally {
+      release(probe);
+    }
+  };
+
+  /** @param {string | undefined} text @param {'ok' | 'warn'} state */
+  const showVerdict = (text, state) => {
+    verified.textContent = text ?? '';
+    verified.dataset.state = state;
+  };
+
   button('check').addEventListener('click', async () => {
     if (!image) return;
+    // What is being checked. Anything that changes it while the copy is made makes this result stale.
+    const [ticket, picture, steps] = [++checks, image, history];
+    const stale = () => ticket !== checks || image !== picture || history !== steps;
     const { shapes, crop } = currentDrawing(history);
-    const frame = outputFrame(image.width, image.height, crop);
+    const frame = outputFrame(picture.width, picture.height, crop);
     const made = document.createElement('canvas');
     made.width = frame.width;
     made.height = frame.height;
     resultStatus.textContent = '';
+    if (message.textContent === message.dataset.encodeFailed) message.textContent = '';
+    /** @type {{ checked: number, thin: number, solid: boolean }} */
+    let check;
+    /** @type {Blob} */
+    let blob;
+    let readable = true;
     try {
-      paint(made, image, shapes, frame);
-      const blob = await encode(made, type);
-      // Show the encoded file itself, not the editor's idea of it.
-      const saved = await createImageBitmap(blob);
-      Object.assign(resultCanvas, previewSize(saved.width, saved.height, 1));
-      resultCanvas.getContext('2d')?.drawImage(saved, 0, 0, resultCanvas.width, resultCanvas.height);
-      saved.close();
-      URL.revokeObjectURL(saveLink.href);
-      saveLink.href = URL.createObjectURL(blob);
-      saveLink.download = redactedName(name, type);
+      // Boxes grow by a preview pixel, so the copy covers at least what the editor showed.
+      paint(made, picture, shapes, frame, previewGrow(picture.width, picture.height));
+      blob = await encode(made, type);
+      // Show the encoded file itself, not the editor's idea of it, and check it pixel by pixel.
+      const decoded = await createImageBitmap(blob);
+      if (stale()) {
+        decoded.close();
+        release(made);
+        return;
+      }
+      Object.assign(resultCanvas, previewSize(decoded.width, decoded.height, 1));
+      resultCanvas.getContext('2d')?.drawImage(decoded, 0, 0, resultCanvas.width, resultCanvas.height);
+      readable = canReadBack();
+      const pixels = readable ? pixelsOf(decoded, frame.width, frame.height) : null;
+      decoded.close();
+      // JPEG lightens the outline of a covered area a little (measured); PNG keeps every pixel.
+      check = pixels ? checkCovered(pixels, shapes, picture, frame, type === 'image/png' ? 0 : JPEG_EDGE) : { checked: 0, thin: 0, solid: false };
     } catch (error) {
+      release(made);
+      if (stale()) return;
       console.error('[lockwell] The covered copy could not be created.', error);
       message.textContent = message.dataset.encodeFailed ?? '';
       return;
     }
-    output = made;
+    if (stale()) {
+      release(made);
+      return;
+    }
+    hideResult();
+    if (check.solid) {
+      output = { canvas: made, blob, shapes, frame };
+    } else {
+      release(made);
+    }
     resultInfo.textContent = `${frame.width} × ${frame.height} · ${type === 'image/png' ? 'PNG' : 'JPEG'}`;
+    if (!readable) {
+      showVerdict(verified.dataset.blocked, 'warn');
+    } else if (!check.solid) {
+      showVerdict(verified.dataset.failed, 'warn');
+    } else if (!check.checked && !check.thin) {
+      showVerdict(verified.dataset.empty, 'warn');
+    } else {
+      const claim = type === 'image/png' ? verified.dataset.ok : verified.dataset.okJpeg;
+      showVerdict([claim, check.thin ? verified.dataset.thin : ''].filter(Boolean).join(' '), check.checked && !check.thin ? 'ok' : 'warn');
+    }
+    button('copy').hidden = !check.solid;
+    if (check.solid) save.offer({ blob, original: name, extension: type === 'image/png' ? 'png' : 'jpg', fallback: 'image', suffix: 'redacted' });
+    else save.clear();
     result.hidden = false;
-    result.focus();
+    // Not while the visitor is answering whether to open another picture.
+    if (replace.hidden) result.focus();
   });
+
+  /**
+   * The checked copy as PNG, the one format clipboards take: the saved file
+   * itself when it is a PNG, otherwise a PNG made from it and checked the same way.
+   * @param {NonNullable<typeof output>} copy
+   * @returns {Promise<Blob>}
+   */
+  const checkedPng = async (copy) => {
+    if (type === 'image/png') return copy.blob;
+    const png = await encode(copy.canvas, 'image/png');
+    const decoded = await createImageBitmap(png);
+    try {
+      const pixels = pixelsOf(decoded, copy.frame.width, copy.frame.height);
+      if (!image || !checkCovered(pixels, copy.shapes, image, copy.frame, 0).solid) throw new Error('The PNG made for the clipboard did not pass the check, so it was not copied.');
+    } finally {
+      decoded.close();
+    }
+    return png;
+  };
 
   const copyButton = button('copy');
   copyButton.addEventListener('click', async () => {
     if (!output) return;
     let copied = true;
     try {
-      // Clipboards take PNG. The promise form keeps the copy inside this click on Safari.
-      await navigator.clipboard.write([new ClipboardItem({ 'image/png': encode(output, 'image/png') })]);
+      // The promise form keeps the copy inside this click on Safari.
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': checkedPng(output) })]);
     } catch (error) {
       console.warn('[lockwell] Could not copy the image to the clipboard.', error);
       copied = false;
     }
+    if (copied) saved = true;
     resultStatus.textContent = (copied ? copyButton.dataset.done : copyButton.dataset.failed) ?? '';
   });
+  // Saving or sharing counts as keeping the work, as far as the page can tell.
+  for (const control of ['save-download', 'save-share']) {
+    saveBox.querySelector(`[data-js="${control}"]`)?.addEventListener('click', () => {
+      saved = true;
+    });
+  }
+}
+
+/**
+ * The example picture: a street with a car's number plate, a person and a
+ * shop sign, the kinds of things people cover before sharing.
+ * @returns {Promise<Blob>}
+ */
+async function examplePicture() {
+  const canvas = document.createElement('canvas');
+  [canvas.width, canvas.height] = [960, 640];
+  const context = /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d'));
+  const fill = (/** @type {string} */ colour, /** @type {number[]} */ ...rect) => {
+    context.fillStyle = colour;
+    context.fillRect(rect[0], rect[1], rect[2], rect[3]);
+  };
+  fill('#a9c8e6', 0, 0, 960, 360);
+  fill('#9b9b96', 0, 360, 960, 280);
+  fill('#d8cbb3', 40, 80, 400, 280); // a building
+  fill('#2f5f8a', 90, 140, 300, 60); // its sign
+  context.fillStyle = '#ffffff';
+  context.font = 'bold 36px sans-serif';
+  context.fillText('BAKERY 24', 140, 182);
+  fill('#c23b2e', 520, 400, 340, 110); // a car
+  fill('#c23b2e', 580, 340, 210, 70);
+  fill('#24313d', 600, 352, 170, 50);
+  fill('#ffffff', 625, 470, 150, 34); // its number plate
+  context.fillStyle = '#111111';
+  context.font = 'bold 26px monospace';
+  context.fillText('AA-001-AA', 632, 496);
+  context.fillStyle = '#1d1d1d';
+  for (const x of [580, 800]) {
+    context.beginPath();
+    context.arc(x, 515, 34, 0, Math.PI * 2);
+    context.fill();
+  }
+  // A person: head and body.
+  context.fillStyle = '#e0b48f';
+  context.beginPath();
+  context.arc(330, 300, 38, 0, Math.PI * 2);
+  context.fill();
+  fill('#3d6b4f', 285, 340, 90, 170);
+  return new Promise((resolve, reject) => canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('The browser could not draw the example picture.'))), 'image/png'));
 }

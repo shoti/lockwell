@@ -79,9 +79,9 @@ describe('final review fixes', async () => {
 
   /**
    * Runs the inline head script against a fake page.
-   * @param {{ modules: boolean, storage?: Record<string, string>, session?: Record<string, string>, ua?: string, touchPoints?: number }} options
+   * @param {{ modules: boolean, storage?: Record<string, string>, session?: Record<string, string>, ua?: string, touchPoints?: number, barcode?: boolean, share?: boolean, brave?: boolean }} options
    */
-  function runHead({ modules, storage = {}, session = {}, ua = 'Mozilla/5.0 (Macintosh)', touchPoints = 0 }) {
+  function runHead({ modules, storage = {}, session = {}, ua = 'Mozilla/5.0 (Macintosh)', touchPoints = 0, barcode = false, share = false, brave = false }) {
     /** @type {(() => void)[]} */
     const timers = [];
     const root = { className: 'no-js', dataset: /** @type {Record<string, string>} */ ({}) };
@@ -90,11 +90,56 @@ describe('final review fixes', async () => {
       HTMLScriptElement: { prototype: modules ? { noModule: false } : {} },
       localStorage: { getItem: (/** @type {string} */ key) => storage[key] ?? null },
       sessionStorage: { getItem: (/** @type {string} */ key) => session[key] ?? null },
-      navigator: { userAgent: ua, maxTouchPoints: touchPoints },
+      navigator: { userAgent: ua, maxTouchPoints: touchPoints, ...(share ? { share: () => Promise.resolve() } : {}), ...(brave ? { brave: {} } : {}) },
       setTimeout: (/** @type {() => void} */ fn) => timers.push(fn),
+      ...(barcode ? { BarcodeDetector: class {} } : {}),
     });
     return { root, timers };
   }
+
+  it('marks the browser family before first paint, so the browser check shows its own advice at once', () => {
+    const cases = [
+      ['Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:150.0) Gecko/20100101 Firefox/150.0', 'firefox'],
+      ['Mozilla/5.0 (Windows NT 10.0; rv:128.0) Gecko/20100101 Firefox/128.0', 'firefox'], // Tor Browser says it is Firefox
+      ['Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.1 Safari/605.1.15', 'safari'],
+      ['Mozilla/5.0 (iPhone; CPU iPhone OS 26_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/26.1 Mobile/15E148 Safari/604.1', 'safari'],
+      ['Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36', 'chromium'],
+      ['Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36 Edg/157.0.0.0', 'chromium'],
+      ['Mozilla/5.0 (Linux; Android 14; SM-A546B; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/130.0.0.0 Mobile Safari/537.36', 'chromium'],
+      ['Mozilla/5.0 (iPhone; CPU iPhone OS 26_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/157.0 Mobile/15E148 Safari/604.1', 'other'],
+      ['Mozilla/5.0 (iPhone; CPU iPhone OS 26_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 [FBAN/FBIOS;FBAV/500.0]', 'other'],
+      ['Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Mobile/15E148 DuckDuckGo/7 Safari/605.1.15', 'other'],
+    ];
+    for (const [ua, family] of cases) assert.equal(runHead({ modules: true, ua }).root.dataset.browser, family, ua);
+    assert.equal(runHead({ modules: true, ua: cases[4][0], brave: true }).root.dataset.browser, 'brave');
+  });
+
+  it('makes one kind of request in all its scripts: the opt-in IP lookup to its own host', async () => {
+    const dir = new URL('../src/client/', import.meta.url);
+    const { readdir, readFile } = await import('node:fs/promises');
+    /** @type {string[]} */
+    const requests = [];
+    for (const name of (await readdir(dir)).filter((file) => file.endsWith('.mjs'))) {
+      const source = await readFile(new URL(name, dir), 'utf8');
+      assert.doesNotMatch(source, /XMLHttpRequest|sendBeacon|EventSource|WebSocket|RTCPeerConnection|\.src\s*=|new Image\(|<link|importScripts/, name);
+      for (const match of source.matchAll(/\bfetch\(([^,)]*)/g)) requests.push(`${name}: ${match[1]}`);
+    }
+    assert.deepEqual(requests, ['tool-browser.mjs: TRACE_URL']);
+  });
+
+  it('marks browsers that can share (Web Share API) before first paint, so share buttons don’t pop in', () => {
+    assert.equal(runHead({ modules: true, share: true }).root.dataset.share, '1');
+    assert.equal(runHead({ modules: true }).root.dataset.share, undefined);
+  });
+
+  it('marks browsers with a built-in QR code reader before first paint, so the link checker’s picture field doesn’t pop in', () => {
+    // A data attribute, not a class: startFeatures() rewrites the class list once the page is ready.
+    const reader = runHead({ modules: true, barcode: true }).root;
+    assert.equal(reader.dataset.qr, '1');
+    assert.equal(reader.className, 'js');
+    assert.equal(runHead({ modules: true }).root.dataset.qr, undefined);
+    assert.equal(runHead({ modules: false, barcode: true }).root.dataset.qr, undefined);
+  });
 
   it('R3: uses the JS layout only in browsers that run ES modules', () => {
     assert.equal(runHead({ modules: true }).root.className, 'js');
@@ -1080,6 +1125,38 @@ describe('file chooser (UX-8)', async () => {
       assert.equal(on.name.textContent, 'shot.png');
     } finally {
       on.restore();
+    }
+  });
+
+  it('lets text win when a paste carries text and a picture (copied from Word, Excel or Outlook)', () => {
+    const on = setup({ paste: true });
+    try {
+      let prevented = 0;
+      const text = (/** @type {string} */ type) => (type === 'text/plain' ? 'Your parcel: gpost-ge.info/track' : '');
+      on.dom.document.dispatchEvent({ type: 'paste', preventDefault: () => (prevented += 1), clipboardData: { files: [{ name: 'image.png' }], types: ['text/plain', 'Files'], getData: text } });
+      assert.equal(prevented, 0, 'the text reaches the box');
+      assert.deepEqual(on.opened, []);
+      const html = (/** @type {string} */ type) => (type === 'text/html' ? '<p>Hi</p>' : '');
+      on.dom.document.dispatchEvent({ type: 'paste', preventDefault: () => (prevented += 1), clipboardData: { files: [{ name: 'image.png' }], types: ['text/html', 'Files'], getData: html } });
+      assert.deepEqual(on.opened, []);
+      // "Copy image" in a browser adds HTML that is only the picture's tag: the picture is what was copied.
+      const picture = (/** @type {string} */ type) => (type === 'text/html' ? '<meta charset="utf-8"><img src="https://example.org/a.png">' : '');
+      on.dom.document.dispatchEvent({ type: 'paste', preventDefault: () => (prevented += 1), clipboardData: { files: [{ name: 'image.png' }], types: ['text/html', 'Files'], getData: picture } });
+      assert.deepEqual(on.opened, [{ name: 'image.png' }]);
+    } finally {
+      on.restore();
+    }
+  });
+});
+
+describe('values from files, links and the browser', () => {
+  it('are put into sentences with a function replacement, so "$&" in a value is shown as written', async () => {
+    const { readdir, readFile } = await import('node:fs/promises');
+    const folder = new URL('../src/client/', import.meta.url);
+    for (const name of await readdir(folder)) {
+      if (!name.endsWith('.mjs')) continue;
+      const source = await readFile(new URL(name, folder), 'utf8');
+      assert.doesNotMatch(source, /\.replace\(\s*['"`]\{/, `${name}: use fillText or fillInto`);
     }
   });
 });

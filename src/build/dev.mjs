@@ -91,6 +91,12 @@ async function resolveFile(urlPath) {
 
 const server = createServer(async (req, res) => {
   const { pathname } = new URL(req.url ?? '/', SITE_URL);
+  if (pathname === '/cdn-cgi/trace') {
+    // Cloudflare answers this path itself in production (the browser check's IP lookup); a local stand-in here.
+    res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
+    res.end('h=localhost\nip=127.0.0.1\nloc=\n');
+    return;
+  }
   const file = await resolveFile(pathname);
   try {
     if (!file) throw new Error('not found');

@@ -32,10 +32,11 @@ function copyButton({ t }, from) {
  * @param {string} id
  * @param {string} name  data-js name.
  * @param {string} accept
+ * @param {boolean} [multiple]  Several files at once.
  */
-function filePicker({ t }, id, name, accept) {
+function filePicker({ t }, id, name, accept, multiple = false) {
   return html`<div class="file">
-          <input class="file__input" type="file" id="${id}" accept="${accept}" data-js="${name}">
+          <input class="file__input" type="file" id="${id}" accept="${accept}" data-js="${name}"${multiple ? html` multiple` : null}>
           <span class="button button--ghost button--small file__button" aria-hidden="true">${icons.file}<span>${t('tools.chooseFile')}</span></span>
           <span class="file__name" aria-hidden="true" data-js="file-name" data-empty="${t('tools.noFile')}">${t('tools.noFile')}</span>
         </div>`;
@@ -51,6 +52,18 @@ function option(id, name, label, checked) {
   return html`<label class="option" for="${id}"><input class="checkbox checkbox--small" type="checkbox" id="${id}" data-js="${name}"${checked ? html` checked` : null}><span>${label}</span></label>`;
 }
 
+/**
+ * @param {string} name  Radio group name.
+ * @param {string} id
+ * @param {string} value
+ * @param {string} js  data-js name.
+ * @param {string} label
+ * @param {boolean} checked
+ */
+function radio(name, id, value, js, label, checked) {
+  return html`<label class="option" for="${id}"><input class="radio" type="radio" name="${name}" id="${id}" value="${value}" data-js="${js}"${checked ? html` checked` : null}><span>${label}</span></label>`;
+}
+
 /** @param {Ctx} ctx */
 function passwordPanel(ctx) {
   const { t } = ctx;
@@ -59,23 +72,33 @@ function passwordPanel(ctx) {
   return html`<div class="tool__result">
         <p class="field__label" id="password__label">${s('output')}</p>
         <p class="tool__value tool__value--secret" data-js="password-output" aria-labelledby="password__label" translate="no"></p>
+        <p class="tool__value tool__value--secret" data-js="password-mask" aria-hidden="true" translate="no" hidden></p>
         <div class="tool__actions">
           ${copyButton(ctx, 'password-output')}
           <button class="button button--ghost button--small" type="button" data-js="password-new">${icons.refresh}<span>${s('new')}</span></button>
+          <button class="button button--ghost button--small" type="button" data-js="password-hide" aria-pressed="false" data-show="${s('show')}" data-hide="${s('hide')}">${icons.eye}<span>${s('hide')}</span></button>
         </div>
         <p class="tool__status" role="status" data-js="password-output-status"></p>
-        <div class="meter" data-js="password-meter"><div class="meter__bar"></div></div>
-        <p class="meter__label" data-js="password-strength" data-template="${s('strength')}" data-weak="${s('weak')}" data-fair="${s('fair')}" data-strong="${s('strong')}" data-very-strong="${s('veryStrong')}" data-empty="${s('noSets')}"></p>
-        <p class="meter__label" data-js="password-time" data-template="${s('time')}" data-instant="${s('times.instant')}" data-minutes="${s('times.minutes')}" data-hours="${s('times.hours')}" data-days="${s('times.days')}" data-months="${s('times.months')}" data-years="${s('times.years')}" data-centuries="${s('times.centuries')}" data-forever="${s('times.forever')}"></p>
+        <div data-js="password-strength-box">
+          <div class="meter" data-js="password-meter"><div class="meter__bar"></div></div>
+          <p class="meter__label" data-js="password-strength" data-template="${s('strength')}" data-weak="${s('weak')}" data-fair="${s('fair')}" data-strong="${s('strong')}" data-very-strong="${s('veryStrong')}" data-empty="${s('noSets')}"></p>
+          <p class="meter__label" data-js="password-time" data-template="${s('time')}" data-instant="${s('times.instant')}" data-minutes="${s('times.minutes')}" data-hours="${s('times.hours')}" data-days="${s('times.days')}" data-months="${s('times.months')}" data-years="${s('times.years')}" data-centuries="${s('times.centuries')}" data-forever="${s('times.forever')}"></p>
+        </div>
+        <p class="meter__label" data-js="password-pin" data-codes="${s('pinCodes')}" data-lockout="${s('pinLockout')}" hidden></p>
       </div>
       <fieldset class="field">
         <legend class="field__label">${s('mode')}</legend>
-        <label class="option" for="password__mode-password"><input class="radio" type="radio" name="password-mode" id="password__mode-password" value="password" data-js="password-mode" checked><span>${s('modePassword')}</span></label>
-        <label class="option" for="password__mode-pin"><input class="radio" type="radio" name="password-mode" id="password__mode-pin" value="pin" data-js="password-mode"><span>${s('modePin')}</span></label>
+        ${radio('password-mode', 'password__mode-password', 'password', 'password-mode', s('modePassword'), true)}
+        ${radio('password-mode', 'password__mode-passphrase', 'passphrase', 'password-mode', s('modePassphrase'), false)}
+        ${radio('password-mode', 'password__mode-pin', 'pin', 'password-mode', s('modePin'), false)}
       </fieldset>
-      <div class="field">
+      <div class="field" data-js="password-length-box">
         <label class="field__label" for="password__length">${s('length')}: <output class="field__value" for="password__length" data-js="password-length-value">20</output></label>
         <input class="range" type="range" id="password__length" min="8" max="64" step="1" value="20" data-js="password-length">
+      </div>
+      <div class="field" data-js="password-words-box" hidden>
+        <label class="field__label" for="password__words">${s('words')}: <output class="field__value" for="password__words" data-js="password-words-value">6</output></label>
+        <input class="range" type="range" id="password__words" min="4" max="10" step="1" value="6" data-js="password-words">
       </div>
       <fieldset class="field" data-js="password-sets">
         <legend class="field__label">${s('sets')}</legend>
@@ -84,7 +107,33 @@ function passwordPanel(ctx) {
         ${option('password__digits', 'password-digits', s('digits'), true)}
         ${option('password__symbols', 'password-symbols', s('symbols'), true)}
         ${option('password__avoid', 'password-avoid', s('avoid'), false)}
+      </fieldset>
+      <div class="field" data-js="password-presets">
+        <p class="field__label">${s('presets')}</p>
+        <div class="tool__actions">
+          <button class="button button--ghost button--small" type="button" data-js="password-preset-symbols">${s('presetSymbols')}</button>
+          <button class="button button--ghost button--small" type="button" data-js="password-preset-16">${s('preset16')}</button>
+        </div>
+      </div>
+      <fieldset class="field" data-js="password-phrase" hidden>
+        <legend class="field__label">${s('separator')}</legend>
+        ${radio('password-separator', 'password__sep-hyphen', '-', 'password-separator', s('sepHyphen'), true)}
+        ${radio('password-separator', 'password__sep-space', ' ', 'password-separator', s('sepSpace'), false)}
+        ${radio('password-separator', 'password__sep-dot', '.', 'password-separator', s('sepDot'), false)}
+        ${radio('password-separator', 'password__sep-none', '', 'password-separator', s('sepNone'), false)}
+        ${option('password__capital', 'password-capital', s('capital'), false)}
+        ${option('password__digit', 'password-digit', s('digit'), false)}
       </fieldset>`;
+}
+
+/**
+ * A share button for browsers with the Web Share API; laid out from the first
+ * paint where the head script found one (data-share), absent elsewhere.
+ * @param {Ctx} ctx
+ * @param {string} name  data-js name.
+ */
+function shareButton({ t }, name) {
+  return html`<button class="button button--ghost button--small share-only" type="button" data-js="${name}">${icons.share}<span>${t('tools.share')}</span></button>`;
 }
 
 /** @param {Ctx} ctx */
@@ -95,20 +144,35 @@ function linksPanel(ctx) {
   return html`<div class="field">
         <label class="field__label" for="links__input">${s('input')}</label>
         <textarea class="textarea" id="links__input" rows="3" autocomplete="off" autocapitalize="off" spellcheck="false" data-js="links-input"></textarea>
+        <div class="tool__actions">
+          <button class="button button--ghost button--small" type="button" data-js="links-example" data-example="${s('exampleText')}">${icons.eye}<span>${t('tools.example')}</span></button>
+        </div>
       </div>
       <div class="tool__result">
         <p class="field__label" id="links__label">${s('output')}</p>
         <p class="tool__value" data-js="links-output" aria-labelledby="links__label" translate="no"></p>
         <div class="tool__actions">
           ${copyButton(ctx, 'links-output')}
+          ${shareButton(ctx, 'links-share')}
         </div>
         <p class="tool__status" role="status" data-js="links-output-status"></p>
-        <p class="tool__message" role="status" data-js="links-message" data-removed="${s('removed')}" data-clean="${s('clean')}" data-invalid="${s('invalid')}" data-unwrapped="${s('unwrapped')}" data-several="${s('several')}"></p>
+        <p class="tool__message" role="status" data-js="links-message" data-removed="${s('removed')}" data-clean="${s('clean')}" data-invalid="${s('invalid')}" data-unwrapped="${s('unwrapped')}" data-several="${s('several')}" data-shared="${s('shared')}" data-lookup="${s('lookup')}" data-short="${s('short')}" data-email="${s('email')}" data-secret="${s('secret')}"></p>
+        <div class="tool__result" data-js="links-diff-box" hidden>
+          <p class="field__label" id="links__diff">${s('diff')}</p>
+          <div class="marked" tabindex="0" role="group" aria-labelledby="links__diff" data-js="links-diff" translate="no"></div>
+        </div>
       </div>`;
 }
 
-/** Warning signs the link checker can show, in the order they are listed (see tool-check.mjs). */
-const LINK_WARNINGS = ['redirect', 'userinfo', 'brandSubdomain', 'nestedDomain', 'brandLookalike', 'typo', 'mixedScript', 'lookalikeScript', 'ip', 'shortener', 'http', 'port', 'deepSubdomain', 'fileTld', 'download'];
+/**
+ * Warning signs the link checker can show, most telling first; each verdict
+ * lists them in this order (see tool-check.mjs).
+ */
+const LINK_WARNINGS = [
+  'textMismatch', 'redirect', 'userinfo', 'brandElsewhere', 'brandSubdomain', 'nestedDomain', 'brandLookalike', 'typo', 'latinLookalike', 'mixedScript',
+  'lookalikeScript', 'sharedHost', 'publicPage', 'brandPath', 'carriedUrl', 'carriedEmail', 'ip', 'shortener', 'hiddenTarget', 'mailTracking', 'http', 'port',
+  'deepSubdomain', 'fileTld', 'download',
+];
 
 /** @param {Ctx} ctx */
 function checkPanel(ctx) {
@@ -118,17 +182,32 @@ function checkPanel(ctx) {
   return html`<div class="field">
         <label class="field__label" for="check__input">${s('input')}</label>
         <textarea class="textarea" id="check__input" rows="3" autocomplete="off" autocapitalize="off" spellcheck="false" data-js="check-input"></textarea>
+        <div class="tool__actions">
+          <button class="button button--ghost button--small" type="button" data-js="check-example" data-example="${s('exampleText')}">${icons.eye}<span>${t('tools.example')}</span></button>
+        </div>
       </div>
-      <div class="verdict" data-js="check-result" hidden>
-        <p class="field__label">${s('leads')}</p>
-        <p class="verdict__site" data-js="check-site" translate="no"></p>
-        <p class="verdict__host" data-js="check-host" translate="no"></p>
-        <p class="facts__why" data-js="check-several" data-template="${s('several')}" hidden></p>
-        <p class="verdict__summary" role="status" data-js="check-verdict" data-ok="${s('ok')}" data-warn="${s('warn')}" data-invalid="${s('invalid')}"></p>
-        <ul class="verdict__list">
-          ${LINK_WARNINGS.map((warning) => html`<li data-js="check-warning" data-warning="${warning}" data-template="${s(`warnings.${warning}`)}" hidden></li>`)}
-        </ul>
-      </div>`;
+      <div class="field qr-only">
+        <label class="field__label" for="check__qr">${s('qr')}</label>
+        ${filePicker(ctx, 'check__qr', 'check-qr', 'image/*')}
+        <p class="facts__why">${s('qrHint')}</p>
+      </div>
+      <p class="facts__why qr-absent">${s('qrAbsent')}</p>
+      <p class="tool__message" role="status" data-js="check-summary" data-one="${s('one')}" data-invalid="${s('invalid')}" data-data="${s('scheme.data')}" data-javascript="${s('scheme.javascript')}" data-other="${s('scheme.other')}" data-several="${s('several')}" data-capped="${s('capped')}" data-qr-none="${s('qrNone')}" data-qr-failed="${s('qrFailed')}"></p>
+      <div class="verdicts" data-js="check-results"></div>
+      <template data-js="check-template">
+        <article class="verdict">
+          <p class="field__label" data-js="check-leads" data-first="${s('leadsFirst')}">${s('leads')}</p>
+          <p class="verdict__site" data-js="check-site" translate="no"></p>
+          <p class="verdict__address" dir="ltr" translate="no"><span class="verdict__dim" data-js="check-before"></span><strong data-js="check-site-part"></strong><span class="verdict__dim" data-js="check-after"></span></p>
+          <p class="verdict__host" data-js="check-ascii" data-template="${s('ascii')}" translate="no" hidden></p>
+          <p class="facts__why" data-js="check-shown" data-template="${s('shown')}" hidden></p>
+          <p class="facts__why" data-js="check-defanged" hidden>${s('defanged')}</p>
+          <p class="verdict__summary" data-js="check-verdict" data-ok="${s('ok')}" data-warn="${s('warn')}"></p>
+          <ul class="verdict__list">
+            ${LINK_WARNINGS.map((warning) => html`<li data-js="check-warning" data-warning="${warning}" data-template="${s(`warnings.${warning}`)}" hidden></li>`)}
+          </ul>
+        </article>
+      </template>`;
 }
 
 /** @param {Ctx} ctx */
@@ -149,8 +228,18 @@ function redactPanel(ctx) {
         <label class="field__label" for="redact__file">${s('file')}</label>
         ${filePicker(ctx, 'redact__file', 'redact-file', 'image/*')}
         <p class="facts__why">${s('pasteHint')}</p>
+        <div class="tool__actions">
+          <button class="button button--ghost button--small" type="button" data-js="redact-example">${icons.eye}<span>${t('tools.example')}</span></button>
+        </div>
       </div>
-      <p class="tool__message" role="status" data-js="redact-message" data-unsupported="${s('unsupported')}" data-too-large="${s('tooLarge')}" data-resized="${s('resized')}" data-encode-failed="${s('encodeFailed')}"></p>
+      <div class="tool__note redact__replace" role="alertdialog" aria-labelledby="redact__replace" data-js="redact-replace" hidden>
+        <p id="redact__replace">${s('replaceText')}</p>
+        <div class="tool__actions">
+          <button class="button button--small" type="button" data-js="redact-replace-no">${s('replaceNo')}</button>
+          <button class="button button--ghost button--small" type="button" data-js="redact-replace-yes">${s('replaceYes')}</button>
+        </div>
+      </div>
+      <p class="tool__message" role="status" data-js="redact-message" data-unsupported="${s('unsupported')}" data-too-large="${s('tooLarge')}" data-resized="${s('resized')}" data-animated="${s('animated')}" data-encode-failed="${s('encodeFailed')}"></p>
       <div class="redact" data-js="redact-editor" hidden>
         <div class="tool__actions" role="group" aria-label="${s('modes')}">
           ${modeButton('box', icons.square, s('modeBox'))}
@@ -161,6 +250,7 @@ function redactPanel(ctx) {
         <div class="field">
           <label class="field__label" for="redact__size">${s('markerSize')}</label>
           <input class="range" type="range" id="redact__size" min="1" max="12" step="1" value="4" disabled data-js="redact-size">
+          ${option('redact__straight', 'redact-straight', s('straight'), false)}
         </div>
         <div class="redact__view" data-zoom="1" data-js="redact-view">
           <canvas class="redact__canvas" tabindex="0" role="application" aria-label="${s('canvas')}" aria-describedby="redact__help" data-js="redact-canvas"></canvas>
@@ -176,7 +266,22 @@ function redactPanel(ctx) {
             ${iconAction('zoom-in', icons.plus, s('zoomIn'))}
           </div>
         </div>
+        <div class="redact__bar">
+          <div class="tool__actions" role="group" aria-label="${s('moveGroup')}">
+            ${iconAction('move-left', icons.arrowLeft, s('moveLeft'))}
+            ${iconAction('move-up', icons.arrowUp, s('moveUp'))}
+            ${iconAction('move-down', icons.arrowDown, s('moveDown'))}
+            ${iconAction('move-right', icons.arrowRight, s('moveRight'))}
+          </div>
+          <div class="tool__actions" role="group" aria-label="${s('sizeGroup')}">
+            ${iconAction('narrower', icons.narrower, s('narrower'))}
+            ${iconAction('wider', icons.wider, s('wider'))}
+            ${iconAction('shorter', icons.shorter, s('shorter'))}
+            ${iconAction('taller', icons.taller, s('taller'))}
+          </div>
+        </div>
         <div class="tool__actions">
+          ${action('add', icons.plus, s('addArea'))}
           ${action('remove', icons.trash, s('remove'))}
           ${action('uncrop', icons.crop, s('removeCrop'))}
           ${action('clear', icons.trash, s('clearAll'))}
@@ -191,8 +296,9 @@ function redactPanel(ctx) {
           <p class="facts__why">${s('resultHelp')}</p>
           <canvas class="redact__saved" data-js="redact-result-canvas"></canvas>
           <p class="facts__why" data-js="redact-result-info" translate="no"></p>
+          <p class="redact__verified" data-js="redact-verified" data-ok="${s('verified')}" data-ok-jpeg="${s('verifiedJpeg')}" data-thin="${s('verifiedThin')}" data-empty="${s('verifiedEmpty')}" data-failed="${s('verifyFailed')}" data-blocked="${s('verifyBlocked')}"></p>
+          ${saveBox(ctx, s('download'))}
           <div class="tool__actions">
-            <a class="button button--small" data-js="redact-download">${icons.download}<span>${s('download')}</span></a>
             <button class="button button--ghost button--small" type="button" data-js="redact-copy" data-done="${s('copied')}" data-failed="${s('copyFailed')}">${icons.copy}<span>${s('copyImage')}</span></button>
           </div>
           <p class="tool__status" role="status" data-js="redact-result-status"></p>
@@ -200,9 +306,34 @@ function redactPanel(ctx) {
       </div>`;
 }
 
-/** Rows of the photo report: those with a value JS fills in, then those that only say what was found. */
-const PHOTO_VALUES = ['location', 'camera', 'taken', 'software'];
-const PHOTO_FLAGS = ['exif', 'xmp', 'iptc', 'comment', 'thumbnail', 'trailing', 'text', 'other'];
+/**
+ * Rows of the photo report, in the order they are listed: named values (see
+ * Findings.fields in tool-photo.mjs), then kinds of data that are only named.
+ * `unit` rows show the value inside their text ("{value} m"); `why` rows explain.
+ */
+const PHOTO_VALUES = [
+  { key: 'altitude', unit: true },
+  { key: 'direction', unit: true },
+  { key: 'gpsTime', unit: true },
+  { key: 'place' },
+  { key: 'taken' },
+  { key: 'camera' },
+  { key: 'lens' },
+  { key: 'serial', why: true },
+  { key: 'lensSerial', why: true },
+  { key: 'owner' },
+  { key: 'artist' },
+  { key: 'copyright' },
+  { key: 'caption' },
+  { key: 'keywords' },
+  { key: 'uniqueId', why: true },
+  { key: 'software' },
+  { key: 'profile', why: true, unnamed: true },
+];
+const PHOTO_FLAGS = ['exif', 'xmp', 'iptc', 'photoshop', 'comment', 'thumbnail', 'trailing', 'c2pa', 'hdr', 'unread', 'other'];
+/** What clean copies can keep (PhotoReport.kept); "profile" has the choice to drop it. */
+const PHOTO_KEPT = ['thumbnail', 'xmp', 'exif', 'auxiliary', 'other'];
+const PHOTO_ERRORS = ['unsupported', 'compact', 'optimised', 'tooLarge', 'batchLimit', 'damaged'];
 
 /** @param {Ctx} ctx */
 function photoPanel(ctx) {
@@ -211,23 +342,59 @@ function photoPanel(ctx) {
   const s = (key) => t(`tools.items.photo.${key}`);
   return html`<div class="field">
         <label class="field__label" for="photo__file">${s('file')}</label>
-        ${filePicker(ctx, 'photo__file', 'photo-file', 'image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp')}
+        ${filePicker(ctx, 'photo__file', 'photo-file', 'image/jpeg,image/png,image/webp,image/heic,image/heif,image/avif,.jpg,.jpeg,.png,.webp,.heic,.heif,.avif', true)}
         <p class="facts__why">${s('pasteHint')}</p>
+        <div class="tool__actions">
+          <button class="button button--ghost button--small" type="button" data-js="photo-example">${icons.eye}<span>${t('tools.example')}</span></button>
+        </div>
       </div>
-      <div class="tool__result">
-        <p class="tool__message" role="status" data-js="photo-message" data-found="${s('found')}" data-none="${s('none')}" data-unsupported="${s('unsupported')}" data-heic="${s('heic')}" data-too-large="${s('tooLarge')}" data-damaged="${s('damaged')}"></p>
-        <dl class="facts" data-js="photo-facts" hidden>
-          ${PHOTO_VALUES.map((row) => html`<div class="facts__row" data-row="${row}" hidden><dt>${s(`rows.${row}`)}</dt><dd translate="no"></dd></div>`)}
-          ${PHOTO_FLAGS.map((row) => html`<div class="facts__row" data-row="${row}" hidden><dt>${s(`rows.${row}`)}</dt><dd>${s(`flags.${row}`)}</dd></div>`)}
-        </dl>
-        <p class="tool__actions" data-js="photo-save" hidden>
-          <a class="button button--small" data-js="photo-download">${icons.download}<span>${s('download')}</span></a>
-        </p>
-      </div>`;
+      <p class="visually-hidden" role="status" data-js="photo-summary" data-one="${s('one')}" data-several="${s('several')}"></p>
+      <div class="reports" data-js="photo-reports"></div>
+      <div class="reports__all" data-js="photo-all" hidden>
+        ${saveBox(ctx, s('downloadAll'))}
+      </div>
+      <template data-js="photo-template">
+        <article class="file-report">
+          <h3 class="file-report__name" data-js="photo-name" translate="no"></h3>
+          <p class="tool__message" data-js="photo-message" data-found="${s('found')}" data-none="${s('none')}"${PHOTO_ERRORS.map((code) => html` data-${code.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}="${s(code)}"`)}></p>
+          <figure class="photo-preview" data-js="photo-preview" hidden>
+            <canvas class="photo-preview__picture" data-js="photo-preview-canvas" role="img" aria-label="${s('previewLabel')}"></canvas>
+            <figcaption class="facts__why">${s('previewCaption')}</figcaption>
+          </figure>
+          <dl class="facts" data-js="photo-facts" hidden>
+            <div class="facts__row" data-row="location" hidden><dt>${s('rows.location')}</dt><dd>
+              <span translate="no" data-js="photo-coordinates"></span>
+              <span class="tool__actions">${copyButton(ctx, 'photo-coordinates')}<span class="tool__status" role="status" data-js="photo-coordinates-status"></span></span>
+              <span class="facts__why">${s('why.location')}</span>
+            </dd></div>
+            ${PHOTO_VALUES.map(
+              ({ key, unit, why, unnamed }) => html`<div class="facts__row" data-row="${key}" hidden><dt>${s(`rows.${key}`)}</dt><dd><span translate="no" data-js="photo-value"${unit ? html` data-template="${s(`units.${key}`)}"` : null}${unnamed ? html` data-unnamed="${s('unnamedProfile')}"` : null}></span>${why ? html` <span class="facts__why">${s(`why.${key}`)}</span>` : null}</dd></div>`,
+            )}
+            <div class="facts__row" data-row="texts" hidden><dt>${s('rows.texts')}</dt><dd>
+              <ul class="photo-texts" data-js="photo-texts" data-compressed="${s('textCompressed')}" data-more="${s('textMore')}"></ul>
+              <template data-js="photo-text-template"><li><strong translate="no" data-js="photo-text-key"></strong>: <span class="photo-texts__body" translate="no" data-js="photo-text-body"></span> <span class="facts__why" data-js="photo-text-cut" hidden>${s('textCut')}</span></li></template>
+              <span class="facts__why">${s('why.texts')}</span>
+            </dd></div>
+            ${PHOTO_FLAGS.map((row) => html`<div class="facts__row" data-row="${row}" data-flag hidden><dt>${s(`rows.${row}`)}</dt><dd>${s(`flags.${row}`)}</dd></div>`)}
+          </dl>
+          <section class="file-report__group file-report__group--kept" data-js="photo-kept" hidden>
+            <h4 class="file-report__title">${s('keptTitle')}</h4>
+            <ul class="findings">
+              ${PHOTO_KEPT.map((key) => html`<li data-kept="${key}" hidden>${s(`kept.${key}`)}</li>`)}
+              <li data-kept="profile" hidden>${s('kept.profile')}
+                <label class="option"><input class="checkbox checkbox--small" type="checkbox" data-js="photo-drop-profile"><span>${s('dropProfile')}</span></label>
+              </li>
+            </ul>
+            <p class="facts__why">${s('keptHow')}</p>
+          </section>
+          <p class="tool__note" data-js="photo-verified" data-ok="${s('verified')}" data-metadata-only="${s('verifiedMetadataOnly')}" data-failed="${s('verifyFailed')}" hidden></p>
+          ${saveBox(ctx, s('download'))}
+        </article>
+      </template>`;
 }
 
-/** What the hidden character detector looks for, in the order it is listed (see tool-hidden.mjs). */
-const HIDDEN_KINDS = ['zeroWidth', 'bidi', 'tags', 'softHyphen', 'spaces', 'trailing', 'lookalike'];
+/** What the hidden character detector looks for, in the order it is listed (see KINDS in tool-hidden.mjs). */
+const HIDDEN_KINDS = ['zeroWidth', 'bidi', 'tags', 'softHyphen', 'spaces', 'trailing', 'lookalike', 'doubleSpace', 'quotes', 'dashes', 'fullwidth', 'mathLetters', 'compatibility', 'composition', 'dotless', 'georgianCase'];
 
 /** @param {Ctx} ctx */
 function hiddenPanel(ctx) {
@@ -237,7 +404,16 @@ function hiddenPanel(ctx) {
   return html`<div class="field">
         <label class="field__label" for="hidden__input">${s('input')}</label>
         <textarea class="textarea" id="hidden__input" rows="6" autocomplete="off" autocapitalize="off" spellcheck="false" data-js="hidden-input"></textarea>
+        <div class="tool__actions">
+          <button class="button button--ghost button--small" type="button" data-js="hidden-example" data-example="${s('exampleText')}">${icons.eye}<span>${t('tools.example')}</span></button>
+        </div>
       </div>
+      <div class="field">
+        <label class="field__label" for="hidden__file">${s('file')}</label>
+        ${filePicker(ctx, 'hidden__file', 'hidden-file', '.txt,.md,.csv,text/plain')}
+        <p class="facts__why" role="status" data-js="hidden-file-message" data-unsupported="${s('fileUnsupported')}" data-too-large="${s('fileTooLarge')}">${s('fileHint')}</p>
+      </div>
+      ${option('hidden__normalise', 'hidden-normalise', s('normalise'), false)}
       <div class="tool__result" data-js="hidden-result" hidden>
         <p class="tool__message" role="status" data-js="hidden-summary" data-none="${s('none')}" data-found="${s('found')}"></p>
         <div class="tool__result" data-js="hidden-details" hidden>
@@ -253,6 +429,7 @@ function hiddenPanel(ctx) {
           <p class="field__label" id="hidden__marked">${s('marked')}</p>
           <p class="facts__why" data-js="hidden-truncated" hidden>${s('truncated')}</p>
           <div class="marked" tabindex="0" role="group" aria-labelledby="hidden__marked" data-js="hidden-marked" translate="no"></div>
+          <p class="facts__why" role="status" data-js="hidden-mark-info">${s('markHint')}</p>
           <p class="field__label" id="hidden__clean">${s('clean')}</p>
           <p class="tool__value tool__value--text" tabindex="0" data-js="hidden-clean" aria-labelledby="hidden__clean" translate="no"></p>
           <div class="tool__actions">
@@ -260,54 +437,122 @@ function hiddenPanel(ctx) {
           </div>
           <p class="tool__status" role="status" data-js="hidden-clean-status"></p>
         </div>
-      </div>`;
+      </div>
+      <section class="compare" aria-labelledby="hidden__compare">
+        <h2 class="report__title" id="hidden__compare">${s('compare.heading')}</h2>
+        <p class="facts__why">${s('compare.intro')}</p>
+        <div class="field">
+          <label class="field__label" for="hidden__other">${s('compare.input')}</label>
+          <textarea class="textarea" id="hidden__other" rows="6" autocomplete="off" autocapitalize="off" spellcheck="false" data-js="hidden-other"></textarea>
+        </div>
+        <p class="tool__message" role="status" data-js="hidden-compare-summary" data-same="${s('compare.same')}" data-found="${s('compare.found')}" data-too-long="${s('compare.tooLong')}" data-too-different="${s('compare.tooDifferent')}" data-needs-first="${s('compare.needsFirst')}"></p>
+        <div class="marked" tabindex="0" role="group" aria-labelledby="hidden__compare" data-js="hidden-compare" translate="no" hidden></div>
+      </section>`;
 }
 
-/** Rows of the document report: those with a value, then those that only say what was found. */
-const DOCUMENT_VALUES = ['author', 'lastAuthor', 'company', 'manager', 'title', 'subject', 'keywords', 'comments', 'created', 'modified', 'printed', 'revision', 'editTime', 'software', 'producer', 'template'];
-const DOCUMENT_FLAGS = ['tracked', 'commentsPart', 'custom', 'xmp'];
+/**
+ * A save area for a cleaned file (see src/client/save.mjs): a neutral-name
+ * option, the download link, sharing where the browser can, and what to do
+ * if saving fails. Works inside templates, so it uses no ids.
+ * @param {Ctx} ctx
+ * @param {string} label  The download button's text.
+ */
+function saveBox({ t }, label) {
+  return html`<div class="save" data-js="save" hidden>
+          <label class="option"><input class="checkbox checkbox--small" type="checkbox" data-js="save-neutral"><span>${t('tools.save.neutral')} <span class="save__name" data-js="save-neutral-name" translate="no"></span></span></label>
+          <div class="tool__actions">
+            <a class="button button--small" data-js="save-download">${icons.download}<span>${label}</span></a>
+            <button class="button button--ghost button--small share-only" type="button" data-js="save-share">${icons.share}<span>${t('tools.share')}</span></button>
+          </div>
+          <p class="tool__status" role="status" data-js="save-status" data-no-share="${t('tools.save.noShare')}" data-failed="${t('tools.save.failed')}"></p>
+          <p class="save__hint" data-js="save-hint">${t('tools.save.hint')}</p>
+        </div>`;
+}
+
+/** Document properties with a value, in the order they are listed. */
+const DOCUMENT_VALUES = ['author', 'lastAuthor', 'company', 'manager', 'title', 'subject', 'keywords', 'comments', 'created', 'modified', 'printed', 'printedBy', 'revision', 'editTime', 'software', 'producer', 'template'];
+/** Findings by the group they can appear in (see Finding in tool-document.mjs). */
+const DOCUMENT_FINDINGS = {
+  removed: [
+    'properties', 'custom', 'people', 'commentAuthors', 'revisionAuthors', 'coauthoring', 'dates', 'template', 'absPath', 'printer', 'dataSource', 'rsid', 'documentIds',
+    'thumbnail', 'media', 'embeddedProperties', 'signatures', 'customXml',
+  ],
+  kept: [
+    'properties', 'tracked', 'commentsPart', 'notes', 'hiddenSheets', 'hiddenSlides', 'nameFields', 'external', 'labels',
+    'revisions', 'annotations', 'attachments', 'forms', 'formValues', 'pdfSignatures', 'scripts', 'xmp', 'documentId',
+  ],
+  unchecked: ['propertiesUnchecked', 'objectsUnchecked', 'xmpUnchecked', 'embedded', 'mediaUnchecked', 'macros', 'unknownParts'],
+};
+const DOCUMENT_ERRORS = ['unsupported', 'old', 'locked', 'encrypted', 'tooLarge', 'damaged', 'zip64', 'browser'];
+/** What the file picker offers: Word, Excel and PowerPoint files with their macro-enabled, template and slide-show kinds, OpenDocument and PDF. */
+const DOCUMENT_ACCEPT = '.docx,.docm,.dotx,.dotm,.xlsx,.xlsm,.xltx,.xltm,.pptx,.pptm,.ppsx,.ppsm,.potx,.potm,.odt,.ods,.odp,.ott,.ots,.otp,.pdf,application/pdf';
 
 /** @param {Ctx} ctx */
 function documentPanel(ctx) {
   const { t } = ctx;
   /** @param {string} key */
   const s = (key) => t(`tools.items.document.${key}`);
+  /** @param {'removed' | 'kept' | 'unchecked'} group */
+  const findingRow = (group) => (/** @type {string} */ key) =>
+    key === 'properties'
+      ? html`<li data-finding="properties" hidden><dl class="facts" data-js="document-fields">
+              ${DOCUMENT_VALUES.map((row) => html`<div class="facts__row" data-row="${row}" hidden><dt>${s(`rows.${row}`)}</dt><dd translate="no"></dd></div>`)}
+            </dl></li>`
+      : html`<li data-finding="${key}" data-template="${s(`findings.${key}`)}" hidden>${group === 'kept' ? html`<span data-js="document-text"></span> <span class="facts__why">${s(`how.${key}`)}</span>` : null}</li>`;
   return html`<div class="field">
         <label class="field__label" for="document__file">${s('file')}</label>
-        ${filePicker(ctx, 'document__file', 'document-file', '.docx,.xlsx,.pptx,.pdf,application/pdf')}
+        ${filePicker(ctx, 'document__file', 'document-file', DOCUMENT_ACCEPT, true)}
         <p class="facts__why">${s('dropHint')}</p>
+        <div class="tool__actions">
+          <button class="button button--ghost button--small" type="button" data-js="document-example">${icons.eye}<span>${t('tools.example')}</span></button>
+        </div>
       </div>
-      <div class="tool__result">
-        <p class="tool__message" role="status" data-js="document-message" data-found="${s('found')}" data-none="${s('none')}" data-unsupported="${s('unsupported')}" data-old="${s('old')}" data-too-large="${s('tooLarge')}" data-damaged="${s('damaged')}" data-browser="${s('browser')}"></p>
-        <dl class="facts" data-js="document-facts" hidden>
-          ${DOCUMENT_VALUES.map((row) => html`<div class="facts__row" data-row="${row}" hidden><dt>${s(`rows.${row}`)}</dt><dd translate="no"></dd></div>`)}
-          ${DOCUMENT_FLAGS.map((row) => html`<div class="facts__row" data-row="${row}" hidden><dt>${s(`rows.${row}`)}</dt><dd>${s(`flags.${row}`)}</dd></div>`)}
-        </dl>
-        <p class="tool__note" data-js="document-kept" hidden>${s('kept')}</p>
-        <p class="tool__note" data-js="document-pdf" hidden>${s('pdfOnly')}</p>
-        <p class="tool__actions" data-js="document-save" hidden>
-          <a class="button button--small" data-js="document-download">${icons.download}<span>${s('download')}</span></a>
-        </p>
-      </div>`;
+      <p class="visually-hidden" role="status" data-js="document-summary" data-one="${s('one')}" data-several="${s('several')}"></p>
+      <div class="reports" data-js="document-reports"></div>
+      <div class="reports__all" data-js="document-all" hidden>
+        ${saveBox(ctx, s('downloadAll'))}
+      </div>
+      <template data-js="document-template">
+        <article class="file-report">
+          <h3 class="file-report__name" data-js="document-name" translate="no"></h3>
+          <p class="tool__message" data-js="document-message" data-found="${s('found')}" data-none="${s('none')}"${DOCUMENT_ERRORS.map((code) => html` data-${code.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}="${s(code)}"`)}></p>
+          ${(/** @type {const} */ (['removed', 'kept', 'unchecked'])).map(
+            (group) => html`<section class="file-report__group file-report__group--${group}" data-group="${group}" hidden>
+            <h4 class="file-report__title">${s(`groups.${group}`)}</h4>
+            <ul class="findings">
+              ${DOCUMENT_FINDINGS[group].map(findingRow(group))}
+            </ul>
+          </section>`,
+          )}
+          <p class="tool__note" data-js="document-pdf" hidden>${s('pdfOnly')}</p>
+          <p class="tool__note" data-js="document-verified" data-ok="${s('verified')}" data-failed="${s('verifyFailed')}" hidden></p>
+          ${saveBox(ctx, s('download'))}
+        </article>
+      </template>`;
 }
 
-/** The browser report: groups of rows; `why` rows get a short explanation. Rows are filled by tool-browser.mjs. */
+/**
+ * The browser report: groups of rows; `why` rows get a short explanation. Rows are filled by tool-browser.mjs.
+ * `rating`: how identifying the detail was in large studies (docs/research/tool-browser-check.md);
+ * `protected`: the row can say the browser protects it; `template`: the value is shown inside a sentence.
+ */
 const BROWSER_GROUPS = [
-  { key: 'place', rows: [{ key: 'languages', why: true }, { key: 'timeZone', why: true }] },
+  { key: 'place', rows: [{ key: 'languages', why: true, rating: 'some' }, { key: 'timeZone', why: true, rating: 'some', protected: true }] },
   {
     key: 'device',
     rows: [
-      { key: 'userAgent', why: true },
+      { key: 'userAgent', why: true, rating: 'strong' },
       { key: 'os', why: true },
       { key: 'model', why: false },
-      { key: 'platform', why: false },
-      { key: 'gpu', why: true },
-      { key: 'cores', why: false },
+      { key: 'platform', why: false, rating: 'some' },
+      { key: 'gpu', why: true, rating: 'strong' },
+      { key: 'cores', why: false, rating: 'some' },
       { key: 'memory', why: false },
-      { key: 'screen', why: true },
-      { key: 'window', why: false },
-      { key: 'colors', why: false },
-      { key: 'touch', why: false },
+      { key: 'screen', why: true, rating: 'some', protected: true },
+      { key: 'pixelRatio', why: true },
+      { key: 'window', why: true, rating: 'strong', protected: true },
+      { key: 'colors', why: false, rating: 'barely' },
+      { key: 'touch', why: false, rating: 'some' },
     ],
   },
   {
@@ -316,15 +561,38 @@ const BROWSER_GROUPS = [
       { key: 'theme', why: false },
       { key: 'motion', why: true },
       { key: 'contrast', why: false },
-      { key: 'cookies', why: false },
-      { key: 'dnt', why: true },
+      { key: 'cookies', why: false, rating: 'barely' },
+      { key: 'dnt', why: true, rating: 'some' },
       { key: 'gpc', why: true },
     ],
   },
-  { key: 'signature', rows: [{ key: 'canvas', why: true }, { key: 'fonts', why: true }] },
+  { key: 'signature', rows: [{ key: 'canvas', why: true, rating: 'strong', protected: true }, { key: 'fonts', why: true, rating: 'strong' }] },
+  {
+    key: 'extra',
+    rows: [
+      { key: 'keyboard', why: true },
+      { key: 'voices', why: true, template: true },
+      { key: 'blocker', why: true },
+    ],
+  },
   { key: 'network', rows: [{ key: 'connection', why: false }, { key: 'referrer', why: true }] },
 ];
-const BROWSER_TOKENS = ['yes', 'no', 'on', 'off', 'unset', 'unsupported', 'none', 'dark', 'light', 'unknown'];
+const BROWSER_TOKENS = ['yes', 'no', 'on', 'off', 'unset', 'unsupported', 'none', 'dark', 'light', 'unknown', 'notSeen'];
+/** The studies behind the ratings (docs/research/tool-browser-check.md); names of people and papers aren't translated. */
+const RATING_SOURCES = [
+  { label: 'Eckersley 2010', url: 'https://coveryourtracks.eff.org/static/browser-uniqueness.pdf' },
+  { label: 'Laperdrix et al. 2016', url: 'https://hal.science/hal-01285470/document' },
+  { label: 'Gómez-Boix et al. 2018', url: 'https://hal.science/hal-01718234/document' },
+  { label: 'Andriamilanto et al. 2022', url: 'https://arxiv.org/pdf/2006.09511' },
+];
+/** Next steps per browser family (data-browser, set by the head script in assets.mjs) and the guide item each points to. */
+const BROWSER_STEPS = [
+  { family: 'firefox', item: 'content-blocker' },
+  { family: 'safari', item: 'private-window-limits' },
+  { family: 'brave', item: 'content-blocker' },
+  { family: 'chromium', item: 'choose-browser' },
+  { family: 'other', item: 'choose-browser' },
+];
 
 /** Fields of the autofill demonstration: [name, autocomplete token]. The visitor sees the first two only. */
 const AUTOFILL_VISIBLE = [
@@ -346,27 +614,53 @@ function browserPanel(ctx) {
   /** @param {string} key */
   const s = (key) => t(`tools.items.browser.${key}`);
   // Words the client may show instead of a raw value, e.g. data-token-yes="Yes".
-  const tokens = BROWSER_TOKENS.map((token) => html` data-token-${token}="${s(`tokens.${token}`)}"`);
-  /** @param {{ key: string, why: boolean }} row */
-  const factRow = ({ key, why }) =>
-    html`<div class="facts__row" data-row="${key}"><dt>${s(`rows.${key}`)}</dt><dd><span class="facts__value" data-js="browser-value" translate="no"></span>${why ? html`<span class="facts__why">${s(`why.${key}`)}</span>` : null}</dd></div>`;
+  const tokens = BROWSER_TOKENS.map((token) => html` data-token-${token.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}="${s(`tokens.${token}`)}"`);
+  // Everything the script reveals later already has its place: the "Changed" mark sits invisible beside the value,
+  // and a protection note shares one grid cell with the explanation it replaces, so nothing below moves (rule 4).
+  /** @param {{ key: string, why: boolean, rating?: string, protected?: boolean, template?: boolean }} row */
+  const factRow = ({ key, why, rating, protected: guarded, template }) =>
+    html`<div class="facts__row" data-row="${key}"><dt>${s(`rows.${key}`)}${rating ? html` <span class="rating rating--${rating}">${s(`ratings.${rating}`)}</span>` : null}</dt><dd><span class="facts__line"><span class="facts__value" data-js="browser-value" translate="no"${template ? html` data-template="${s(`templates.${key}`)}"` : null}></span><span class="facts__changed" data-changed>${s('compare.mark')}</span></span>${guarded ? html`<span class="facts__notes" data-js="browser-notes"><span class="facts__why">${s(`why.${key}`)}</span><span class="facts__protected" data-protected>${s(`protected.${key}`)}</span></span>` : why ? html`<span class="facts__why">${s(`why.${key}`)}</span>` : null}</dd></div>`;
 
   return html`<div class="report" data-js="browser-facts"${tokens}>
         <div class="fingerprint" data-row="fingerprint">
           <p class="field__label">${s('fingerprint')}</p>
-          <p class="fingerprint__value" data-js="browser-value" translate="no"></p>
-          <p class="facts__why">${s('fingerprintWhy')}</p>
+          <p class="facts__line"><span class="fingerprint__value" data-js="browser-value" translate="no"></span><span class="facts__changed" data-changed>${s('compare.mark')}</span></p>
+          <div class="facts__notes" data-js="browser-fingerprint-notes">
+            <p class="facts__why" data-js="browser-fingerprint-why">${s('fingerprintWhy')}</p>
+            <p class="facts__protected" data-js="browser-fingerprint-protected">${s('fingerprintProtected')}</p>
+          </div>
         </div>
         ${BROWSER_GROUPS.map(
           (group) => html`<section class="report__group" aria-labelledby="browser__${group.key}">
           <h2 class="report__title" id="browser__${group.key}">${s(`groups.${group.key}`)}</h2>
           <dl class="facts">
             ${group.rows.map(factRow)}
-            ${group.key === 'network' ? html`<div class="facts__row"><dt>${s('rows.ip')}</dt><dd><span class="facts__why">${s('why.ip')}</span></dd></div>` : null}
+            ${group.key === 'network'
+              ? html`<div class="facts__row"><dt>${s('rows.ip')}</dt><dd>
+              <span class="facts__value" role="status" data-js="browser-ip-value" translate="no"></span>
+              <span class="tool__actions"><button class="button button--ghost button--small" type="button" data-js="browser-ip">${s('ipButton')}</button></span>
+              <span class="tool__status" role="status" data-js="browser-ip-status" data-failed="${s('ipFailed')}"></span>
+              <span class="facts__why">${s('why.ip')}</span>
+            </dd></div>`
+              : null}
           </dl>
         </section>`,
         )}
+        <p class="facts__why report__sources">${s('ratingsNote')} ${RATING_SOURCES.map(({ label, url }, i) => html`${i ? '; ' : ''}<a href="${url}" rel="noopener noreferrer">${label}</a>`)}.</p>
       </div>
+      <section class="steps" aria-labelledby="browser__steps">
+        <h2 class="report__title" id="browser__steps">${s('steps.heading')}</h2>
+        ${BROWSER_STEPS.map(({ family, item }) => html`<p class="steps__family" data-family="${family}">${s(`steps.${family}`)} <a href="${ctx.url('/guides/browser/')}#${item}">${s('steps.guide')}</a></p>`)}
+      </section>
+      <section class="compare-settings" aria-labelledby="browser__compare">
+        <h2 class="report__title" id="browser__compare">${s('compare.heading')}</h2>
+        <p class="facts__why">${s('compare.intro')}</p>
+        <div class="tool__actions">
+          <button class="button button--ghost button--small" type="button" data-js="browser-compare-remember" disabled>${s('compare.remember')}</button>
+          <button class="button button--ghost button--small" type="button" data-js="browser-compare-forget" disabled>${s('compare.forget')}</button>
+        </div>
+        <p class="tool__status" role="status" data-js="browser-compare-status" data-remembered="${s('compare.remembered')}" data-failed="${s('compare.failed')}" data-forgotten="${s('compare.forgotten')}" data-changed="${s('compare.changed')}" data-same="${s('compare.same')}"></p>
+      </section>
       <section class="autofill" aria-labelledby="browser__autofill">
         <h2 class="report__title" id="browser__autofill">${s('autofill.heading')}</h2>
         <p class="autofill__intro">${s('autofill.intro')}</p>
@@ -389,6 +683,10 @@ function browserPanel(ctx) {
           </div>
         </form>
         <p class="facts__why">${s('autofill.note')}</p>
+        <p class="field__label">${s('autofill.browsersHeading')}</p>
+        <ul class="facts__why autofill__browsers">
+          ${['firefox', 'chromium', 'safari', 'study'].map((key) => html`<li>${s(`autofill.browsers.${key}`)}</li>`)}
+        </ul>
         <p class="facts__why">${s('autofill.tip')}</p>
       </section>
       <section class="cannot" aria-labelledby="browser__cannot">

@@ -3,6 +3,7 @@
  * @file Checklist progress (ticks, counts, saving through storage.mjs) and the sidebar lists that show it.
  */
 import { CLEARED_EVENT, PREFIX, progressKey, read, readProgress, write, writeProgress } from './storage.mjs';
+import { fillText } from './fill.mjs';
 
 /**
  * Saves which checklist items are done, per guide, in this browser only.
@@ -17,7 +18,7 @@ import { CLEARED_EVENT, PREFIX, progressKey, read, readProgress, write, writePro
  * @param {number} total
  */
 export const formatProgress = (template, done, total) =>
-  template.replace('{done}', String(done)).replace('{total}', String(total));
+  fillText(template, { done: String(done), total: String(total) });
 
 /**
  * Counts saved ids that still exist in the guide (items can be removed later).

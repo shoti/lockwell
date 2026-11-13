@@ -54,8 +54,8 @@ Office files and PDFs can carry the author's name, comments, tracked changes, ea
 
 ### Our tools
 
-1. Our [document metadata tool](/tools/document-metadata/) reads Word, Excel, PowerPoint and PDF files on your device. It clears Office file properties, but not tracked changes or comments. PDFs it can only check, not clean.
-2. For photos, our [photo metadata remover](/tools/photo-metadata/) removes location, device details, dates and the embedded preview: see [Remove location from your photos](/guides/location-photos/#photo-metadata).
+1. Our [document metadata tool](/tools/document-metadata/) reads Word, Excel, PowerPoint, LibreOffice and PDF files on your device. In the clean copy it removes the file properties, replaces the names on comments and tracked changes and removes their dates, but the comments and changes themselves stay in: delete them by hand. Anything it can't read, it lists rather than calling the file clean. PDFs it can only check, not clean.
+2. For photos, our [photo metadata remover](/tools/photo-metadata/) removes location, device details and dates, and in JPEG, PNG and WebP photos the embedded preview too: see [Remove location from your photos](/guides/location-photos/#photo-metadata).
 
 FPF warns that pictures inside a document keep their own metadata even after you clean the document. FPF suggests exporting to a different format, or copying the text into a new, empty document. None of this hides what the text itself says.
 
