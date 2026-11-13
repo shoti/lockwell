@@ -3,6 +3,8 @@
  * @file Filters the search page in memory as the visitor types; nothing leaves the browser.
  */
 
+import { fillText } from './fill.mjs';
+
 /**
  * Lowercases a query or text so they compare equal however they were typed.
  * @param {string} text
@@ -56,7 +58,7 @@ export function initSearch() {
     // Appending an element that is already in the list moves it: best matches first.
     order.forEach((index) => list.append(items[index]));
     if (status instanceof HTMLElement) {
-      status.textContent = found ? (status.dataset.template ?? '').replace('{n}', String(found.length)) : '';
+      status.textContent = found ? fillText(status.dataset.template, { n: String(found.length) }) : '';
     }
     if (empty instanceof HTMLElement) empty.hidden = order.length > 0;
   };

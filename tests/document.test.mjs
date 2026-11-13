@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { crc32 as nodeCrc32, deflateRawSync, inflateRawSync } from 'node:zlib';
 import { crc32 } from '../src/client/bytes.mjs';
-import { DocumentError, cleanName, hasFindings, inspectDocument, pdfString, readZip, unzip, writeZip, xmlText } from '../src/client/tool-document.mjs';
+import { DocumentError, hasFindings, inspectDocument, pdfString, readZip, unzip, writeZip, xmlText } from '../src/client/tool-document.mjs';
 
 const encoder = new TextEncoder();
 
@@ -151,7 +151,7 @@ describe('document tool: ZIP', () => {
     for (const text of ['', 'a', 'The quick brown fox', 'ქართული ტექსტი']) assert.equal(crc32(encoder.encode(text)), nodeCrc32(Buffer.from(text)));
   });
 
-  it('refuses broken, truncated and encrypted archives', () => {
+  it('refuses broken, truncated and encrypted archives, saying which', () => {
     const good = zip(DOCX_FILES);
     const damaged = (/** @type {Uint8Array} */ bytes) => assert.throws(() => readZip(bytes), (error) => error instanceof DocumentError && error.code === 'damaged');
     damaged(good.slice(0, good.length - 30));
@@ -160,7 +160,7 @@ describe('document tool: ZIP', () => {
     const encrypted = good.slice();
     const directory = new DataView(encrypted.buffer).getUint32(encrypted.length - 6, true);
     encrypted[directory + 8] |= 1;
-    damaged(encrypted);
+    assert.throws(() => readZip(encrypted), (error) => error instanceof DocumentError && error.code === 'locked', 'encrypted parts have their own message');
     const wild = good.slice();
     new DataView(wild.buffer).setUint32(directory + 42, 0xfffffff0, true);
     damaged(wild);
@@ -184,10 +184,12 @@ describe('document tool: Office files', () => {
       software: 'Microsoft Office Word 16.0000',
       template: 'Newsroom.dotm',
     });
-    assert.deepEqual([...report.flags].sort(), ['commentsPart', 'custom', 'tracked']);
+    assert.deepEqual(report.findings.map((item) => `${item.key}:${item.status}`).sort(), [
+      'commentAuthors:removed', 'commentsPart:kept', 'custom:removed', 'dates:removed', 'mediaUnchecked:unchecked', 'properties:removed', 'revisionAuthors:removed', 'tracked:kept',
+    ], 'the "picture" is not a real one, so it is reported as not checked');
   });
 
-  it('empties the properties in the cleaned copy and leaves everything else byte for byte', async () => {
+  it('empties the properties in the cleaned copy, anonymises authors, and leaves everything else byte for byte', async () => {
     const original = zip(DOCX_FILES, { descriptors: true });
     const { clean } = await inspectDocument(original);
     assert.ok(clean);
@@ -197,7 +199,9 @@ describe('document tool: Office files', () => {
     for (const entry of readZip(clean)) {
       const source = before.get(entry.name);
       assert.ok(source, `${entry.name} is an entry of the original`);
-      if (entry.name.startsWith('docProps/')) {
+      if (entry.name === 'word/document.xml' || entry.name === 'word/comments.xml') {
+        assert.doesNotMatch(new TextDecoder().decode(await unzip(entry)), /Nino|Giorgi/, `${entry.name}: authors replaced`);
+      } else if (entry.name.startsWith('docProps/')) {
         const xml = new TextDecoder().decode(await unzip(entry));
         assert.match(xml, /^<\?xml version="1\.0" encoding="UTF-8" standalone="yes"\?>\n<(cp:coreProperties|Properties|meta) [^<]*\/>$/, `${entry.name} is an empty, well-formed property file`);
         assert.equal(entry.crc, nodeCrc32(Buffer.from(xml)));
@@ -208,7 +212,8 @@ describe('document tool: Office files', () => {
 
     const again = await inspectDocument(clean);
     assert.deepEqual(again.fields, {}, 'nothing left in the properties');
-    assert.deepEqual([...again.flags].sort(), ['commentsPart', 'tracked'], 'tracked changes and comments are in the text itself, so they stay and are reported');
+    assert.deepEqual(again.findings.filter((item) => item.status === 'kept').map((item) => item.key).sort(), ['commentsPart', 'tracked'], 'tracked changes and comments are in the text itself, so they stay and are reported');
+    assert.deepEqual(again.findings.filter((item) => item.status === 'removed'), []);
     assert.equal(hasFindings(again), true);
   });
 
@@ -218,7 +223,7 @@ describe('document tool: Office files', () => {
     const base = { '[Content_Types].xml': '<Types/>', 'docProps/core.xml': plainCore, 'docProps/app.xml': plainApp };
     const sheet = await inspectDocument(zip({ ...base, 'xl/workbook.xml': '<workbook/>', 'xl/comments1.xml': '<comments/>' }));
     assert.equal(sheet.kind, 'xlsx');
-    assert.deepEqual([...sheet.flags], ['commentsPart']);
+    assert.deepEqual(sheet.findings.map((item) => item.key), ['commentsPart']);
     const slides = await inspectDocument(zip({ ...base, 'ppt/presentation.xml': '<p:presentation/>' }));
     assert.equal(slides.kind, 'pptx');
     assert.equal(hasFindings(slides), false);
@@ -246,11 +251,6 @@ describe('document tool: Office files', () => {
     assert.equal(xmlText('<dc:subject></dc:subject><dc:title/>', 'dc:subject'), '');
     assert.equal(xmlText('<Company>Acme</Company>', 'Manager'), '');
     assert.equal(xmlText('<Companyx>no</Companyx><Company>yes</Company>', 'Company'), 'yes', 'a longer tag name is a different tag');
-  });
-
-  it('names the cleaned copy after the original', () => {
-    assert.equal(cleanName('Report final.docx', 'docx'), 'Report final-clean.docx');
-    assert.equal(cleanName('.xlsx', 'xlsx'), 'document-clean.xlsx');
   });
 });
 
@@ -283,14 +283,14 @@ describe('document tool: PDF', () => {
     const xmp = '4 0 obj\n<< /Type /Metadata >>\nstream\n<x:xmpmeta><rdf:RDF><rdf:Description><dc:creator><rdf:Seq><rdf:li>Giorgi K.</rdf:li></rdf:Seq></dc:creator><xmp:CreatorTool>LibreOffice 24.2</xmp:CreatorTool></rdf:Description></rdf:RDF></x:xmpmeta>\nendstream\nendobj\n';
     const report = await inspectDocument(pdf('/Producer (PDF library)', xmp));
     assert.deepEqual(report.fields, { producer: 'PDF library', author: 'Giorgi K.', software: 'LibreOffice 24.2' });
-    assert.deepEqual([...report.flags], ['xmp']);
+    assert.deepEqual(report.findings.map((item) => item.key).sort(), ['properties', 'xmp']);
   });
 
   it('reports nothing for a PDF without properties, and refuses encrypted ones', async () => {
     const empty = await inspectDocument(encoder.encode('%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF'));
     assert.equal(hasFindings(empty), false);
     const locked = encoder.encode('%PDF-1.7\ntrailer\n<< /Root 1 0 R /Encrypt 5 0 R /Info 7 0 R >>\n%%EOF');
-    await assert.rejects(inspectDocument(locked), (error) => error instanceof DocumentError && error.code === 'damaged');
+    await assert.rejects(inspectDocument(locked), (error) => error instanceof DocumentError && error.code === 'encrypted');
   });
 
   it('decodes PDF strings', () => {

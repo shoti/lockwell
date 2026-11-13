@@ -15,6 +15,7 @@ There are few privacy resources in Georgian. Most advice online is written in En
 - No tracking scripts, no cookies and no ads.
 - No requests to other companies: fonts, scripts and images are all served from this site.
 - Your checklist progress is saved only in your own browser, and you can clear it at any time.
+- The tools run in your browser. The one that connects anywhere is the browser check, and only when you press its IP address button: your browser then asks Cloudflare, our host, for your address. Nothing is saved.
 - There is one kind of tracking, and it is minimal: our host's. The site runs on Cloudflare Pages, and Cloudflare records each visit, including your IP address, your browser and the page you open. From these records, Cloudflare shows us overall traffic statistics. We don't add analytics of our own and keep no logs of our own.
 
 ## Get involved

@@ -26,6 +26,8 @@ export function toolPage(ctx, tool) {
   const name = t(`tools.items.${tool.key}.title`);
   const description = t(`tools.items.${tool.key}.description`);
   const path = localePath(site, lang, toolRoute(tool));
+  // Guides whose text links to this tool, so the page can point back to them.
+  const guides = ctx.content.guides[lang].filter((guide) => JSON.stringify([guide.intro, guide.items]).includes(`](${toolRoute(tool)}`));
 
   const body = html`<div class="container page">
   ${breadcrumbs(ctx, [{ name: t('nav.home'), route: '/' }, { name: t('nav.tools'), route: '/tools/' }, { name }])}
@@ -37,8 +39,16 @@ export function toolPage(ctx, tool) {
     <p class="draft-notice no-js-only" data-js="tool-fallback">${icons.alert}<span>${t('tools.needsJs')}</span></p>
     <section class="tool js-only" data-js="tool" data-tool="${tool.key}" aria-label="${name}">
       ${PANELS[tool.key](ctx)}
-      <p class="tool__local">${icons.eyeOff}<span>${t('tools.local')}</span></p>
+      <p class="tool__local">${icons.eyeOff}<span>${t(tool.requests ? `tools.items.${tool.key}.local` : 'tools.local')}</span></p>
     </section>
+    ${guides.length
+      ? html`<section class="tool-guides" aria-labelledby="tool__guides">
+      <h2 class="tool-guides__title" id="tool__guides">${t('tools.guidesHeading')}</h2>
+      <ul class="tool-guides__list">
+        ${guides.map((guide) => html`<li><a href="${ctx.url(guide.route)}">${guide.title}</a></li>`)}
+      </ul>
+    </section>`
+      : null}
     <section class="prose prose--article tool-notes" aria-labelledby="tool__notes">
       <h2 id="tool__notes">${t('tools.notesHeading')}</h2>
       ${Array.from({ length: tool.notes }, (_, i) => html`<p>${t(`tools.items.${tool.key}.note${i + 1}`)}</p>`)}
@@ -54,6 +64,7 @@ export function toolPage(ctx, tool) {
     title: `${name} — ${t('siteName')}`,
     description,
     body,
+    ...(tool.requests ? { connect: /** @type {const} */ ('self') } : {}),
     jsonLd: [
       {
         '@context': 'https://schema.org',

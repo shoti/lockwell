@@ -33,3 +33,17 @@ path = "src/public/fonts/**"
 precedence = "override"
 SPDX-FileCopyrightText = "2012-2018 Carrois Corporate GbR, HERE Europe B.V., The Mozilla Foundation, Telefonica S.A. and bBox Type GmbH"
 SPDX-License-Identifier = "OFL-1.1"
+
+# The Public Suffix List, compacted by scripts/update-psl.mjs (see https://publicsuffix.org/).
+[[annotations]]
+path = ["src/client/public-suffix.mjs", "src/client/top-level-domains.mjs"]
+precedence = "override"
+SPDX-FileCopyrightText = "Mozilla Foundation and Public Suffix List contributors"
+SPDX-License-Identifier = "MPL-2.0"
+
+# EFF's long word list for passphrases (see https://www.eff.org/copyright).
+[[annotations]]
+path = "src/client/wordlist-en.mjs"
+precedence = "override"
+SPDX-FileCopyrightText = "Electronic Frontier Foundation"
+SPDX-License-Identifier = "CC-BY-4.0"

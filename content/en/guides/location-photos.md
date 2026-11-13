@@ -56,7 +56,7 @@ Your phone's camera can write the exact place where a photo was taken into the p
 
 ### Any device
 
-1. Our [photo metadata remover](/tools/photo-metadata/) shows what a photo reveals and saves a copy without it, on your device. It reads JPEG, PNG and WebP photos, not yet the HEIC format iPhones use by default; on iPhone, use the share option above.
+1. Our [photo metadata remover](/tools/photo-metadata/) shows what a photo reveals and saves a copy without it, on your device. It reads JPEG, PNG, WebP, HEIC and AVIF photos. In HEIC photos, the format iPhones use by default, it removes the location, dates and device details but can't remove the small preview picture stored with it, and it says so when one is there.
 
 ## Check who can see where you are {#find-my-sharing .recommended}
 

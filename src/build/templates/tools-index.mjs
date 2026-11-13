@@ -5,7 +5,7 @@
 import { html } from '../html.mjs';
 import { breadcrumbJsonLd } from '../seo.mjs';
 import { localePath } from '../site.mjs';
-import { TOOLS } from '../tools.mjs';
+import { TOOLS, TOOL_GROUPS } from '../tools.mjs';
 import { breadcrumbs, toolCard } from './components.mjs';
 
 /** @typedef {import('./layout.mjs').Ctx} Ctx */
@@ -24,9 +24,14 @@ export function toolsIndexPage(ctx) {
     <h1 class="page-header__title">${title}</h1>
     <p class="lead">${t('tools.lead')}</p>
   </header>
-  <div class="card-grid">
-    ${TOOLS.map((tool) => toolCard(ctx, tool, 2))}
-  </div>
+  ${TOOL_GROUPS.map(
+    (group) => html`<section class="tool-group" aria-labelledby="tools__${group.key}">
+    <h2 class="tool-group__title" id="tools__${group.key}">${t(`tools.groups.${group.key}`)}</h2>
+    <div class="card-grid">
+      ${group.tools.map((key) => toolCard(ctx, /** @type {import('../tools.mjs').Tool} */ (TOOLS.find((tool) => tool.key === key)), 3))}
+    </div>
+  </section>`,
+  )}
 </div>`;
 
   return {

@@ -16,6 +16,8 @@
  * @property {'key' | 'link' | 'shield' | 'image' | 'marker' | 'file' | 'eye' | 'monitor'} icon
  * @property {number} notes  How many "tools.items.<key>.note<N>" paragraphs explain the tool.
  * @property {number} ai  How many "tools.items.<key>.ai<N>" paragraphs say how the tool compares with asking an AI service (0: no such section).
+ * @property {boolean} [requests]  The tool can make a request to its own host when the visitor asks (the browser
+ *   check's IP lookup): its page allows connect-src 'self' and says so in "tools.items.<key>.local".
  */
 
 /** How many tools the home page shows (the first ones in TOOLS). */
@@ -23,14 +25,24 @@ export const FEATURED_TOOLS = 4;
 
 /** @type {Tool[]} */
 export const TOOLS = [
-  { slug: 'password-generator', key: 'password', icon: 'key', notes: 3, ai: 1 },
+  { slug: 'password-generator', key: 'password', icon: 'key', notes: 4, ai: 1 },
   { slug: 'link-checker', key: 'check', icon: 'shield', notes: 3, ai: 1 },
-  { slug: 'photo-metadata', key: 'photo', icon: 'image', notes: 4, ai: 2 },
-  { slug: 'browser-check', key: 'browser', icon: 'monitor', notes: 3, ai: 0 },
+  { slug: 'photo-metadata', key: 'photo', icon: 'image', notes: 5, ai: 2 },
+  { slug: 'browser-check', key: 'browser', icon: 'monitor', notes: 3, ai: 0, requests: true },
   { slug: 'link-cleaner', key: 'links', icon: 'link', notes: 3, ai: 0 },
-  { slug: 'image-redaction', key: 'redact', icon: 'marker', notes: 4, ai: 2 },
+  { slug: 'image-redaction', key: 'redact', icon: 'marker', notes: 5, ai: 2 },
   { slug: 'document-metadata', key: 'document', icon: 'file', notes: 4, ai: 1 },
   { slug: 'hidden-characters', key: 'hidden', icon: 'eye', notes: 3, ai: 2 },
+];
+
+/**
+ * How the tools index groups the tools, by what the visitor wants to do. Each tool is in one group.
+ * @type {{ key: 'share' | 'suspicious' | 'device', tools: Tool['key'][] }[]}
+ */
+export const TOOL_GROUPS = [
+  { key: 'share', tools: ['photo', 'redact', 'document', 'links', 'hidden'] },
+  { key: 'suspicious', tools: ['check'] },
+  { key: 'device', tools: ['password', 'browser'] },
 ];
 
 /** @param {Tool} tool */
