@@ -140,6 +140,15 @@
     .guide-aside--nav .guide-aside__inner:focus-within {
       scrollbar-color: var(--color-border-strong) transparent;
     }
+
+    /* The track switch stays at the top of the sidebar while the list scrolls
+       under it; the ring in the sidebar's color hides what passes behind. */
+    .guide-nav__switch {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      box-shadow: 0 0 0 var(--space-2) var(--color-surface);
+    }
   }
 
   @media (min-width: 80rem) {

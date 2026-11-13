@@ -36,10 +36,12 @@
     "description": "All Lockwell privacy guides: step-by-step checklists to secure your accounts, passwords and messaging apps.",
     "everyone": {
       "title": "For everyone",
+      "short": "For everyone",
       "lead": "Sensible protection for your accounts, your phone and everyday life online."
     },
     "highRisk": {
       "title": "For people at higher risk",
+      "short": "Higher risk",
       "lead": "For activists, journalists and anyone who has a reason to expect targeted attention. Start with the first guide: it helps you work out which of the others you need."
     },
     "tracksLabel": "Guide groups",

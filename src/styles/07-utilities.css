@@ -61,6 +61,18 @@
   animation-duration: 160ms;
 }
 
+/* Between two pages that both have "All guides", the sidebar is swapped at
+   once instead of blended: two different lists fading into each other (another
+   track, another scroll position) read as the sidebar moving. Leaving for a
+   page without it (the old image alone, ":only-child"), it still fades out. */
+::view-transition-old(guide-nav):not(:only-child) {
+  display: none;
+}
+
+::view-transition-new(guide-nav):not(:only-child) {
+  animation: none;
+}
+
 /* Guides print as a paper checklist with every platform's steps. */
 @media print {
   @layer utilities {

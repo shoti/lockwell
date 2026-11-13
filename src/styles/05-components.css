@@ -901,54 +901,81 @@
     padding-bottom: var(--space-2);
   }
 
-  /* Three levels that must not look alike: the track (largest, opens and
-     closes, with a rule above it), the topic (a dark, bold heading) and the
-     guides (lighter links, indented behind a line). Only the last are links. */
-  .guide-nav__track {
-    border-top: 1px solid var(--color-border);
+  /* Two tracks, one shown at a time (with JS): a switch above the list picks
+     it. The switch is a full-width pill, so its tabs stay in the same place
+     whichever is chosen; a label too long for its half wraps instead of
+     widening it. */
+  .guide-nav__switch {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
+    margin: 0 var(--space-1) var(--space-2);
+    padding: 4px;
+    border-radius: var(--radius-full);
+    background: var(--color-surface-2);
   }
 
-  .guide-nav__track[open] {
+  .guide-nav__tab {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1);
+    min-height: 2.25rem;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-full);
+    color: var(--color-text-muted);
+    font-size: var(--step--1);
+    font-weight: 600;
+    line-height: var(--leading-tight);
+    text-align: center;
+    transition: background var(--duration) var(--ease), color var(--duration) var(--ease);
+  }
+
+  .guide-nav__tab:hover {
+    color: var(--color-text);
+  }
+
+  /* Drawn inside: the sidebar scrolls on a short screen, which would clip a ring drawn outside. */
+  .guide-nav__tab:focus-visible {
+    outline-offset: -3px;
+  }
+
+  /* Same mark as the platform tabs: the accent underline gives the 3:1 contrast the background alone lacks. */
+  .guide-nav__tab[aria-selected="true"] {
+    background: var(--color-surface);
+    color: var(--color-text);
+    box-shadow: inset 0 -2px 0 var(--color-accent), var(--shadow-sm);
+  }
+
+  .guide-nav__count {
+    color: var(--color-text-muted);
+    font-weight: 400;
+  }
+
+  /* With JS only the chosen track shows, from the first paint: the build
+     marks it, so nothing waits for the script. The tab names the list, so its
+     title, needed only without JS, is left out. */
+  .js .guide-nav__track:not(.is-selected) {
+    display: none;
+  }
+
+  .js .guide-nav__switch ~ .guide-nav__track > .guide-nav__track-title {
+    display: none;
+  }
+
+  /* Three levels that must not look alike: the track (largest, with a rule
+     above it; without JS only), the topic (a dark, bold heading) and the
+     guides (lighter links, indented behind a line). Only the last are links. */
+  .guide-nav__track {
     padding-bottom: var(--space-3);
   }
 
   .guide-nav__track-title {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-3);
-    min-height: var(--tap);
-    padding: var(--space-2) var(--space-3);
+    padding: var(--space-3) var(--space-3) 0;
+    border-top: 1px solid var(--color-border);
     font-size: var(--step-0);
     font-weight: 600;
     line-height: var(--leading-tight);
-    cursor: pointer;
-    list-style: none;
-  }
-
-  /* Drawn inside: the sidebar can scroll on a short screen, which would clip a ring drawn outside. */
-  .guide-nav__track-title:focus-visible {
-    outline-offset: -3px;
-  }
-
-  .guide-nav__track-title::-webkit-details-marker {
-    display: none;
-  }
-
-  .guide-nav__track-title::after {
-    content: "";
-    flex: none;
-    width: 0.4rem;
-    height: 0.4rem;
-    margin-inline-end: var(--space-1);
-    border-right: 2px solid var(--color-text-muted);
-    border-bottom: 2px solid var(--color-text-muted);
-    transform: rotate(45deg) translateY(-2px);
-    transition: transform var(--duration) var(--ease);
-  }
-
-  .guide-nav__track[open] > .guide-nav__track-title::after {
-    transform: rotate(-135deg) translateY(-2px);
   }
 
   .guide-nav__group {
