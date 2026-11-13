@@ -5,13 +5,26 @@
 import { html } from '../html.mjs';
 import { breadcrumbJsonLd } from '../seo.mjs';
 import { localePath } from '../site.mjs';
-import { breadcrumbs, continueLink, guideNav, guideRow, guideTracks } from './components.mjs';
+import { icons } from './icons.mjs';
+import { breadcrumbs, continueLink, guideCard, guideTracks } from './components.mjs';
 
 /** @typedef {import('./layout.mjs').Ctx} Ctx */
 
 /**
- * The guides list: every guide by track and topic group, with a sidebar that
- * shows the same structure at a glance.
+ * "New here? Start with: <first guide> · 60 min". It shares the line of the
+ * "Continue" link and shows only while that one doesn't (see 05-components.css),
+ * so the line is never empty and never moves. Plain HTML: it works without JS.
+ * @param {Ctx} ctx
+ * @param {import('../content.mjs').Guide} guide  The first guide of the first track.
+ */
+function startLink(ctx, guide) {
+  const { t, url } = ctx;
+  return html`<a class="continue continue--start" href="${url(guide.route)}"><span>${t('guides.startWith')}</span><span class="continue__title">${guide.title}</span><span class="continue__count">${t('guide.minutes', { n: guide.time })}</span>${icons.arrowRight}</a>`;
+}
+
+/**
+ * The guides list: every guide by track and topic group, as a grid of cards
+ * like the home page and the tools list.
  * @param {Ctx} ctx
  */
 export function guidesIndexPage(ctx) {
@@ -26,7 +39,7 @@ export function guidesIndexPage(ctx) {
   <header class="page-header guides-header">
     <h1 class="page-header__title">${title}</h1>
     <p class="lead">${t('guides.lead')}</p>
-    <p class="page-header__continue js-only">${continueLink(ctx)}</p>
+    ${tracks.length ? html`<p class="page-header__continue page-header__continue--start">${continueLink(ctx)}${startLink(ctx, tracks[0].guides[0])}</p>` : null}
     ${tracks.length > 1
       ? html`<nav class="track-nav" aria-label="${t('guides.tracksLabel')}">
       <ul role="list">
@@ -38,11 +51,6 @@ export function guidesIndexPage(ctx) {
       : null}
   </header>
     </div>
-    <aside class="guide-aside guide-aside--nav">
-      <div class="guide-aside__inner" data-js="nav-scroll">
-        ${guideNav(ctx)}
-      </div>
-    </aside>
     <div class="guide-main">
       ${tracks.map(
         (track) => html`<section class="guide-group" id="${track.audience}" aria-labelledby="${track.audience}__title">
@@ -50,9 +58,9 @@ export function guidesIndexPage(ctx) {
         <p class="guide-group__lead">${track.lead}</p>
         ${track.groups.map(
           (group) => html`<h3 class="guide-group__topic" id="group-${group.key}">${group.title}</h3>
-        <ol class="guide-list" role="list" aria-labelledby="group-${group.key}">
-          ${group.guides.map((guide) => guideRow(ctx, guide))}
-        </ol>`,
+        <div class="card-grid card-grid--three">
+          ${group.guides.map((guide) => guideCard(ctx, guide, 4))}
+        </div>`,
         )}
       </section>`,
       )}

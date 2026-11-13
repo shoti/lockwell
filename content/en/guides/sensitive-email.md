@@ -4,6 +4,7 @@ description: What email reveals even when encrypted, when not to use it, how enc
 summary: Email leaves a record of who wrote to whom, when and about what. Move sensitive talk to Signal, keep subject lines bland, and save your recovery code before you rely on encrypted mail.
 audience: high-risk
 group: basics
+icon: mail
 order: 5
 time: 35
 progress: session

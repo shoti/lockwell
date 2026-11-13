@@ -4,6 +4,7 @@ description: Secure your home router and Wi-Fi, use public Wi-Fi sensibly, and l
 summary: Lock down your home router, use café Wi-Fi without worry, and know what a VPN can and can't do.
 audience: everyone
 group: devices
+icon: wifi
 order: 11
 time: 40
 reviewed: 2026-11-11

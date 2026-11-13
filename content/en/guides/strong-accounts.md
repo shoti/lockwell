@@ -4,6 +4,7 @@ description: Security keys, passkeys, Google Advanced Protection, Apple's strong
 summary: Codes can be phished; security keys can't. Add keys, turn on the strictest account settings and plan how you will get back in if you lose them.
 audience: high-risk
 group: basics
+icon: userLock
 order: 3
 time: 60
 progress: session

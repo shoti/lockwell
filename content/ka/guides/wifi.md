@@ -4,6 +4,7 @@ description: დაიცავით სახლის როუტერი �
 summary: დაიცავით სახლის როუტერი, კაფის Wi-Fi მშვიდად გამოიყენეთ და იცოდეთ, რა შეუძლია VPN-ს და რა არა.
 audience: everyone
 group: devices
+icon: wifi
 order: 11
 time: 40
 reviewed: 2026-11-11

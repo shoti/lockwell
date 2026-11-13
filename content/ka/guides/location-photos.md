@@ -4,6 +4,7 @@ description: გამორთეთ დავიწყებული live loc
 summary: თქვენი ტელეფონი და ფოტოები შეიძლება აჩვენებდეს, სად ცხოვრობთ და სად ხართ ახლა. თავად გადაწყვიტეთ, ვინ უნდა ხედავდეს ამას.
 audience: everyone
 group: habits
+icon: pin
 order: 7
 time: 35
 reviewed: 2026-11-11

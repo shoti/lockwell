@@ -642,6 +642,17 @@
     font-size: var(--step--1);
   }
 
+  /* The guide's subject at a glance, beside its number. */
+  .guide-card__icon {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .guide-card__icon .icon {
+    width: 1.375rem;
+    height: 1.375rem;
+  }
+
   .guide-card__number {
     color: var(--color-accent);
     font-size: var(--step--1);
@@ -695,6 +706,48 @@
     background: var(--color-accent);
     transform: scaleX(var(--progress, 0));
     transform-origin: left;
+  }
+
+  /* Guide cards: the progress comes first in the markup and shows last in the
+     row. Its bar runs along the card's bottom edge, inside the border. */
+  .card__top > .card-progress {
+    order: 1;
+  }
+
+  .card .card-progress__track {
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    width: auto;
+    height: 4px;
+    border-radius: 0 0 calc(var(--radius-lg) - 1px) calc(var(--radius-lg) - 1px);
+  }
+
+  .card-progress__done {
+    display: none;
+    align-items: center;
+    gap: var(--space-1);
+    color: var(--color-accent);
+    font-weight: 600;
+  }
+
+  .card-progress__done .icon {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .card-progress.is-complete .card-progress__text {
+    display: none;
+  }
+
+  .card-progress.is-complete .card-progress__done {
+    display: inline-flex;
+  }
+
+  /* A finished guide: its icon filled in. */
+  .card-progress.is-complete ~ .guide-card__icon {
+    background: var(--color-accent);
+    color: var(--color-on-accent);
   }
 
   /* ---------- Meta list, dots, badges ---------- */
@@ -894,152 +947,6 @@
     scroll-margin-top: var(--space-6);
   }
 
-  /* ---------- "All guides" (sidebar) ----------
-     Shares the box, the summary and the link style of the contents list (.toc). */
-  .guide-nav__body {
-    gap: 0;
-    padding-bottom: var(--space-2);
-  }
-
-  /* Two tracks, one shown at a time (with JS): a switch above the list picks
-     it. The switch is a full-width pill, so its tabs stay in the same place
-     whichever is chosen; a label too long for its half wraps instead of
-     widening it. */
-  .guide-nav__switch {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 2px;
-    margin: 0 var(--space-1) var(--space-2);
-    padding: 4px;
-    border-radius: var(--radius-full);
-    background: var(--color-surface-2);
-  }
-
-  .guide-nav__tab {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: var(--space-1);
-    min-height: 2.25rem;
-    padding: var(--space-1) var(--space-2);
-    border-radius: var(--radius-full);
-    color: var(--color-text-muted);
-    font-size: var(--step--1);
-    font-weight: 600;
-    line-height: var(--leading-tight);
-    text-align: center;
-    transition: background var(--duration) var(--ease), color var(--duration) var(--ease);
-  }
-
-  .guide-nav__tab:hover {
-    color: var(--color-text);
-  }
-
-  /* Drawn inside: the sidebar scrolls on a short screen, which would clip a ring drawn outside. */
-  .guide-nav__tab:focus-visible {
-    outline-offset: -3px;
-  }
-
-  /* Same mark as the platform tabs: the accent underline gives the 3:1 contrast the background alone lacks. */
-  .guide-nav__tab[aria-selected="true"] {
-    background: var(--color-surface);
-    color: var(--color-text);
-    box-shadow: inset 0 -2px 0 var(--color-accent), var(--shadow-sm);
-  }
-
-  .guide-nav__count {
-    color: var(--color-text-muted);
-    font-weight: 400;
-  }
-
-  /* With JS only the chosen track shows, from the first paint: the build
-     marks it, so nothing waits for the script. The tab names the list, so its
-     title, needed only without JS, is left out. */
-  .js .guide-nav__track:not(.is-selected) {
-    display: none;
-  }
-
-  .js .guide-nav__switch ~ .guide-nav__track > .guide-nav__track-title {
-    display: none;
-  }
-
-  /* Three levels that must not look alike: the track (largest, with a rule
-     above it; without JS only), the topic (a dark, bold heading) and the
-     guides (lighter links, indented behind a line). Only the last are links. */
-  .guide-nav__track {
-    padding-bottom: var(--space-3);
-  }
-
-  .guide-nav__track-title {
-    padding: var(--space-3) var(--space-3) 0;
-    border-top: 1px solid var(--color-border);
-    font-size: var(--step-0);
-    font-weight: 600;
-    line-height: var(--leading-tight);
-  }
-
-  .guide-nav__group {
-    margin-top: var(--space-3);
-    padding-inline: var(--space-3);
-    color: var(--color-text);
-    font-size: var(--step--1);
-    font-weight: 600;
-  }
-
-  .guide-nav__group + ul {
-    margin: var(--space-1) 0 0 var(--space-3);
-    padding-inline-start: var(--space-1);
-    border-inline-start: 1px solid var(--color-border-strong);
-  }
-
-  .guide-nav__link {
-    position: relative;
-    padding-block: 0.4rem;
-  }
-
-  /* The guide being read: marked by its background and color only. A bolder
-     font would be wider, and the title would wrap differently from page to page. */
-  .guide-nav__link[aria-current] {
-    background: var(--color-accent-soft);
-    color: var(--color-text);
-  }
-
-  /* Saved progress is a mark on the line beside the link, where it takes no
-     room from the title: a dot once a guide is started, a tick when every
-     step is done. Screen readers get the count ("3 of 7 done"). */
-  .guide-nav__progress {
-    position: absolute;
-    inset-inline-start: calc(-1 * var(--space-1) - 0.25rem - 0.5px);
-    top: 0.8rem;
-    width: 0.5rem;
-    height: 0.5rem;
-    border-radius: 50%;
-    background: var(--color-accent);
-    box-shadow: 0 0 0 3px var(--color-surface);
-  }
-
-  .guide-nav__progress.is-complete {
-    inset-inline-start: calc(-1 * var(--space-1) - 0.375rem - 0.5px);
-    top: 0.65rem;
-    width: 0.75rem;
-    height: 0.75rem;
-    border-radius: 0;
-    box-shadow: none;
-    clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
-  }
-
-  .guide-nav__progress .card-progress__text {
-    display: none;
-  }
-
-  /* On a phone a guide starts with the guide itself; the breadcrumb leads to
-     the guides list, which has the same overview. */
-  @media (max-width: 63.99rem) {
-    .guide-aside--page {
-      display: none;
-    }
-  }
-
   /* Home: the way in for people at higher risk, under the first guides. */
   .path-card {
     display: grid;
@@ -1088,6 +995,40 @@
     margin-top: var(--space-3);
   }
 
+  /* Guides list: "Continue" and "New here? Start with" share one grid cell,
+     so the line is never empty and never moves. The start link shows unless
+     "Continue" does (it comes after it in the markup). With JS it waits until
+     the scripts have run (js-ready), so a returning visitor never sees it
+     flash before "Continue"; without JS it simply shows. */
+  /* minmax(0, 1fr): a long Georgian line must shorten the title, not widen the page. */
+  .page-header__continue--start {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: center;
+    justify-items: start;
+  }
+
+  /* On a narrow phone the start line wraps after "Start with:" instead of
+     cutting the title short. Both links share the cell, so its height is
+     set from the first paint and nothing moves. */
+  .continue--start {
+    flex-wrap: wrap;
+    row-gap: 0;
+  }
+
+  .page-header__continue--start > .continue {
+    grid-area: 1 / 1;
+  }
+
+  .continue--start {
+    visibility: visible;
+  }
+
+  .continue.is-visible ~ .continue--start,
+  .js:not(.js-ready) .continue--start {
+    visibility: hidden;
+  }
+
   .track-nav {
     margin-top: var(--space-3);
   }
@@ -1125,187 +1066,6 @@
     color: var(--color-text-muted);
     font-variant-numeric: tabular-nums;
     text-align: center;
-  }
-
-  /* ---------- Guide rows (guides index) ----------
-     One bordered list per track. The title link covers the whole row; the
-     steps <details> sits above it so it stays its own control. No overflow
-     on the list: it would clip focus rings. */
-  .guide-list {
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
-    background: var(--color-surface);
-    box-shadow: var(--shadow-sm);
-  }
-
-  .guide-row {
-    position: relative;
-    padding: var(--space-5) var(--space-4) var(--space-1);
-    transition: background-color var(--duration) var(--ease);
-  }
-
-  .guide-row + .guide-row {
-    border-top: 1px solid var(--color-border);
-  }
-
-  .guide-row:first-child {
-    border-start-start-radius: calc(var(--radius-lg) - 1px);
-    border-start-end-radius: calc(var(--radius-lg) - 1px);
-  }
-
-  .guide-row:last-child {
-    border-end-start-radius: calc(var(--radius-lg) - 1px);
-    border-end-end-radius: calc(var(--radius-lg) - 1px);
-  }
-
-  /* Phones: progress shares the line with the time, so the title keeps the width. */
-  .guide-row__main {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas:
-      "title title"
-      "summary summary"
-      "meta progress";
-    gap: var(--space-1) var(--space-3);
-    align-items: baseline;
-  }
-
-  .guide-row__title {
-    grid-area: title;
-    font-size: var(--step-1);
-  }
-
-  .guide-row__link {
-    color: var(--color-text);
-    text-decoration: none;
-  }
-
-  .guide-row__link::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-  }
-
-  .guide-row__link:hover {
-    text-decoration: underline;
-    text-decoration-color: var(--color-border-strong);
-  }
-
-  .guide-row__summary {
-    grid-area: summary;
-    max-width: var(--measure);
-    color: var(--color-text-muted);
-  }
-
-  .guide-row__meta {
-    grid-area: meta;
-    padding-top: var(--space-2);
-  }
-
-  .guide-row__progress {
-    grid-area: progress;
-    align-self: end;
-    margin-inline-start: 0;
-    min-height: 1.5rem;
-  }
-
-  @media (min-width: 40rem) {
-    .guide-row {
-      padding-inline: var(--space-6);
-    }
-
-    .guide-row__main {
-      grid-template-areas:
-        "title progress"
-        "summary summary"
-        "meta meta";
-    }
-
-    .guide-row__progress {
-      align-self: center;
-    }
-  }
-
-  /* Ring and tint on the whole row (keyboard focus only for the ring). Without
-     :has() the link keeps its own ring and the row stays plain. */
-  @supports selector(:has(*)) {
-    .guide-row:has(.guide-row__link:hover) {
-      background: var(--color-surface-2);
-    }
-
-    .guide-row:has(.guide-row__link:focus-visible) {
-      outline: 3px solid var(--color-focus);
-      outline-offset: -3px;
-    }
-
-    .guide-row__link:focus-visible {
-      outline: none;
-    }
-  }
-
-  .guide-row__steps {
-    position: relative;
-    z-index: 1;
-  }
-
-  .guide-row__toggle {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-2);
-    min-height: var(--tap);
-    /* Room for the focus ring around the text and the arrow, without moving them. */
-    margin-inline: calc(-1 * var(--space-2));
-    padding-inline: var(--space-2);
-    color: var(--color-link);
-    font-size: var(--step--1);
-    font-weight: 600;
-    cursor: pointer;
-    list-style: none;
-  }
-
-  .guide-row__toggle::-webkit-details-marker {
-    display: none;
-  }
-
-  .guide-row__toggle::after {
-    content: "";
-    width: 0.4rem;
-    height: 0.4rem;
-    border-right: 2px solid currentColor;
-    border-bottom: 2px solid currentColor;
-    transform: rotate(45deg) translateY(-2px);
-    transition: transform var(--duration) var(--ease);
-  }
-
-  .guide-row__steps[open] > .guide-row__toggle::after {
-    transform: rotate(-135deg) translateY(-2px);
-  }
-
-  .guide-row__toggle:hover {
-    text-decoration: underline;
-  }
-
-  /* The steps of one guide; link styles are shared with the contents list. */
-  .step-list {
-    display: grid;
-    gap: 2px;
-    margin-inline-start: calc(-1 * var(--space-3));
-    padding-bottom: var(--space-4);
-  }
-
-  /* Wide screens: two columns, read top to bottom like the numbered list it is. */
-  @media (min-width: 48rem) {
-    .step-list {
-      display: block;
-      columns: 2;
-      column-gap: var(--space-6);
-    }
-
-    .step-list > li {
-      padding-block: 1px;
-      break-inside: avoid;
-    }
   }
 
   /* ---------- Prose (Markdown output) ---------- */

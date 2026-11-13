@@ -4,6 +4,7 @@ description: Work out what you need to protect, from whom and how likely the dan
 summary: Before you change settings, work out what you protect and from whom. Your answers decide which guides you need and which steps could backfire.
 audience: high-risk
 group: plan
+icon: map
 order: 1
 time: 30
 progress: session

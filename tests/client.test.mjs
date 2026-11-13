@@ -419,53 +419,19 @@ describe('checklist state (BUG-6, BUG-7)', async () => {
     }
   });
 
-  it('step lists on the guides index mark finished steps and clear them again', () => {
-    /** @param {string} id */
-    const step = (id) => {
-      const doneText = new FakeElement('span', { js: 'toc-done', text: '(done)' });
-      const link = new FakeElement('a', { js: 'toc-link', item: id });
-      link.select['[data-js="toc-done"]'] = [doneText];
-      return { link, doneText };
-    };
-    const a = step('a');
-    const b = step('b');
-    const list = new FakeElement('ol', { js: 'guide-contents', guide: 'g1', storage: 'session' });
-    list.select['[data-js="toc-link"]'] = [a.link, b.link];
-    const dom = installDom({ select: { '[data-js="guide-contents"]': [list] } });
-    try {
-      dom.session.setItem('lockwell:progress:g1', '{"v":1,"done":["b"]}');
-      initCardProgress();
-      assert.deepEqual([a.link.classList.contains('is-done'), b.link.classList.contains('is-done')], [false, true]);
-      assert.deepEqual([a.doneText.textContent, b.doneText.textContent], ['', '(done)']);
-      dom.session.map.clear();
-      dom.document.dispatchEvent({ type: 'lockwell:cleared' });
-      assert.equal(b.link.classList.contains('is-done'), false);
-      assert.equal(b.doneText.textContent, '');
-    } finally {
-      dom.restore();
-    }
-  });
-
-  it('sidebar marks follow ticks on the page at once, and tell a started guide from a finished one', () => {
-    const card = Object.assign(new FakeElement('span', { js: 'card-progress', guide: 'g1', storage: 'local', items: 'a b' }));
-    const text = new FakeElement('span', { js: 'progress-text', template: '{done} of {total} done' });
-    card.select = { '[data-js="progress-text"]': [text], '[data-js="progress-bar"]': [] };
-    const reset = new FakeElement('button', { js: 'progress-reset' });
-    const dom = installDom({ select: { '[data-js="card-progress"]': [card], '[data-js="progress-reset"]': [reset] } });
-    const state = () => [card.classList.contains('is-visible'), card.classList.contains('is-complete'), text.textContent];
+  it('guide cards tell a started guide from a finished one', () => {
+    const card = new FakeElement('span', { js: 'card-progress', guide: 'g1', storage: 'local', items: 'a b' });
+    const dom = installDom({ select: { '[data-js="card-progress"]': [card] } });
+    const state = () => [card.classList.contains('is-visible'), card.classList.contains('is-complete')];
     try {
       initCardProgress();
-      assert.deepEqual(state(), [false, false, '0 of 2 done']);
-      // The checklist saves on "change" before this listener runs; here the save is done by hand.
+      assert.deepEqual(state(), [false, false], 'not started: nothing shows');
       dom.local.setItem('lockwell:progress:g1', '{"v":1,"done":["a"]}');
-      dom.document.dispatchEvent({ type: 'change' });
-      assert.deepEqual(state(), [true, false, '1 of 2 done'], 'started');
+      dom.window.dispatchEvent({ type: 'storage' });
+      assert.deepEqual(state(), [true, false], 'started: the count and the bar');
       dom.local.setItem('lockwell:progress:g1', '{"v":1,"done":["a","b"]}');
-      dom.document.dispatchEvent({ type: 'change' });
-      assert.deepEqual(state(), [true, true, '2 of 2 done'], 'finished');
-      dom.local.removeItem('lockwell:progress:g1');
-      reset.click();
-      assert.deepEqual(state(), [false, false, '0 of 2 done'], '"Clear my progress" on the page');
+      dom.window.dispatchEvent({ type: 'storage' });
+      assert.deepEqual(state(), [true, true], 'finished: "Done" and a filled icon');
     } finally {
       dom.restore();
     }
@@ -787,7 +753,7 @@ describe('contents list on small screens', async () => {
   it('handles every sidebar list on the page, and only real <details> elements', () => {
     const lists = [0, 1].map(() => Object.assign(new FakeElement('details', { js: 'toc' }), { open: true }));
     const other = Object.assign(new FakeElement('div', { js: 'toc' }), { open: true });
-    // A 70rem-wide window: wide enough for "All guides" (64rem), not for a guide's own contents list (80rem).
+    // A 70rem-wide window: wide enough for a list that opens from 64rem, not for one that needs 80rem.
     const dom = installDom({ select: { '[data-js="toc"]': [...lists, other] }, matchMedia: (query) => ({ matches: query === '(min-width: 64rem)' }) });
     const g = /** @type {Record<string, unknown>} */ (globalThis);
     const saved = { HTMLDetailsElement: g.HTMLDetailsElement, getComputedStyle: g.getComputedStyle };
@@ -807,116 +773,47 @@ describe('contents list on small screens', async () => {
     assert.deepEqual(lists.map((toc) => [toc.open, toc.dataset.ready]), [[true, ''], [false, '']], 'each list is judged by its own width');
     assert.deepEqual([other.open, other.dataset.ready], [true, undefined]);
   });
+});
 
-  it('brings the guide being read into view inside the sidebar, without moving a guide that is already visible', async () => {
-    const { initGuideNav, scrollToShow } = await import('../src/client/checklist.mjs');
-    const box = { top: 100, bottom: 700 };
-    assert.equal(scrollToShow({ top: 300, bottom: 340 }, box), 0, 'fully visible');
-    assert.equal(scrollToShow({ top: 100, bottom: 140 }, box), 0, 'visible at the very top');
-    assert.equal(scrollToShow({ top: 1500, bottom: 1540 }, box), 1120, 'below: scroll down until it is in the middle');
-    assert.equal(scrollToShow({ top: -200, bottom: -160 }, box), -580, 'above: scroll up');
-    assert.equal(scrollToShow({ top: 680, bottom: 720 }, box), 300, 'half cut off at the bottom counts as hidden');
+describe('the step being read', async () => {
+  const { FakeElement, installDom } = await import('./fake-dom.mjs');
+  const { initStepSpy, pickCurrent } = await import('../src/client/checklist.mjs');
 
-    const dom = installDom();
+  it('is the last step whose top has passed the reading line, or the last one at the bottom of the page', () => {
+    assert.equal(pickCurrent([400, 900, 1500], 300, false), -1, 'above the first step: none');
+    assert.equal(pickCurrent([250, 900, 1500], 300, false), 0);
+    assert.equal(pickCurrent([-800, 120, 700], 300, false), 1);
+    assert.equal(pickCurrent([-2000, -900, 600], 300, true), 2, 'a short last step never reaches the line');
+    assert.equal(pickCurrent([], 300, true), -1);
+  });
+
+  it('marks its link in the contents list, skips steps the filters hide, and moves nothing', () => {
+    /** @param {string} id @param {number} top @param {number} height */
+    const item = (id, top, height = 300) => Object.assign(new FakeElement('article', { js: 'item' }), { id, getBoundingClientRect: () => ({ top, height }) });
+    const items = [item('a', -700), item('b', 100), item('c', -400, 0)];
+    const links = ['a', 'b', 'c'].map((id) => new FakeElement('a', { js: 'toc-link', item: id }));
+    const dom = installDom({ select: { '[data-js="toc-link"]': links, '[data-js="item"]': items } });
+    Object.assign(dom.window, { innerHeight: 1000, scrollY: 0, requestAnimationFrame: (/** @type {() => void} */ fn) => fn() });
+    Object.assign(dom.root, { scrollHeight: 5000 });
+    const current = () => links.map((link) => link.getAttribute('aria-current'));
     try {
-      assert.doesNotThrow(initGuideNav, 'a page without the sidebar');
+      initStepSpy();
+      assert.deepEqual(current(), [null, 'location', null], '"c" is hidden (no height), so "b" is the one being read');
+      items[1].getBoundingClientRect = () => ({ top: 600, height: 300 });
+      dom.window.dispatchEvent({ type: 'scroll' });
+      assert.deepEqual(current(), ['location', null, null], 'only one link is marked');
+      Object.assign(dom.window, { scrollY: 4000 });
+      dom.window.dispatchEvent({ type: 'scroll' });
+      assert.deepEqual(current(), [null, 'location', null], 'at the bottom: the last shown step');
     } finally {
       dom.restore();
     }
   });
 
-  it('the sidebar keeps its scroll position from page to page, per track, in this tab only', async () => {
-    const { initGuideNav, parseScroll, parseScrolls } = await import('../src/client/checklist.mjs');
-    assert.deepEqual(['412', '412.6', '0', '-5', '', 'abc', 'Infinity', null].map(parseScroll), [412, 413, 0, 0, 0, 0, 0, 0]);
-    assert.deepEqual(['50 412', '412', '', 'x 7', null].map(parseScrolls), [[50, 412], [412], [], [0, 7], []], 'one position per track, in page order; the old single value is the first track');
-
-    const rect = (/** @type {number} */ top, /** @type {number} */ bottom) => () => ({ top, bottom });
-    /**
-     * A sidebar 600px tall with both tracks, `selected` shown, whose current guide (if any) sits at `itemTop`
-     * (viewport position, as the browser reports it after scrolling).
-     * @param {number} selected @param {number | null} itemTop
-     */
-    const page = (selected, itemTop) => {
-      const panels = [0, 1].map((i) => {
-        const panel = new FakeElement('section', { js: 'nav-track' });
-        if (i === selected) panel.classList.add('is-selected');
-        return panel;
-      });
-      const tabs = [0, 1].map((i) => {
-        const tab = new FakeElement('button', { js: 'nav-tab' });
-        tab.setAttribute('aria-selected', String(i === selected));
-        return tab;
-      });
-      const scroller = Object.assign(new FakeElement('div', { js: 'nav-scroll' }), { getBoundingClientRect: rect(100, 700), scrollTop: 0 });
-      const bar = Object.assign(new FakeElement('div', { js: 'nav-tabs' }), { getBoundingClientRect: () => ({ height: 44 }) });
-      scroller.select = { '[data-js="nav-track"]': panels, '[data-js="nav-tab"]': tabs, '[data-js="nav-tabs"]': [bar] };
-      const current = itemTop === null ? null : Object.assign(new FakeElement('a', { js: 'nav-current' }), { getBoundingClientRect: rect(itemTop, itemTop + 40) });
-      /** @type {Record<string, InstanceType<typeof FakeElement>[]>} */
-      const select = { '[data-js="nav-scroll"]': [scroller], ...(current ? { '[data-js="nav-current"]': [current] } : {}) };
-      return { panels, tabs, scroller, select };
-    };
-    const shown = (/** @type {ReturnType<typeof page>} */ p) => p.panels.map((panel, i) => [panel.classList.contains('is-selected'), p.tabs[i].getAttribute('aria-selected'), p.tabs[i].getAttribute('tabindex')]);
-
-    // First visit, on a guide of the second track that sits far down its list.
-    const first = page(1, 1500);
-    const dom = installDom({ select: first.select });
-    /** @param {ReturnType<typeof page>} p */
-    const open = (p) => {
-      /** @type {any} */ (dom.document).querySelector = (/** @type {string} */ s) => p.select[s]?.[0] ?? null;
-      initGuideNav();
-    };
+  it('does nothing on a page without steps', () => {
+    const dom = installDom();
     try {
-      initGuideNav();
-      assert.equal(first.scroller.scrollTop, 1098, 'brought to the middle of what the switch above it leaves visible');
-
-      // The visitor scrolls that list, then switches to the other track: it starts where it was left (the top).
-      first.scroller.scrollTop = 412;
-      first.tabs[0].click();
-      assert.deepEqual(shown(first), [[true, 'true', '0'], [false, 'false', '-1']]);
-      assert.equal(first.scroller.scrollTop, 0);
-      first.scroller.scrollTop = 50;
-      first.tabs[1].click();
-      assert.equal(first.scroller.scrollTop, 412, 'each track comes back where it was');
-      first.tabs[0].click();
-
-      dom.window.dispatchEvent({ type: 'pagehide' });
-      assert.equal(dom.session.getItem('lockwell:nav-scroll'), '50 412', 'positions only, by track order: no names');
-      assert.equal(dom.local.getItem('lockwell:nav-scroll'), null, 'never kept after the tab is closed');
-
-      // The guides list shows the first track: its own position, not the other list's.
-      const list = page(0, null);
-      open(list);
-      assert.equal(list.scroller.scrollTop, 50);
-      list.tabs[1].click();
-      assert.equal(list.scroller.scrollTop, 412);
-
-      // Keyboard: arrows move between the two tabs and wrap; Home and End go to the ends.
-      /** @type {string[]} */
-      const prevented = [];
-      const key = (/** @type {InstanceType<typeof FakeElement>} */ tab, /** @type {string} */ k) => tab.dispatchEvent({ type: 'keydown', key: k, preventDefault: () => prevented.push(k) });
-      key(list.tabs[1], 'ArrowRight');
-      assert.deepEqual(shown(list).map(([on]) => on), [true, false]);
-      key(list.tabs[0], 'ArrowLeft');
-      assert.deepEqual(shown(list).map(([on]) => on), [false, true]);
-      key(list.tabs[1], 'Home');
-      assert.deepEqual(shown(list).map(([on]) => on), [true, false]);
-      key(list.tabs[0], 'End');
-      assert.deepEqual(shown(list).map(([on]) => on), [false, true]);
-      key(list.tabs[1], 'a');
-      key(list.tabs[1], 'constructor');
-      assert.deepEqual(prevented, ['ArrowRight', 'ArrowLeft', 'Home', 'End'], 'other keys keep their default');
-
-      // A value saved by the earlier version (one number) still restores the first track.
-      dom.session.setItem('lockwell:nav-scroll', '300');
-      const old = page(0, null);
-      open(old);
-      assert.equal(old.scroller.scrollTop, 300);
-
-      // A guide whose link sits right under the switch (box top 100, switch 44px tall) is out of view.
-      dom.session.removeItem('lockwell:nav-scroll');
-      const hidden = page(1, 120);
-      open(hidden);
-      assert.equal(hidden.scroller.scrollTop, -282, 'scrolled until it is in the middle');
+      assert.doesNotThrow(initStepSpy);
     } finally {
       dom.restore();
     }

@@ -4,6 +4,7 @@ description: How sources can reach you safely, how to remove hidden data and red
 summary: A first message, a file or a forgotten copy can lead back to a source. Plan first contact, clean and redact files properly, and keep as little as you can.
 audience: high-risk
 group: teams
+icon: folderLock
 order: 12
 time: 40
 progress: session

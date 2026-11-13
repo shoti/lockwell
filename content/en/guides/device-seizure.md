@@ -4,6 +4,7 @@ description: What encryption protects and when, what a locked phone still shows,
 summary: Encryption protects a device that is switched off, not one that is unlocked. Know what stays readable, keep less on the device and plan who you will call.
 audience: high-risk
 group: situations
+icon: phoneAlert
 order: 8
 time: 40
 progress: session

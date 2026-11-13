@@ -1,8 +1,8 @@
 // @ts-check
 /**
- * @file Checklist progress (ticks, counts, saving through storage.mjs) and the sidebar lists that show it.
+ * @file Checklist progress (ticks, counts, saving through storage.mjs) and the lists that show it.
  */
-import { CLEARED_EVENT, PREFIX, progressKey, read, readProgress, write, writeProgress } from './storage.mjs';
+import { CLEARED_EVENT, PREFIX, progressKey, readProgress, writeProgress } from './storage.mjs';
 import { fillText } from './fill.mjs';
 
 /**
@@ -118,7 +118,7 @@ function renderProgress(root, done, total) {
 
 /**
  * Marks finished steps in a list of links to them (the contents list on a
- * guide page, the step lists on the guides index).
+ * guide page).
  * @param {ParentNode} root
  * @param {Set<string>} done
  */
@@ -202,13 +202,11 @@ export function initChecklist() {
 }
 
 /**
- * Saved progress on guide cards and rows (home page and guide list), and the
- * finished steps in each row's step list.
+ * Saved progress on guide cards (home page and guides list).
  */
 export function initCardProgress() {
   const cards = /** @type {HTMLElement[]} */ ([...document.querySelectorAll('[data-js="card-progress"]')]);
-  const stepLists = /** @type {HTMLElement[]} */ ([...document.querySelectorAll('[data-js="guide-contents"]')]);
-  if (cards.length === 0 && stepLists.length === 0) return;
+  if (cards.length === 0) return;
 
   const update = () => {
     cards.forEach((card) => {
@@ -219,10 +217,6 @@ export function initCardProgress() {
       card.classList.toggle('is-visible', done > 0);
       card.classList.toggle('is-complete', ids.size > 0 && done === ids.size);
     });
-    stepLists.forEach((list) => {
-      if (!list.dataset.guide) return;
-      renderDoneLinks(list, new Set(readProgress(list.dataset.guide, areaOf(list)) ?? []));
-    });
   };
 
   document.addEventListener(CLEARED_EVENT, update);
@@ -230,17 +224,11 @@ export function initCardProgress() {
   window.addEventListener('pageshow', (event) => {
     if (event.persisted) update();
   });
-  // On a guide page the sidebar counts that guide too. Ticking a step or
-  // clearing the guide's progress saves first (the checklist's own listeners
-  // were added before these), so the count read here is the new one.
-  document.addEventListener('change', update);
-  document.querySelector('[data-js="progress-reset"]')?.addEventListener('click', update);
   update();
 }
 
 /**
- * Sidebar lists (a guide's contents, "All guides" on the guides list) start
- * open, so desktop never shifts. On small screens CSS keeps them hidden until
+ * Sidebar lists (a guide's contents) start open, so desktop never shifts. On small screens CSS keeps them hidden until
  * this runs and closes them, so there is no jump there either.
  */
 export function initToc() {
@@ -254,104 +242,57 @@ export function initToc() {
 }
 
 /**
- * How far a scrolling box must move to bring an item to its middle; 0 when the
- * item is already fully in view.
- * @param {{ top: number, bottom: number }} item  Viewport position of the item.
- * @param {{ top: number, bottom: number }} box  Viewport position of the box.
+ * The step being read: the last one whose top has passed the reading line, or
+ * the last one once the page can't scroll further (a short last step never
+ * reaches the line). -1 above the first step.
+ * @param {number[]} tops  Viewport top of each shown step, in page order.
+ * @param {number} line  Viewport position of the reading line.
+ * @param {boolean} atEnd  Scrolled to the bottom of the page.
  */
-export function scrollToShow(item, box) {
-  if (item.top >= box.top && item.bottom <= box.bottom) return 0;
-  return Math.round((item.top + item.bottom) / 2 - (box.top + box.bottom) / 2);
-}
-
-/** Where the sidebar's scroll position is kept between pages (this tab only). */
-const NAV_SCROLL_KEY = 'nav-scroll';
-
-/**
- * A saved scroll position, or 0 for anything that isn't one.
- * @param {string | null} value
- */
-export function parseScroll(value) {
-  const number = Number(value);
-  return value !== null && value !== '' && Number.isFinite(number) && number > 0 ? Math.round(number) : 0;
+export function pickCurrent(tops, line, atEnd) {
+  if (atEnd && tops.length > 0) return tops.length - 1;
+  let current = -1;
+  tops.forEach((top, i) => {
+    if (top <= line) current = i;
+  });
+  return current;
 }
 
 /**
- * One saved scroll position per track, in page order ("50 412"); a value
- * saved by the earlier version (one number) is the first track's.
- * @param {string | null} value
+ * Marks the step being read in the guide's contents list (aria-current), as
+ * the visitor scrolls. It only changes the link's look: nothing moves. Steps
+ * hidden by the filters are skipped.
  */
-export function parseScrolls(value) {
-  return value ? value.split(' ').map(parseScroll) : [];
-}
+export function initStepSpy() {
+  const links = /** @type {HTMLElement[]} */ ([...document.querySelectorAll('[data-js="toc-link"]')]);
+  const items = /** @type {HTMLElement[]} */ ([...document.querySelectorAll('[data-js="item"]')]);
+  if (links.length === 0 || items.length === 0) return;
+  const linkFor = new Map(links.map((link) => [link.dataset.item, link]));
+  /** @type {HTMLElement | undefined} */
+  let current;
+  let queued = false;
 
-/** Arrow keys and Home/End move between the track tabs: the index they lead to from `at`, or -1. */
-const TAB_KEYS = {
-  /** @param {number} at @param {number} n */
-  ArrowRight: (at, n) => (at + 1) % n,
-  /** @param {number} at @param {number} n */
-  ArrowLeft: (at, n) => (at - 1 + n) % n,
-  Home: () => 0,
-  /** @param {number} _at @param {number} n */
-  End: (_at, n) => n - 1,
-};
-
-/**
- * "All guides" is taller than most screens and scrolls inside the sidebar.
- * A switch above it (tabs) shows one track at a time; the build already
- * marks the track to show, so this only handles a switch. Each track keeps
- * its own scroll position from page to page (in this tab only), so the list
- * doesn't move under the pointer when a guide is opened from it, and coming
- * from the other track never lands in the middle of this one. If the guide
- * being read is still out of view, it is brought into view. The page itself
- * never moves.
- */
-export function initGuideNav() {
-  const box = document.querySelector('[data-js="nav-scroll"]');
-  if (!(box instanceof HTMLElement)) return;
-  const panels = [...box.querySelectorAll('[data-js="nav-track"]')];
-  const tabs = [...box.querySelectorAll('[data-js="nav-tab"]')].filter((tab) => tab instanceof HTMLElement);
-  const positions = parseScrolls(read(NAV_SCROLL_KEY, 'session'));
-  let selected = Math.max(0, panels.findIndex((panel) => panel.classList.contains('is-selected')));
-
-  box.scrollTop = positions[selected] ?? 0;
-  const current = document.querySelector('[data-js="nav-current"]');
-  if (current instanceof HTMLElement) {
-    // The switch stays at the top of the box while the list scrolls under it: a link behind it is out of view.
-    const { top, bottom } = box.getBoundingClientRect();
-    const covered = box.querySelector('[data-js="nav-tabs"]')?.getBoundingClientRect().height ?? 0;
-    box.scrollTop += scrollToShow(current.getBoundingClientRect(), { top: top + covered, bottom });
-  }
-
-  /** @param {number} next */
-  const select = (next) => {
-    if (next === selected) return;
-    positions[selected] = Math.round(box.scrollTop);
-    panels.forEach((panel, i) => panel.classList.toggle('is-selected', i === next));
-    tabs.forEach((tab, i) => {
-      tab.setAttribute('aria-selected', String(i === next));
-      tab.setAttribute('tabindex', i === next ? '0' : '-1');
-    });
-    selected = next;
-    box.scrollTop = positions[next] ?? 0;
+  const update = () => {
+    queued = false;
+    const shown = items.map((item) => ({ item, box: item.getBoundingClientRect() })).filter(({ box }) => box.height > 0);
+    const root = document.documentElement;
+    const atEnd = window.innerHeight + window.scrollY >= root.scrollHeight - 2;
+    const at = pickCurrent(shown.map(({ box }) => box.top), window.innerHeight * 0.3, atEnd);
+    const next = at === -1 ? undefined : linkFor.get(shown[at].item.id);
+    if (next === current) return;
+    current?.removeAttribute('aria-current');
+    next?.setAttribute('aria-current', 'location');
+    current = next;
   };
-  tabs.forEach((tab, i) => {
-    panels[i]?.setAttribute('role', 'tabpanel');
-    panels[i]?.setAttribute('aria-labelledby', tab.id);
-    tab.addEventListener('click', () => select(i));
-    tab.addEventListener('keydown', (event) => {
-      if (!Object.hasOwn(TAB_KEYS, event.key)) return;
-      const move = TAB_KEYS[/** @type {keyof typeof TAB_KEYS} */ (event.key)];
-      event.preventDefault();
-      const next = move(i, tabs.length);
-      select(next);
-      tabs[next].focus();
-    });
-  });
+  const queue = () => {
+    if (queued) return;
+    queued = true;
+    window.requestAnimationFrame(update);
+  };
 
-  window.addEventListener('pagehide', () => {
-    positions[selected] = Math.round(box.scrollTop);
-    const all = panels.length > 0 ? panels.map((_, i) => positions[i] ?? 0) : [positions[0] ?? 0];
-    write(NAV_SCROLL_KEY, all.join(' '), 'session');
-  });
+  window.addEventListener('scroll', queue, { passive: true });
+  window.addEventListener('resize', queue);
+  // The filters ("Essential only", "Hide done") show and hide steps.
+  document.addEventListener('change', queue);
+  update();
 }

@@ -4,6 +4,7 @@ description: What targeted spyware is, why there are usually no signs, how to te
 summary: Targeted spyware is rare, expensive and hard to see. Know the real warnings, don't wipe your phone before an expert looks at it, and make attacks harder.
 audience: high-risk
 group: threats
+icon: bug
 order: 9
 time: 30
 progress: session

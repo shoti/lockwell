@@ -4,6 +4,7 @@ description: Lockdown Mode, Android-ის Advanced Protection, ბიომე�
 summary: პარამეტრები, რომლებიც ტელეფონში შეღწევას ურთულებს მას, ვინც პირადად თქვენ გიმიზნებთ. თითოეულთან წერია, რა უხერხულობა ახლავს და რისგან ვერ დაგიცავთ.
 audience: high-risk
 group: basics
+icon: phoneShield
 order: 2
 time: 40
 progress: session

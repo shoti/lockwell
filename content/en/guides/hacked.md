@@ -4,6 +4,7 @@ description: What to do when someone gets into your email, social media or Whats
 summary: Someone got into your account. Get back in through the official route, sign them out, check what they changed and warn the people they could reach.
 audience: everyone
 group: recovery
+icon: lifebuoy
 order: 12
 time: 40
 reviewed: 2026-11-12

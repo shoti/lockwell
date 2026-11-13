@@ -4,6 +4,7 @@ description: Messenger-ის, Viber-ის, WhatsApp-ის, Telegram-ისა
 summary: იზრუნეთ, რომ იმ აპლიკაციებში, რომლებსაც უკვე იყენებთ, ანგარიში ვერავინ მიითვისოს და მიმოწერა ვერავინ წაიკითხოს.
 audience: everyone
 group: start
+icon: chat
 order: 3
 time: 40
 reviewed: 2026-11-11

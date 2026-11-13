@@ -4,7 +4,7 @@
 @layer components {
   /* ---------- Progress ---------- */
   /* Takes no room in the layout (it overlaps the page's top padding), so a
-     guide's sidebar starts at the same height as on the guides list. */
+     guide's breadcrumb starts at the same height as on the guides list. */
   .progress-strip {
     position: sticky;
     top: 0;
@@ -15,7 +15,8 @@
   }
 
   /* From here the progress card is always in view, in the sticky rail. */
-  @media (min-width: 80rem) {
+  /* From 64rem the rail, with its own progress bar, stays in view instead. */
+  @media (min-width: 64rem) {
     .progress-strip {
       display: none;
     }
@@ -74,6 +75,36 @@
     min-height: 2rem;
   }
 
+  /* ---------- Rail: progress and contents in one box ---------- */
+  .rail-box {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
+  }
+
+  .rail-box > .progress {
+    margin-bottom: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+  }
+
+  /* Without JS the progress part is hidden and the contents list is alone. */
+  .rail-box > .progress + .toc {
+    border-top: 1px solid var(--color-border);
+  }
+
+  .rail-box > .toc {
+    border-inline: 0;
+    border-bottom: 0;
+    border-radius: 0;
+    background: none;
+  }
+
+  :root:not(.js) .rail-box > .toc {
+    border-top: 0;
+  }
+
   /* ---------- Table of contents ---------- */
   .toc {
     border: 1px solid var(--color-border);
@@ -129,29 +160,13 @@
     }
   }
 
-  /* The guide's own contents list is open only where it has its own column. */
-  .toc--rail {
-    --bp-wide: 80rem;
-  }
-
-  @media (max-width: 79.99rem) {
-    .js .toc--rail:not([data-ready]) > .toc__list {
-      display: none;
-    }
-
-    .js .toc--rail:not([data-ready]) .toc__summary::after {
-      transform: rotate(45deg) translateY(-2px);
-    }
-  }
-
   .toc__list {
     display: grid;
     gap: 2px;
     padding: 0 var(--space-2) var(--space-3);
   }
 
-  .toc__link,
-  .step-list__link {
+  .toc__link {
     display: flex;
     align-items: flex-start;
     gap: var(--space-3);
@@ -163,19 +178,23 @@
     text-decoration: none;
   }
 
-  .toc__link:hover,
-  .step-list__link:hover {
+  /* The step being read (checklist.mjs, initStepSpy). Background and color
+     only: a bolder font would rewrap the title. */
+  .toc__link[aria-current] {
+    background: var(--color-accent-soft);
+    color: var(--color-text);
+  }
+
+  .toc__link:hover {
     color: var(--color-text);
     background: var(--color-surface-2);
   }
 
-  .toc__link .dot,
-  .step-list__link .dot {
+  .toc__link .dot {
     margin-top: 0.42em;
   }
 
-  .toc__link.is-done .dot,
-  .step-list__link.is-done .dot {
+  .toc__link.is-done .dot {
     width: 0.7rem;
     height: 0.7rem;
     margin-top: 0.3em;
@@ -185,8 +204,7 @@
     border-radius: 0;
   }
 
-  .toc__link.is-done .toc__text,
-  .step-list__link.is-done .step-list__text {
+  .toc__link.is-done .toc__text {
     text-decoration: line-through;
     text-decoration-color: var(--color-border-strong);
   }

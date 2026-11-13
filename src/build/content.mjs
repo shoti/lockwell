@@ -32,6 +32,7 @@ import { ROOT } from './site.mjs';
  * @property {string} summary  One line shown under the title and on cards.
  * @property {Audience} audience  The track the guide is listed under.
  * @property {string} group  The topic group inside the track (see GROUPS in frontmatter.mjs).
+ * @property {typeof import('./frontmatter.mjs').GUIDE_ICONS[number]} icon  Subject icon on its card (see GUIDE_ICONS).
  * @property {number} order  Position within its track.
  * @property {number} time  Estimated minutes.
  * @property {string} reviewed  YYYY-MM-DD
@@ -100,6 +101,7 @@ const GUIDE_FIELDS = {
   summary: 'text',
   audience: 'audience',
   group: 'group',
+  icon: 'icon',
   order: 'int',
   time: 'int',
   reviewed: 'date',
@@ -231,6 +233,7 @@ async function loadGuides(contentDir, lang, site) {
       summary: String(meta.summary),
       audience,
       group: String(meta.group),
+      icon: /** @type {Guide['icon']} */ (meta.icon),
       order: Number(meta.order),
       time: Number(meta.time),
       reviewed: String(meta.reviewed),
@@ -382,6 +385,9 @@ function checkTranslations(site, content) {
       }
       if (guide.group !== original.group) {
         throw new ContentError(guide.file, 0, `"group" must match ${original.file} (${original.group}).`);
+      }
+      if (guide.icon !== original.icon) {
+        throw new ContentError(guide.file, 0, `"icon" must match ${original.file} (${original.icon}).`);
       }
       if (guide.order !== original.order) {
         throw new ContentError(guide.file, 0, `"order" must match ${original.file} (${original.order}), so guides have the same number in every language.`);

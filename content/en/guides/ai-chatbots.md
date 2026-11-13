@@ -4,6 +4,7 @@ description: What ChatGPT, Gemini, Claude, Copilot and Meta AI keep from your ch
 summary: AI chatbots keep what you type, and people at the company may read it. Know what to keep out, and change the settings that matter.
 audience: everyone
 group: habits
+icon: sparkle
 order: 8
 time: 30
 reviewed: 2026-11-12

@@ -4,6 +4,7 @@ description: Settings for Facebook, Instagram and TikTok: who sees your posts an
 summary: Decide who can see your posts, your profile and where you are, in the apps you already use.
 audience: everyone
 group: habits
+icon: at
 order: 5
 time: 40
 reviewed: 2026-11-11

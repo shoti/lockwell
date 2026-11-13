@@ -4,6 +4,7 @@ description: რას მალავს Tor Browser და რას არა
 summary: Tor Browser საიტებს უმალავს, სად ხართ, მაგრამ არა იმას, რომ Tor-ს იყენებთ. ანონიმურობას უმეტესად საკუთარი ჩვევები გვაკარგვინებს და არა გაუმართავი ხელსაწყო.
 audience: high-risk
 group: threats
+icon: incognito
 order: 11
 time: 40
 progress: session

@@ -4,6 +4,7 @@ description: A step-by-step checklist for iPhone and Android: a strong screen lo
 summary: Protect what is on your phone if it is lost, stolen or picked up by someone else.
 audience: everyone
 group: start
+icon: phoneLock
 order: 2
 time: 45
 reviewed: 2026-11-11

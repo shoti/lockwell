@@ -4,6 +4,7 @@ description: ჩამონათვალი iPhone-ისა და Android-�
 summary: დაიცავით ყველაფერი, რაც ტელეფონში გაქვთ, იმ შემთხვევისთვის, თუ ტელეფონს დაკარგავთ, მოგპარავენ ან სხვას ჩაუვარდება ხელში.
 audience: everyone
 group: start
+icon: phoneLock
 order: 2
 time: 45
 reviewed: 2026-11-11

@@ -4,6 +4,7 @@ description: მოამზადეთ ტელეფონი და ლე�
 summary: საზღვარზე თქვენი მოწყობილობები შეიძლება გაჩხრიკონ ან წაიღონ ისე, რომ ვეღარ ხედავდეთ. ნაკლები წაიღეთ, სახლში მოემზადეთ, გადაკვეთამდე გამორთეთ და იცოდეთ, რა ქნათ შემდეგ.
 audience: high-risk
 group: situations
+icon: suitcase
 order: 7
 time: 45
 progress: session

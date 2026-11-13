@@ -7,7 +7,7 @@ import { html } from '../html.mjs';
 import { renderBlocks, renderInline } from '../markdown.mjs';
 import { localePath } from '../site.mjs';
 import { articleJsonLd, breadcrumbJsonLd } from '../seo.mjs';
-import { badge, breadcrumbs, contentFooter, draftNotice, guideMeta, guideNav, printButton, progressAttrs } from './components.mjs';
+import { badge, breadcrumbs, contentFooter, draftNotice, guideMeta, printButton, progressAttrs } from './components.mjs';
 
 /** The high-risk guide every other high-risk guide points to first. */
 export const START_GUIDE = 'threat-modelling';
@@ -72,13 +72,8 @@ export function guidePage(ctx, guide) {
     </ul>
   </header>
     </div>
-    <aside class="guide-aside guide-aside--nav guide-aside--page">
-      <div class="guide-aside__inner" data-js="nav-scroll">
-        ${guideNav(ctx, guide)}
-      </div>
-    </aside>
     <aside class="guide-aside guide-aside--rail" aria-label="${t('guide.inThisGuide')}">
-      <div class="guide-aside__inner">
+      <div class="guide-aside__inner rail-box">
         <div class="progress js-only" data-js="progress">
           <p class="progress__label">
             <span>${t('guide.progressLabel')}</span>

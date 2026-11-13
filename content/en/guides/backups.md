@@ -4,6 +4,7 @@ description: Back up your phone and computer, keep a second copy, check that it 
 summary: Phones get lost, stolen and broken. With a backup and a plan, you lose the device, not your photos and accounts.
 audience: everyone
 group: devices
+icon: cloud
 order: 10
 time: 45
 reviewed: 2026-11-11
