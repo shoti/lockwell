@@ -2435,7 +2435,8 @@
     border-radius: var(--radius);
     font-size: var(--step--1);
     font-weight: 600;
-    white-space: nowrap;
+    /* Georgian labels are longer than the name column: wrap inside it rather than run over the value. */
+    max-inline-size: 100%;
   }
 
   .rating--strong {
