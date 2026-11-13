@@ -45,6 +45,10 @@
        sidebar, the text and the guide's own steps side by side. */
     --page-max: 90rem;
     --nav-width: 18rem;
+    /* Height of the header once it is one row (from 45rem). The "All guides"
+       sidebar sticks right below it (--nav-top in 04-layout.css), so keep the
+       two in step. */
+    --header-row: 4.25rem;
     --rail-width: 15rem;
     --measure: 66ch;
     --gutter: clamp(1rem, 0.6rem + 2vw, 2rem);

@@ -120,11 +120,21 @@
 
     /* If the open track is taller than the screen, the list scrolls inside
        the sidebar. The bar itself only shows while the pointer is over the
-       sidebar; wheel, touch and keyboard scrolling work either way. */
+       sidebar; wheel, touch and keyboard scrolling work either way.
+       It sticks exactly where it starts: below the header and the page's top
+       padding. It then sits in the same place on every page and at every
+       scroll position, and fits on screen whole, so its scroll position,
+       carried from page to page, keeps a clicked link under the pointer.
+       (Sticking higher made the list drop by the difference after following
+       a link from a scrolled page, most visibly for the last links.) */
+    .guide-aside--nav {
+      --nav-top: calc(var(--header-row) + 1px + var(--space-6));
+    }
+
     .guide-aside--nav .guide-aside__inner {
       position: sticky;
-      top: var(--space-6);
-      max-height: calc(100vh - var(--space-12));
+      top: var(--nav-top);
+      max-height: calc(100vh - var(--nav-top) - var(--space-6));
       overflow-y: auto;
       scrollbar-width: thin;
       scrollbar-color: transparent transparent;

@@ -7,11 +7,14 @@
  */
 @layer components {
   /* ---------- Progress ---------- */
+  /* Takes no room in the layout (it overlaps the page's top padding), so a
+     guide's sidebar starts at the same height as on the guides list. */
   .progress-strip {
     position: sticky;
     top: 0;
     z-index: 10;
     height: 4px;
+    margin-bottom: -4px;
     background: var(--color-surface-2);
   }
 
