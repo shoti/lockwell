@@ -1120,7 +1120,7 @@ describe('guides by topic, and the "All guides" sidebar', () => {
     const links = [];
     let track = '';
     let group = '';
-    for (const m of nav.matchAll(/<details class="guide-nav__track" name="guide-tracks" data-track="([a-z-]+)"(?: open)?>|<p class="guide-nav__group" id="guide-nav__([a-z]+)">|<a class="toc__link guide-nav__link" href="\/en\/guides\/([a-z0-9-]+)\/"( aria-current="page" data-js="nav-current")?>/g)) {
+    for (const m of nav.matchAll(/<section class="guide-nav__track(?: is-selected)?" id="guide-nav-([a-z-]+)" data-js="nav-track">|<p class="guide-nav__group" id="guide-nav__([a-z]+)">|<a class="toc__link guide-nav__link" href="\/en\/guides\/([a-z0-9-]+)\/"( aria-current="page" data-js="nav-current")?>/g)) {
       if (m[1]) track = m[1];
       else if (m[2]) group = m[2];
       else links.push([track, group, m[3], Boolean(m[4])]);
@@ -1151,28 +1151,42 @@ describe('guides by topic, and the "All guides" sidebar', () => {
     }
   });
 
-  /** Which tracks of a page's sidebar start open. @param {string} page */
-  const openTracks = (page) => [...page.matchAll(/<details class="guide-nav__track" name="guide-tracks" data-track="([a-z-]+)" open>/g)].map((m) => m[1]);
+  /** Which track of a page's sidebar is shown (with JS), by its panel and by its tab. @param {string} page */
+  const openTracks = (page) => {
+    const panels = [...page.matchAll(/<section class="guide-nav__track is-selected" id="guide-nav-([a-z-]+)"/g)].map((m) => m[1]);
+    const tabs = [...page.matchAll(/<button type="button" class="guide-nav__tab" role="tab" id="guide-nav-tab-([a-z-]+)" aria-controls="guide-nav-\1" aria-selected="true" tabindex="0" data-js="nav-tab">/g)].map((m) => m[1]);
+    assert.deepEqual(tabs, panels, 'the selected tab shows the selected list');
+    return panels;
+  };
 
   it('the same sidebar is on the guides list and on every guide, open, with the guide being read marked', async () => {
     const open = /<details class="toc guide-nav" data-js="toc" open>\s*<summary class="toc__summary">All guides<\/summary>/;
     const list = await readOut('en/guides/index.html');
     assert.match(list, open);
-    assert.deepEqual(openTracks(list), ['everyone'], 'on the list the first track is open');
+    assert.deepEqual(openTracks(list), ['everyone'], 'on the list the first track is shown');
     assert.match(list, /<aside class="guide-aside guide-aside--nav">/, 'shown on phones too, where the script closes it');
 
     const guide = await readOut('en/guides/protest/index.html');
     assert.match(guide, open, 'not collapsed: the overview stays in view while reading');
-    assert.deepEqual(openTracks(guide), ['high-risk'], 'the track of the guide being read is open');
+    assert.deepEqual(openTracks(guide), ['high-risk'], 'the track of the guide being read is shown');
     assert.deepEqual(openTracks(await readOut('en/guides/accounts/index.html')), ['everyone']);
-    assert.match(guide, /<summary class="guide-nav__track-title">For people at higher risk<\/summary>/);
-    // Sharing a name makes the browser close one track when the other is opened: never both, so the list stays short.
-    assert.equal((guide.match(/<details class="guide-nav__track" name="guide-tracks"/g) ?? []).length, 2);
+    // A switch above the list picks the track; it never moves when the other track is chosen. Without JS it is
+    // hidden and both lists show, each under its own title.
+    assert.match(guide, /<nav class="toc__list guide-nav__body" aria-label="All guides">\s*<div class="guide-nav__switch js-only" role="tablist" aria-label="Guide groups" data-js="nav-tabs">\s*<button[^>]*id="guide-nav-tab-everyone"[^>]*>For everyone <span class="guide-nav__count">\d+<\/span><\/button>\s*<button[^>]*id="guide-nav-tab-high-risk" aria-controls="guide-nav-high-risk"[^>]*>Higher risk <span class="guide-nav__count">\d+<\/span><\/button>/);
+    assert.match(guide, /<button type="button" class="guide-nav__tab" role="tab" id="guide-nav-tab-everyone" aria-controls="guide-nav-everyone" aria-selected="false" tabindex="-1" data-js="nav-tab">/);
+    assert.match(guide, /<section class="guide-nav__track is-selected" id="guide-nav-high-risk" data-js="nav-track">\s*<p class="guide-nav__track-title">For people at higher risk<\/p>/);
+    assert.equal((guide.match(/<section class="guide-nav__track/g) ?? []).length, 2);
+    for (const page of [list, guide]) {
+      const count = (/** @type {string} */ track) => Number(new RegExp(`id="guide-nav-tab-${track}"[^>]*>[^<]+<span class="guide-nav__count">(\\d+)<`).exec(page)?.[1]);
+      assert.deepEqual([count('everyone'), count('high-risk')], ['everyone', 'high-risk'].map((track) => sidebar(page).filter(([t]) => t === track).length), 'each tab counts its guides');
+    }
     assert.deepEqual(sidebar(guide).filter(([, , , current]) => current).map(([, , slug]) => slug), ['protest']);
     assert.deepEqual(sidebar(guide).map(([, , slug]) => slug), sidebar(list).map(([, , slug]) => slug), 'same guides, same order');
     assert.match(guide, /<a class="toc__link guide-nav__link" href="\/en\/guides\/protest\/" aria-current="page" data-js="nav-current">/, 'the script can bring it into view');
     assert.match(guide, /<aside class="guide-aside guide-aside--nav guide-aside--page">\s*<div class="guide-aside__inner" data-js="nav-scroll">/);
     const css = await readOut('assets/site.css');
+    assert.match(css, /\.js \.guide-nav__track:not\(\.is-selected\) \{\s*display: none;/, 'with JS only the chosen list shows, from the first paint');
+    assert.match(css, /\.guide-nav__switch \{\s*position: sticky;\s*top: 0;/, 'the switch stays in view while the list scrolls under it');
     assert.match(css, /@media \(max-width: 63\.99rem\) \{\s*\.guide-aside--page \{\s*display: none;/, 'on a phone a guide starts with the guide; the breadcrumb leads to the overview');
     assert.match(await readOut('guides/index.html'), /<summary class="toc__summary">ყველა გზამკვლევი<\/summary>/);
   });
@@ -1209,6 +1223,10 @@ describe('guides by topic, and the "All guides" sidebar', () => {
     assert.equal((css.match(/@view-transition/g) ?? []).length, 1);
     assert.match(css, /\.site-header \{\s*view-transition-name: site-header;/);
     assert.match(css, /\.guide-aside--nav \{\s*view-transition-name: guide-nav;/);
+    // Between two pages with the sidebar it is swapped at once, never blended: two lists on top of each other read as
+    // movement. A page without it still fades it out (":only-child" is the old image alone).
+    assert.match(css, /::view-transition-old\(guide-nav\):not\(:only-child\) \{\s*display: none;/);
+    assert.match(css, /::view-transition-new\(guide-nav\):not\(:only-child\) \{\s*animation: none;/);
     // A name may be used once per page, or the browser skips the transition.
     for (const page of ['en/guides/index.html', 'en/guides/protest/index.html', 'en/index.html']) {
       const html = await readOut(page);

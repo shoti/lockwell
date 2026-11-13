@@ -279,17 +279,81 @@ export function parseScroll(value) {
 }
 
 /**
+ * One saved scroll position per track, in page order ("50 412"); a value
+ * saved by the earlier version (one number) is the first track's.
+ * @param {string | null} value
+ */
+export function parseScrolls(value) {
+  return value ? value.split(' ').map(parseScroll) : [];
+}
+
+/** Arrow keys and Home/End move between the track tabs: the index they lead to from `at`, or -1. */
+const TAB_KEYS = {
+  /** @param {number} at @param {number} n */
+  ArrowRight: (at, n) => (at + 1) % n,
+  /** @param {number} at @param {number} n */
+  ArrowLeft: (at, n) => (at - 1 + n) % n,
+  Home: () => 0,
+  /** @param {number} _at @param {number} n */
+  End: (_at, n) => n - 1,
+};
+
+/**
  * "All guides" is taller than most screens and scrolls inside the sidebar.
- * It keeps its scroll position from page to page (in this tab only), so the
- * list doesn't move under the pointer when a guide is opened from it; and if
- * the guide being read is still out of view, it is brought into view. The page
- * itself never moves.
+ * A switch above it (tabs) shows one track at a time; the build already
+ * marks the track to show, so this only handles a switch. Each track keeps
+ * its own scroll position from page to page (in this tab only), so the list
+ * doesn't move under the pointer when a guide is opened from it, and coming
+ * from the other track never lands in the middle of this one. If the guide
+ * being read is still out of view, it is brought into view. The page itself
+ * never moves.
  */
 export function initGuideNav() {
   const box = document.querySelector('[data-js="nav-scroll"]');
   if (!(box instanceof HTMLElement)) return;
-  box.scrollTop = parseScroll(read(NAV_SCROLL_KEY, 'session'));
+  const panels = [...box.querySelectorAll('[data-js="nav-track"]')];
+  const tabs = [...box.querySelectorAll('[data-js="nav-tab"]')].filter((tab) => tab instanceof HTMLElement);
+  const positions = parseScrolls(read(NAV_SCROLL_KEY, 'session'));
+  let selected = Math.max(0, panels.findIndex((panel) => panel.classList.contains('is-selected')));
+
+  box.scrollTop = positions[selected] ?? 0;
   const current = document.querySelector('[data-js="nav-current"]');
-  if (current instanceof HTMLElement) box.scrollTop += scrollToShow(current.getBoundingClientRect(), box.getBoundingClientRect());
-  window.addEventListener('pagehide', () => write(NAV_SCROLL_KEY, String(Math.round(box.scrollTop)), 'session'));
+  if (current instanceof HTMLElement) {
+    // The switch stays at the top of the box while the list scrolls under it: a link behind it is out of view.
+    const { top, bottom } = box.getBoundingClientRect();
+    const covered = box.querySelector('[data-js="nav-tabs"]')?.getBoundingClientRect().height ?? 0;
+    box.scrollTop += scrollToShow(current.getBoundingClientRect(), { top: top + covered, bottom });
+  }
+
+  /** @param {number} next */
+  const select = (next) => {
+    if (next === selected) return;
+    positions[selected] = Math.round(box.scrollTop);
+    panels.forEach((panel, i) => panel.classList.toggle('is-selected', i === next));
+    tabs.forEach((tab, i) => {
+      tab.setAttribute('aria-selected', String(i === next));
+      tab.setAttribute('tabindex', i === next ? '0' : '-1');
+    });
+    selected = next;
+    box.scrollTop = positions[next] ?? 0;
+  };
+  tabs.forEach((tab, i) => {
+    panels[i]?.setAttribute('role', 'tabpanel');
+    panels[i]?.setAttribute('aria-labelledby', tab.id);
+    tab.addEventListener('click', () => select(i));
+    tab.addEventListener('keydown', (event) => {
+      if (!Object.hasOwn(TAB_KEYS, event.key)) return;
+      const move = TAB_KEYS[/** @type {keyof typeof TAB_KEYS} */ (event.key)];
+      event.preventDefault();
+      const next = move(i, tabs.length);
+      select(next);
+      tabs[next].focus();
+    });
+  });
+
+  window.addEventListener('pagehide', () => {
+    positions[selected] = Math.round(box.scrollTop);
+    const all = panels.length > 0 ? panels.map((_, i) => positions[i] ?? 0) : [positions[0] ?? 0];
+    write(NAV_SCROLL_KEY, all.join(' '), 'session');
+  });
 }

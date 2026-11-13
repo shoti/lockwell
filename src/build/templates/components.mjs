@@ -120,6 +120,7 @@ export function guideTracks(ctx) {
     return {
       audience,
       title: ctx.t(`guides.${TRACK_STRINGS[audience]}.title`),
+      short: ctx.t(`guides.${TRACK_STRINGS[audience]}.short`),
       lead: ctx.t(`guides.${TRACK_STRINGS[audience]}.lead`),
       guides,
       groups: GROUPS[audience]
@@ -134,10 +135,13 @@ export function guideTracks(ctx) {
  * guides list and of every guide (where the current guide is marked). It
  * starts open; checklist.mjs closes it on small screens.
  *
- * The tracks are a native accordion (<details> sharing a name): the track of
- * the guide being read is open, or the first one on the guides list, and
- * opening the other closes it. One open track fits a laptop screen, so the
- * sidebar can stay in view without scrolling inside it.
+ * With JS, a switch above the list (tabs, one per track) shows one track at a
+ * time: the track of the guide being read, or the first one on the guides
+ * list. It is chosen here, so CSS shows the right list from the first paint;
+ * checklist.mjs only handles a switch to the other track. The switch never
+ * moves, unlike an accordion, where opening one track shifted the other under
+ * the pointer. Without JS the switch is hidden and both tracks are listed, each
+ * under its own title.
  * Saved progress shows as "3/7" in space every link reserves, so all titles
  * wrap the same way.
  * @param {Ctx} ctx
@@ -147,13 +151,20 @@ export function guideNav(ctx, current) {
   const { t, url } = ctx;
   const label = t('guides.navLabel');
   const tracks = guideTracks(ctx);
-  const openTrack = current?.audience ?? tracks[0]?.audience;
+  const selected = current?.audience ?? tracks[0]?.audience;
   return html`<details class="toc guide-nav" data-js="toc" open>
   <summary class="toc__summary">${label}</summary>
   <nav class="toc__list guide-nav__body" aria-label="${label}">
+    ${tracks.length > 1
+      ? html`<div class="guide-nav__switch js-only" role="tablist" aria-label="${t('guides.tracksLabel')}" data-js="nav-tabs">
+      ${tracks.map(
+        (track) => html`<button type="button" class="guide-nav__tab" role="tab" id="guide-nav-tab-${track.audience}" aria-controls="guide-nav-${track.audience}" aria-selected="${String(track.audience === selected)}" tabindex="${track.audience === selected ? '0' : '-1'}" data-js="nav-tab">${track.short} <span class="guide-nav__count">${track.guides.length}</span></button>`,
+      )}
+    </div>`
+      : null}
     ${tracks.map(
-      (track) => html`<details class="guide-nav__track" name="guide-tracks" data-track="${track.audience}"${track.audience === openTrack ? html` open` : null}>
-    <summary class="guide-nav__track-title">${track.title}</summary>
+      (track) => html`<section class="guide-nav__track${track.audience === selected ? ' is-selected' : ''}" id="guide-nav-${track.audience}" data-js="nav-track">
+    <p class="guide-nav__track-title">${track.title}</p>
     ${track.groups.map(
       (group) => html`<p class="guide-nav__group" id="guide-nav__${group.key}">${group.title}</p>
     <ul role="list" aria-labelledby="guide-nav__${group.key}">
@@ -164,7 +175,7 @@ export function guideNav(ctx, current) {
       )}
     </ul>`,
     )}
-    </details>`,
+    </section>`,
     )}
   </nav>
 </details>`;

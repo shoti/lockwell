@@ -783,40 +783,98 @@ describe('contents list on small screens', async () => {
     }
   });
 
-  it('the sidebar keeps its scroll position from page to page, in this tab only', async () => {
-    const { initGuideNav, parseScroll } = await import('../src/client/checklist.mjs');
+  it('the sidebar keeps its scroll position from page to page, per track, in this tab only', async () => {
+    const { initGuideNav, parseScroll, parseScrolls } = await import('../src/client/checklist.mjs');
     assert.deepEqual(['412', '412.6', '0', '-5', '', 'abc', 'Infinity', null].map(parseScroll), [412, 413, 0, 0, 0, 0, 0, 0]);
+    assert.deepEqual(['50 412', '412', '', 'x 7', null].map(parseScrolls), [[50, 412], [412], [], [0, 7], []], 'one position per track, in page order; the old single value is the first track');
 
     const rect = (/** @type {number} */ top, /** @type {number} */ bottom) => () => ({ top, bottom });
-    /** A sidebar 600px tall whose current guide sits at `itemTop` (viewport position, as the browser reports it after scrolling). */
-    const page = (/** @type {number} */ itemTop) => {
-      const current = Object.assign(new FakeElement('a', { js: 'nav-current' }), { getBoundingClientRect: rect(itemTop, itemTop + 40) });
+    /**
+     * A sidebar 600px tall with both tracks, `selected` shown, whose current guide (if any) sits at `itemTop`
+     * (viewport position, as the browser reports it after scrolling).
+     * @param {number} selected @param {number | null} itemTop
+     */
+    const page = (selected, itemTop) => {
+      const panels = [0, 1].map((i) => {
+        const panel = new FakeElement('section', { js: 'nav-track' });
+        if (i === selected) panel.classList.add('is-selected');
+        return panel;
+      });
+      const tabs = [0, 1].map((i) => {
+        const tab = new FakeElement('button', { js: 'nav-tab' });
+        tab.setAttribute('aria-selected', String(i === selected));
+        return tab;
+      });
       const scroller = Object.assign(new FakeElement('div', { js: 'nav-scroll' }), { getBoundingClientRect: rect(100, 700), scrollTop: 0 });
-      return { current, scroller, select: { '[data-js="nav-current"]': [current], '[data-js="nav-scroll"]': [scroller] } };
+      const bar = Object.assign(new FakeElement('div', { js: 'nav-tabs' }), { getBoundingClientRect: () => ({ height: 44 }) });
+      scroller.select = { '[data-js="nav-track"]': panels, '[data-js="nav-tab"]': tabs, '[data-js="nav-tabs"]': [bar] };
+      const current = itemTop === null ? null : Object.assign(new FakeElement('a', { js: 'nav-current' }), { getBoundingClientRect: rect(itemTop, itemTop + 40) });
+      /** @type {Record<string, InstanceType<typeof FakeElement>[]>} */
+      const select = { '[data-js="nav-scroll"]': [scroller], ...(current ? { '[data-js="nav-current"]': [current] } : {}) };
+      return { panels, tabs, scroller, select };
     };
+    const shown = (/** @type {ReturnType<typeof page>} */ p) => p.panels.map((panel, i) => [panel.classList.contains('is-selected'), p.tabs[i].getAttribute('aria-selected'), p.tabs[i].getAttribute('tabindex')]);
 
-    // First visit: nothing saved, the guide being read is far down the list.
-    const first = page(1500);
+    // First visit, on a guide of the second track that sits far down its list.
+    const first = page(1, 1500);
     const dom = installDom({ select: first.select });
+    /** @param {ReturnType<typeof page>} p */
+    const open = (p) => {
+      /** @type {any} */ (dom.document).querySelector = (/** @type {string} */ s) => p.select[s]?.[0] ?? null;
+      initGuideNav();
+    };
     try {
       initGuideNav();
-      assert.equal(first.scroller.scrollTop, 1120, 'brought to the middle');
-      first.scroller.scrollTop = 412; // the visitor scrolls the list, then opens another guide
+      assert.equal(first.scroller.scrollTop, 1098, 'brought to the middle of what the switch above it leaves visible');
+
+      // The visitor scrolls that list, then switches to the other track: it starts where it was left (the top).
+      first.scroller.scrollTop = 412;
+      first.tabs[0].click();
+      assert.deepEqual(shown(first), [[true, 'true', '0'], [false, 'false', '-1']]);
+      assert.equal(first.scroller.scrollTop, 0);
+      first.scroller.scrollTop = 50;
+      first.tabs[1].click();
+      assert.equal(first.scroller.scrollTop, 412, 'each track comes back where it was');
+      first.tabs[0].click();
+
       dom.window.dispatchEvent({ type: 'pagehide' });
-      assert.equal(dom.session.getItem('lockwell:nav-scroll'), '412');
+      assert.equal(dom.session.getItem('lockwell:nav-scroll'), '50 412', 'positions only, by track order: no names');
       assert.equal(dom.local.getItem('lockwell:nav-scroll'), null, 'never kept after the tab is closed');
 
-      // Next page: the list is where it was left, and the new guide is in view there, so nothing moves.
-      const next = page(300);
-      /** @type {any} */ (dom.document).querySelector = (/** @type {string} */ s) => next.select[/** @type {keyof typeof next.select} */ (s)]?.[0] ?? null;
-      initGuideNav();
-      assert.equal(next.scroller.scrollTop, 412);
-
-      // The guides list has the sidebar but no current guide: only the position is restored.
-      const list = page(0);
-      /** @type {any} */ (dom.document).querySelector = (/** @type {string} */ s) => (s === '[data-js="nav-scroll"]' ? list.scroller : null);
-      initGuideNav();
+      // The guides list shows the first track: its own position, not the other list's.
+      const list = page(0, null);
+      open(list);
+      assert.equal(list.scroller.scrollTop, 50);
+      list.tabs[1].click();
       assert.equal(list.scroller.scrollTop, 412);
+
+      // Keyboard: arrows move between the two tabs and wrap; Home and End go to the ends.
+      /** @type {string[]} */
+      const prevented = [];
+      const key = (/** @type {InstanceType<typeof FakeElement>} */ tab, /** @type {string} */ k) => tab.dispatchEvent({ type: 'keydown', key: k, preventDefault: () => prevented.push(k) });
+      key(list.tabs[1], 'ArrowRight');
+      assert.deepEqual(shown(list).map(([on]) => on), [true, false]);
+      key(list.tabs[0], 'ArrowLeft');
+      assert.deepEqual(shown(list).map(([on]) => on), [false, true]);
+      key(list.tabs[1], 'Home');
+      assert.deepEqual(shown(list).map(([on]) => on), [true, false]);
+      key(list.tabs[0], 'End');
+      assert.deepEqual(shown(list).map(([on]) => on), [false, true]);
+      key(list.tabs[1], 'a');
+      key(list.tabs[1], 'constructor');
+      assert.deepEqual(prevented, ['ArrowRight', 'ArrowLeft', 'Home', 'End'], 'other keys keep their default');
+
+      // A value saved by the earlier version (one number) still restores the first track.
+      dom.session.setItem('lockwell:nav-scroll', '300');
+      const old = page(0, null);
+      open(old);
+      assert.equal(old.scroller.scrollTop, 300);
+
+      // A guide whose link sits right under the switch (box top 100, switch 44px tall) is out of view.
+      dom.session.removeItem('lockwell:nav-scroll');
+      const hidden = page(1, 120);
+      open(hidden);
+      assert.equal(hidden.scroller.scrollTop, -282, 'scrolled until it is in the middle');
     } finally {
       dom.restore();
     }
