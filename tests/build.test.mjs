@@ -186,6 +186,24 @@ describe('site build', () => {
     assert.match(await readFile(join(plainDir, 'en/feed.xml'), 'utf8'), /<author><name>Lockwell<\/name><\/author>/);
   });
 
+  it('the "All guides" sidebar sticks where it starts, so it sits in the same place on every page', async () => {
+    // A layout engine would be needed to see the jump itself; this pins the rule that prevents it.
+    // The sidebar starts below the header (one row, plus its 1px border) and the page's top padding.
+    // If it stuck any higher, following a link from a scrolled page would bring it back down by the difference.
+    const css = await read('assets/site.css');
+    assert.match(css, /--nav-top: calc\(var\(--header-row\) \+ 1px \+ var\(--space-6\)\);/);
+    assert.match(css, /\.site-header \{\s*border-bottom: 1px solid/);
+    assert.match(css, /\.site-header__inner \{[^}]*min-height: var\(--header-row\);/);
+    assert.match(css, /\.page \{\s*padding-block: var\(--space-6\) /);
+    const nav = /\.guide-aside--nav \.guide-aside__inner \{([^}]*)\}/.exec(css)?.[1] ?? '';
+    assert.match(nav, /position: sticky;/);
+    assert.match(nav, /top: var\(--nav-top\);/);
+    assert.match(nav, /max-height: calc\(100vh - var\(--nav-top\) - var\(--space-6\)\);/, 'the whole sidebar fits on screen without scrolling the page');
+    // The guide's progress strip (64–80rem) would push its sidebar 4px below the guides list's.
+    const strip = /\.progress-strip \{([^}]*)\}/.exec(css)?.[1] ?? '';
+    assert.match(strip, /height: 4px;[\s\S]*margin-bottom: -4px;/);
+  });
+
   it('L16: loads nothing from other origins (scripts, styles, images, fonts, CSS urls)', async () => {
     for (const [path, html] of await allPages()) {
       const tags = [...html.matchAll(/<(script|link|img|source|iframe|video|audio)\b[^>]*>/g)].map((m) => m[0]);

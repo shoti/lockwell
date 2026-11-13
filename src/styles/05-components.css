@@ -49,7 +49,7 @@
     .site-header__inner {
       grid-template-columns: auto 1fr auto;
       grid-template-areas: "brand nav actions";
-      min-height: 4.25rem;
+      min-height: var(--header-row);
       padding-block: var(--space-2);
     }
   }
