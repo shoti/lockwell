@@ -6,7 +6,8 @@
   "author": {
     "name": "Shota Mtvarelishvili",
     "email": "mtvarelishvili@proton.me",
-    "url": "https://github.com/shoti"
+    "url": "https://github.com/shoti",
+    "inFooter": false
   },
   "copyrightYear": 2026
 }

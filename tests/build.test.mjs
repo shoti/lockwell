@@ -156,14 +156,19 @@ describe('site build', () => {
     }
   });
 
-  it('credits the author from site.json in the footer, meta tags and structured data', async () => {
+  it('credits the author from site.json in meta tags and structured data, but not in the footer during the beta', async () => {
     for (const path of ['index.html', 'en/index.html']) {
       const page = await read(path);
       assert.match(page, /<meta name="author" content="Shota Mtvarelishvili">/);
       const legal = /<p class="site-footer__legal">([\s\S]*?)<\/p>/.exec(page)?.[1].trim() ?? '';
-      assert.equal(legal, '<span>© 2026 <a href="https://github.com/shoti" rel="author external noreferrer">Shota Mtvarelishvili</a></span>', `${path}: the legal row is the copyright line only`);
-      assert.doesNotMatch(/<footer class="site-footer">[\s\S]*?<\/footer>/.exec(page)?.[0] ?? '', /mailto:|@proton/, `${path}: no email address in the footer`);
+      assert.equal(legal, '<span>© 2026 Lockwell</span>', `${path}: "author.inFooter" is false, so the footer credits the site`);
+      assert.doesNotMatch(/<footer class="site-footer">[\s\S]*?<\/footer>/.exec(page)?.[0] ?? '', /Mtvarelishvili|mailto:|@proton/, `${path}: no name or email address in the footer`);
       assert.match(page, /"copyrightHolder":\{"@type":"Person","name":"Shota Mtvarelishvili"/);
+    }
+    for (const path of ['about/index.html', 'en/about/index.html']) {
+      const main = /<main[\s\S]*?<\/main>/.exec(await read(path))?.[0] ?? '';
+      assert.ok(main.length > 0);
+      assert.doesNotMatch(main, /Mtvarelishvili|proton\.me|shoti\.github\.io/, `${path}: the About text names no author during the beta`);
     }
     const guide = await read('en/guides/accounts/index.html');
     assert.match(guide, /<meta property="article:author" content="https:\/\/github\.com\/shoti">/);
@@ -184,6 +189,22 @@ describe('site build', () => {
     assert.doesNotMatch(guide, /article:author/);
     assert.match(guide, /"author":\{"@type":"Organization","name":"Lockwell"/);
     assert.match(await readFile(join(plainDir, 'en/feed.xml'), 'utf8'), /<author><name>Lockwell<\/name><\/author>/);
+  });
+
+  it('credits the author in the footer when "author.inFooter" is true', async () => {
+    const contentDir = await contentCopy();
+    const file = join(contentDir, 'site.json');
+    const config = JSON.parse(await readFile(file, 'utf8'));
+    config.author.inFooter = true;
+    await writeFile(file, JSON.stringify(config));
+    const shown = join(workDir, 'author-in-footer');
+    await build({ outDir: shown, contentDir, siteUrl: 'https://example.org/' });
+    const legal = /<p class="site-footer__legal">([\s\S]*?)<\/p>/.exec(await readFile(join(shown, 'en/index.html'), 'utf8'))?.[1].trim();
+    assert.equal(legal, '<span>© 2026 <a href="https://github.com/shoti" rel="author external noreferrer">Shota Mtvarelishvili</a></span>');
+
+    config.author.inFooter = 'no';
+    await writeFile(file, JSON.stringify(config));
+    await assert.rejects(build({ outDir: shown, contentDir, siteUrl: 'https://example.org/' }), /"author\.inFooter" must be true or false/);
   });
 
   it('L16: loads nothing from other origins (scripts, styles, images, fonts, CSS urls)', async () => {
