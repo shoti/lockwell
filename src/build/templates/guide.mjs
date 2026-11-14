@@ -11,6 +11,7 @@ import { badge, breadcrumbs, contentFooter, draftNotice, guideMeta, printButton,
 
 /** The high-risk guide every other high-risk guide points to first. */
 export const START_GUIDE = 'threat-modelling';
+import { hedgehogWalker } from './hedgehog.mjs';
 import { icons } from './icons.mjs';
 
 /** @typedef {import('./layout.mjs').Ctx} Ctx */
@@ -99,6 +100,7 @@ export function guidePage(ctx, guide) {
     <div class="guide-main">
       ${guide.intro.length ? html`<div class="prose guide-intro">${renderBlocks(guide.intro, md)}</div>` : null}
       <p class="visually-hidden" data-js="progress-live" aria-live="polite"></p>
+      <span class="hog-walk" data-js="hog-walk" aria-hidden="true">${hedgehogWalker}</span>
       ${itemFilters(ctx, guide)}
       <div class="items">
         ${guide.items.map((item) => itemCard(ctx, item, md))}

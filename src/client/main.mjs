@@ -10,6 +10,7 @@ import { initCardProgress, initChecklist, initStepSpy, initToc } from './checkli
 import { initClearData } from './clear-data.mjs';
 import { initContinue } from './continue.mjs';
 import { initFilters } from './filters.mjs';
+import { initHello } from './hello.mjs';
 import { initPrint } from './print.mjs';
 import { initSearch } from './search.mjs';
 import { startFeatures } from './start.mjs';
@@ -31,6 +32,7 @@ startFeatures(
     { name: 'search', init: initSearch },
     { name: 'tools', init: initTools },
     { name: 'clear data', init: initClearData },
+    { name: 'hello', init: initHello },
   ],
   document.documentElement,
 );

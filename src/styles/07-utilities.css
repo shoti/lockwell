@@ -69,6 +69,8 @@
     .content-footer,
     .print-button,
     .item-filters,
+    .hero-demo,
+    .hog-walk,
     .hero__actions {
       display: none;
     }

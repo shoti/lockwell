@@ -77,12 +77,28 @@
     fill: var(--color-brand-contrast);
   }
 
-  .logo__shackle {
+  .logo__spines {
     stroke: var(--color-brand-contrast);
+    transform-box: fill-box;
+    transform-origin: 50% 100%;
   }
 
-  .logo__keyhole {
-    stroke: var(--color-brand);
+  /* The hedgehog in the logo bristles when pointed at. */
+  @media (prefers-reduced-motion: no-preference) {
+    .brand:hover .logo__spines,
+    .brand:focus-visible .logo__spines {
+      animation: logo-bristle 0.6s ease-in-out;
+    }
+  }
+
+  @keyframes logo-bristle {
+    35% {
+      transform: scale(1.12, 1.22);
+    }
+
+    70% {
+      transform: scale(0.97);
+    }
   }
 
   .brand--small {
@@ -382,26 +398,28 @@
 
   /* ---------- Hero ---------- */
   .hero {
-    padding-block: var(--space-12) var(--space-16);
+    padding-block: var(--space-10) var(--space-12);
   }
 
   @media (min-width: 48rem) {
     .hero {
-      padding-block: var(--space-20);
+      padding-block: var(--space-12) var(--space-16);
     }
   }
 
-  .eyebrow {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-2);
-    margin-bottom: var(--space-4);
-    padding: var(--space-1) var(--space-3);
-    border-radius: var(--radius-full);
-    background: var(--color-accent-soft);
-    color: var(--color-accent);
-    font-size: var(--step--1);
-    font-weight: 600;
+  /* The text, and beside it (below it on narrow screens) the encryption demo. */
+  .hero__grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4);
+  }
+
+  @media (min-width: 62rem) {
+    .hero__grid {
+      grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+      align-items: center;
+      gap: var(--space-12);
+    }
   }
 
   .hero__title {
@@ -418,19 +436,23 @@
     line-height: 1.2;
   }
 
-  /* Two classes, so it wins over .prose { max-width } defined later. */
-  .hero .hero__lead {
-    max-width: 38rem;
-    margin-top: var(--space-5);
-    color: var(--color-text-muted);
-    font-size: var(--step-1);
+  /* Beside the scene the text column is narrower: keep the long Georgian word on one line. */
+  @media (min-width: 62rem) {
+    .hero__title,
+    :lang(ka) .hero__title {
+      font-size: clamp(2.125rem, 1rem + 1.9vw, 2.875rem);
+    }
+
+    :lang(ka) .hero__title {
+      max-width: none;
+    }
   }
 
   .hero__actions {
     display: flex;
     flex-wrap: wrap;
     gap: var(--space-3);
-    margin-top: var(--space-8);
+    margin-top: var(--space-6);
   }
 
   /* "Continue: <guide>" (home). The line is always reserved; continue.mjs only
@@ -479,60 +501,313 @@
     height: 1rem;
   }
 
-  /* "Hacked or harassed right now?" on its own row, then links straight to
-     those guides: side by side where they fit, stacked on phones. The links'
-     own height spaces the rows. */
-  .hero__urgent {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    column-gap: var(--space-6);
-    font-size: var(--step--1);
+  /*
+   * The hero's scene (templates/home.mjs): a hedgehog guards a message while
+   * two nosy eyes peek in. The drawing is the label of a real checkbox that
+   * comes just before it, so tapping the hedgehog curls and uncurls it with
+   * `:checked` alone, no script. The drawing uses CSS pixels as its units.
+   */
+  .hero-demo {
+    display: grid;
+    justify-items: center;
+    gap: var(--space-2);
+    max-width: 22rem;
+    margin-inline: auto;
+    text-align: center;
   }
 
-  .hero__urgent-label {
-    display: flex;
-    flex-basis: 100%;
-    align-items: flex-start;
-    gap: var(--space-2);
+  @media (min-width: 62rem) {
+    .hero-demo {
+      max-width: 26rem;
+    }
+  }
+
+  /* The checkbox stays in the page for keyboards and screen readers; the drawing is its label. */
+  .hero-demo__input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+  }
+
+  .hero-demo__scene {
+    display: block;
+    width: 100%;
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .hero-demo__input:focus-visible + .hero-demo__scene {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 4px;
+  }
+
+  .hero-demo__art {
+    display: block;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+  }
+
+  .hero-demo__blob {
+    fill: var(--color-accent-soft);
+  }
+
+  .hero-demo__spark {
+    fill: var(--color-accent);
+  }
+
+  /* The message. */
+  .hero-demo__paper {
+    fill: var(--color-surface);
+    stroke: var(--color-border-strong);
+    stroke-width: 2;
+    stroke-linejoin: round;
+  }
+
+  .hero-demo__dot {
+    fill: var(--color-accent);
+  }
+
+  .hero-demo__hello {
+    fill: var(--color-essential);
+    font-size: 24px;
     font-weight: 600;
   }
 
-  .hero__urgent .icon {
-    width: 1.1rem;
-    height: 1.1rem;
-    margin-top: 0.2em;
-    color: var(--color-warning);
+  /* The hedgehog: spines in the brand colour; the face stays light and the eyes dark in both themes. */
+  .hero-demo__spines {
+    fill: var(--color-accent);
+    stroke: var(--color-accent);
+    stroke-width: 5;
+    stroke-linejoin: round;
   }
 
-  .hero__urgent a {
-    display: inline-flex;
-    align-items: center;
-    min-height: var(--tap);
+  .hero-demo__fur {
+    fill: var(--color-hog-fur);
+    stroke: var(--color-accent);
+    stroke-width: 2.5;
   }
 
-  /* The site's promises in one line; the About page explains them. */
-  .hero__trust {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-2) var(--space-6);
-    margin-top: var(--space-6);
-    padding-top: var(--space-6);
-    border-top: 1px solid var(--color-border);
-    color: var(--color-text-muted);
-    font-size: var(--step--1);
+  /* Lighter strokes on the ball: single spines. */
+  .hero-demo__quill {
+    fill: none;
+    stroke: var(--color-hog-fur);
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    opacity: 0.35;
   }
 
-  .hero__trust li {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-2);
+  .hero-demo__ink {
+    fill: var(--color-hog-ink);
   }
 
-  .hero__trust .icon {
-    width: 1.1rem;
-    height: 1.1rem;
-    color: var(--color-accent);
+  .hero-demo__cheek {
+    fill: var(--color-hog-cheek);
+  }
+
+  .hero-demo__smile {
+    fill: none;
+    stroke: var(--color-hog-ink);
+    stroke-width: 3;
+    stroke-linecap: round;
+  }
+
+  .hero-demo__eyes {
+    transform-box: fill-box;
+    transform-origin: center;
+  }
+
+  .hero-demo__hog,
+  .hero-demo__ball,
+  .hero-demo__open {
+    transform-origin: 180px 200px;
+  }
+
+  /* The nosy eyes. */
+  .hero-demo__eyeball {
+    fill: var(--color-surface);
+    stroke: var(--color-text);
+    stroke-width: 2.5;
+  }
+
+  .hero-demo__pupil {
+    fill: var(--color-text);
+  }
+
+  .hero-demo__glint {
+    fill: var(--color-surface);
+  }
+
+  .hero-demo__hog .hero-demo__glint {
+    fill: var(--color-hog-fur);
+  }
+
+  .hero-demo__lid {
+    fill: var(--color-surface-2);
+    stroke: var(--color-text);
+    stroke-width: 2.5;
+    stroke-linejoin: round;
+  }
+
+  .hero-demo__mark {
+    fill: var(--color-text-muted);
+    font-size: 30px;
+    font-weight: 600;
+  }
+
+  .hero-demo__mark--bad {
+    fill: var(--color-essential);
+  }
+
+  .hero-demo__snoop--one {
+    transform-origin: 306px 92px;
+  }
+
+  .hero-demo__snoop--two {
+    transform-origin: 48px 226px;
+  }
+
+  /* Curled up, only the ball shows; uncurled, only the open hedgehog. The other one shrinks away. */
+  .hero-demo__input:checked + .hero-demo__scene .hero-demo__open {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+
+  .hero-demo__input:not(:checked) + .hero-demo__scene .hero-demo__ball {
+    opacity: 0;
+    transform: scale(1.2);
+  }
+
+  /* Uncurled: the nosy eyes come closer and the message can be read. */
+
+  .hero-demo__input:not(:checked) + .hero-demo__scene .hero-demo__blob {
+    fill: var(--color-essential-soft);
+  }
+
+  .hero-demo__input:not(:checked) + .hero-demo__scene .hero-demo__paper,
+  .hero-demo__input:not(:checked) + .hero-demo__scene .hero-demo__eyeball {
+    stroke: var(--color-essential);
+  }
+
+  .hero-demo__input:not(:checked) + .hero-demo__scene .hero-demo__snoop--one {
+    transform: translate(-22px, 10px) scale(1.15);
+  }
+
+  .hero-demo__input:not(:checked) + .hero-demo__scene .hero-demo__snoop--two {
+    transform: translate(20px, -10px) scale(1.15);
+  }
+
+  .hero-demo__input:checked + .hero-demo__scene .hero-demo__only-off,
+  .hero-demo__input:not(:checked) + .hero-demo__scene .hero-demo__only-on {
+    visibility: hidden;
+  }
+
+  /* Everything that moves does so only for visitors who allow motion. */
+  @media (prefers-reduced-motion: no-preference) {
+    .hero-demo__ball,
+    .hero-demo__open {
+      transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s;
+    }
+
+    .hero-demo__ball .hero-demo__spines {
+      transform-box: fill-box;
+      transform-origin: center;
+      animation: hero-demo-bristle 2.8s ease-in-out infinite;
+    }
+
+    .hero-demo__snoop,
+    .hero-demo__blob {
+      transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), fill 0.3s;
+    }
+
+    .hero-demo__hog {
+      animation: hero-demo-float 3.6s ease-in-out infinite;
+    }
+
+    .hero-demo__note {
+      animation: hero-demo-float 3.6s ease-in-out -1.2s infinite;
+    }
+
+    .hero-demo__eyes {
+      animation: hero-demo-blink 4.2s infinite;
+    }
+
+    .hero-demo__pupil,
+    .hero-demo__glint {
+      animation: hero-demo-look 5s ease-in-out infinite;
+    }
+
+    .hero-demo__spark {
+      transform-box: fill-box;
+      transform-origin: center;
+      animation: hero-demo-twinkle 2.4s ease-in-out infinite;
+    }
+
+    .hero-demo__spark--late {
+      animation-delay: -1.2s;
+    }
+
+    .hero-demo__scene:hover .hero-demo__hog {
+      animation: hero-demo-wiggle 0.5s ease-in-out;
+    }
+  }
+
+  @keyframes hero-demo-float {
+    50% {
+      transform: translateY(-6px);
+    }
+  }
+
+  @keyframes hero-demo-blink {
+    0%,
+    92%,
+    100% {
+      transform: scaleY(1);
+    }
+
+    96% {
+      transform: scaleY(0.1);
+    }
+  }
+
+  @keyframes hero-demo-look {
+    0%,
+    100% {
+      transform: translate(0, 0);
+    }
+
+    30% {
+      transform: translate(3px, -2px);
+    }
+
+    60% {
+      transform: translate(-2px, 3px);
+    }
+  }
+
+  @keyframes hero-demo-twinkle {
+    50% {
+      opacity: 0.25;
+      transform: scale(0.6);
+    }
+  }
+
+  @keyframes hero-demo-bristle {
+    50% {
+      transform: scale(1.05) rotate(4deg);
+    }
+  }
+
+  @keyframes hero-demo-wiggle {
+    25% {
+      transform: rotate(-4deg);
+    }
+
+    75% {
+      transform: rotate(4deg);
+    }
   }
 
   .section__title {
@@ -2397,6 +2672,15 @@
     margin-bottom: var(--space-4);
   }
 
+  /* The zero of "404" is the curled-up hedgehog. */
+  .not-found__hog {
+    display: inline-block;
+    width: 1.25em;
+    height: 1.25em;
+    margin-inline: 0.05em;
+    vertical-align: -0.33em;
+  }
+
   .not-found__lang + .not-found__lang {
     margin-top: var(--space-10);
     padding-top: var(--space-8);
@@ -2409,5 +2693,70 @@
 
   .not-found__alt-title {
     font-size: var(--step-2);
+  }
+
+  /*
+   * A finished guide: the hedgehog walks across the bottom of the window once
+   * (client/checklist.mjs adds "is-walking"). It is out of the page flow and
+   * only shows when motion is allowed.
+   */
+  .hog-walk {
+    display: none;
+    position: fixed;
+    inset-block-end: 0;
+    left: 0;
+    z-index: 5;
+    width: 4rem;
+    pointer-events: none;
+  }
+
+  .hog-walk svg {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .hog-walk__spines {
+    fill: var(--color-accent);
+    stroke: var(--color-accent);
+    stroke-width: 1.2;
+    stroke-linejoin: round;
+  }
+
+  .hog-walk__fur {
+    fill: var(--color-hog-fur);
+    stroke: var(--color-accent);
+    stroke-width: 0.8;
+  }
+
+  .hog-walk__ink {
+    fill: var(--color-hog-ink);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .hog-walk.is-walking {
+      display: block;
+      animation: hog-walk 7s linear both;
+    }
+
+    .hog-walk.is-walking svg {
+      animation: hog-hop 0.28s ease-in-out infinite alternate;
+    }
+  }
+
+  @keyframes hog-walk {
+    from {
+      transform: translateX(-5rem);
+    }
+
+    to {
+      transform: translateX(100vw);
+    }
+  }
+
+  @keyframes hog-hop {
+    to {
+      transform: translateY(-0.25rem) rotate(-3deg);
+    }
   }
 }

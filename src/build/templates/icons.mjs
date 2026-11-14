@@ -101,9 +101,9 @@ export const icons = {
 export const logo = raw(
   '<svg class="logo" viewBox="0 0 32 32" width="32" height="32" aria-hidden="true" focusable="false">' +
     '<rect class="logo__bg" width="32" height="32" rx="9"/>' +
-    '<path class="logo__shackle" d="M11.5 14.5v-3.2a4.5 4.5 0 0 1 9 0v3.2" fill="none" stroke-width="2.4" stroke-linecap="round"/>' +
-    '<rect class="logo__fg" x="8.5" y="14" width="15" height="11.5" rx="3"/>' +
-    '<circle class="logo__bg" cx="16" cy="19" r="1.7"/>' +
-    '<path class="logo__keyhole" d="M16 19.8v2.4" stroke-width="1.8" stroke-linecap="round"/>' +
+    '<polygon class="logo__fg logo__spines" points="7.2,22 2.6,20.4 7.2,18.8 3.8,15.4 8.6,16 6.9,11.5 11,14 11.5,9.2 14.1,13.3 16.6,9.1 17.2,13.9 21.2,11.2 19.7,15.8 24.5,15.1 21.2,18.6" stroke-width="1.2" stroke-linejoin="round"/>' +
+    '<path class="logo__fg" d="M5.6 20.5a8.6 8.6 0 0 1 16.6-3.1l4.6 2.9a1.5 1.5 0 0 1-.2 2.6l-3.4 1.6a6 6 0 0 1-2.6.6H9.7a4.1 4.1 0 0 1-4.1-4.1z"/>' +
+    '<circle class="logo__bg" cx="21.3" cy="19.6" r="1.25"/>' +
+    '<circle class="logo__bg" cx="26.4" cy="21.6" r="1.2"/>' +
     '</svg>',
 );

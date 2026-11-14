@@ -280,6 +280,22 @@ describe('site build', () => {
     assert.doesNotMatch(page, /="var\(/);
   });
 
+  it('hedgehog extras: the 404 zero, the walker on guide pages, the console greeting, all without inline styles', async () => {
+    const notFound = await read('404.html');
+    assert.match(notFound, /<p class="not-found__code" aria-hidden="true">4<svg class="not-found__hog"[^>]*><g class="hero-demo__ball">[\s\S]*?<\/g><\/svg>4<\/p>/);
+    const guide = await read('en/guides/messaging/index.html');
+    assert.match(guide, /<span class="hog-walk" data-js="hog-walk" aria-hidden="true"><svg /, 'decoration only: hidden from screen readers');
+    assert.doesNotMatch(await read('en/index.html'), /hog-walk/, 'only guide pages carry the walker');
+    for (const page of [notFound, guide]) assert.doesNotMatch(page, / style=/);
+    const css = await read('assets/site.css');
+    assert.match(css, /\.hog-walk \{\s*display: none;\s*position: fixed;/, 'out of the flow and hidden until the walk');
+    // The walk and the logo bristle only run when motion is allowed.
+    const outside = css.replace(/@media \(prefers-reduced-motion: no-preference\) \{(?:[^{}]|\{[^{}]*\})*\}/g, '');
+    for (const rule of outside.matchAll(/\.(?:hog-walk|logo__spines|brand:hover)[^{}]*\{([^{}]*)\}/g)) assert.doesNotMatch(rule[1], /animation|transition/, rule[0]);
+    assert.match(await read('assets/js/main.mjs'), /hello\.mjs/);
+    assert.match(await read('assets/js/hello.mjs'), /Lockwell: nothing to hide here/);
+  });
+
   it('writes robots.txt, _headers, 404 and .nojekyll', async () => {
     assert.match(await read('robots.txt'), /Sitemap: https:\/\/example\.org\/sub\/sitemap\.xml/);
     assert.match(await read('_headers'), /frame-ancestors 'none'/);
@@ -742,25 +758,39 @@ describe('home page', () => {
     assert.match(homeKa, /<a class="button" href="\/guides\/threat-modelling\/">უსაფრთხოების გეგმა</);
   });
 
-  it('links straight to help for someone hacked or harassed right now', async () => {
-    const line = /<p class="hero__urgent">([\s\S]*?)<\/p>/.exec(await read('en/index.html'))?.[1] ?? '';
-    // The question is one element (icon and text) that takes its own row; the links follow it.
-    assert.match(line, /^<span class="hero__urgent-label"><svg[\s\S]*?<\/svg><span>Hacked or harassed right now\?<\/span><\/span><a /);
-    assert.deepEqual([...line.matchAll(/href="([^"]+)"/g)].map((m) => m[1]), ['/en/guides/hacked/', '/en/guides/harassment-doxxing/']);
-  });
-
-  it('names the promises once on the home page; the About page explains them', async () => {
-    for (const [home, about, heading] of [['en/index.html', 'en/about/index.html', 'How this site respects your privacy'], ['index.html', 'about/index.html', 'როგორ იცავს ეს საიტი თქვენს კონფიდენციალურობას']]) {
-      const page = await read(home);
-      assert.equal((page.match(/<ul class="hero__trust"/g) ?? []).length, 1);
-      assert.doesNotMatch(page, /class="promise|section--tinted/, 'no second, longer copy further down');
-      assert.ok((await read(about)).includes(`>${heading}</h2>`), `${about} still explains the promises`);
+  it('the hero is the title, the two buttons, the continue line and the hedgehog scene, nothing else', async () => {
+    for (const file of ['en/index.html', 'index.html']) {
+      const hero = /<section class="hero">([\s\S]*?)<\/section>/.exec(await read(file))?.[1] ?? '';
+      assert.match(hero, /<div class="hero__text">\s*<h1 class="hero__title">[^<]+<\/h1>\s*<div class="hero__actions">[\s\S]*?<\/div>\s*<p class="hero__continue js-only">[\s\S]*?<\/p>\s*<\/div>\s*<div class="hero-demo">/, file);
+      assert.doesNotMatch(hero, /eyebrow|hero__lead|hero__urgent|hero__trust/, file);
     }
   });
 
-  it('states the site\'s three promises under the hero', async () => {
-    const trust = /<ul class="hero__trust" role="list">([\s\S]*?)<\/ul>/.exec(await read('en/index.html'))?.[1] ?? '';
-    assert.deepEqual([...trust.matchAll(/<span>([^<]+)<\/span>/g)].map((m) => m[1]), ['No tracking', 'Stays on your device', 'Open and free']);
+  it('the hedgehog scene works without scripts: the drawing is the label of a real checkbox, with no text under it', async () => {
+    for (const [file, name] of [
+      ['en/index.html', 'Protection'],
+      ['index.html', 'დაცვა'],
+    ]) {
+      const demo = /<div class="hero-demo">([\s\S]*?)<\/div>\s*<\/div>\s*<\/section>/.exec(await read(file))?.[1] ?? '';
+      assert.ok(demo, `${file} has the scene`);
+      // A real checkbox, curled up (checked) by default, directly followed by its label, so `:checked +` picks the state (no :has()).
+      assert.match(demo, /<input class="hero-demo__input" type="checkbox" id="hero-demo" checked>\s*<label class="hero-demo__scene" for="hero-demo">\s*<span class="visually-hidden">[^<]+<\/span>\s*<svg class="hero-demo__art"[^>]*aria-hidden="true"/);
+      assert.ok(demo.includes(`<span class="visually-hidden">${name}</span>`), 'the checkbox has a name; the drawing itself is decoration');
+      assert.match(demo, /<\/svg>\s*<\/label>\s*$/, 'nothing follows the drawing: no caption, no hint');
+      assert.doesNotMatch(demo, /style=|<script/);
+    }
+    const css = await read('assets/site.css');
+    assert.match(css, /\.hero-demo__input:focus-visible \+ \.hero-demo__scene/, 'the hedgehog shows keyboard focus');
+    // Every animation and transition of the scene sits inside the motion query.
+    const outside = css.replace(/@media \(prefers-reduced-motion: no-preference\) \{(?:[^{}]|\{[^{}]*\})*\}/g, '');
+    for (const rule of outside.matchAll(/\.hero-demo[^{}]*\{([^{}]*)\}/g)) assert.doesNotMatch(rule[1], /animation|transition/, rule[0]);
+  });
+
+  it('the home page no longer lists the promises; the About page explains them', async () => {
+    for (const [home, about, heading] of [['en/index.html', 'en/about/index.html', 'How this site respects your privacy'], ['index.html', 'about/index.html', 'როგორ იცავს ეს საიტი თქვენს კონფიდენციალურობას']]) {
+      assert.doesNotMatch(await read(home), /class="promise|section--tinted/, 'no copy further down either');
+      assert.ok((await read(about)).includes(`>${heading}</h2>`), `${about} still explains the promises`);
+    }
   });
 });
 
@@ -937,8 +967,6 @@ describe('guide tracks', () => {
     assert.doesNotMatch(await read('en/guides/index.html'), /class="track-nav"/, 'no jump links for a single track');
     assert.doesNotMatch(await read('en/index.html'), /#high-risk/);
     assert.doesNotMatch(await read('en/index.html'), /class="path-card"/);
-    assert.doesNotMatch(await read('en/index.html'), /harassment-doxxing/, 'an urgent link to a missing guide is left out');
-    assert.match(await read('en/index.html'), /<p class="hero__urgent">[\s\S]*?href="\/en\/guides\/hacked\/"/);
   });
 
   it('shows the fixed notice on high-risk guides only, linking to the threat-modelling guide', async () => {
@@ -1019,7 +1047,6 @@ describe('final review fixes (output)', () => {
     assert.match(css, /\.tab:focus-visible \{\s*outline-offset: -3px;/, 'R6 tab ring drawn inside');
     assert.doesNotMatch(css, /scroll-padding-top/, 'R8 no double scroll offset');
     assert.doesNotMatch(css, /\.card:focus-within/, 'R9 no ring after mouse clicks');
-    assert.match(css, /\.hero \.hero__lead \{\s*max-width: 38rem;/, 'R10 hero width wins over .prose');
     assert.match(css, /\.not-found > \* \{\s*max-width: 40rem;/, 'R11 404 aligned with header');
   });
 

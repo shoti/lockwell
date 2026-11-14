@@ -143,6 +143,7 @@ export function initChecklist() {
   const checks = /** @type {HTMLInputElement[]} */ ([...root.querySelectorAll('input[data-js="item-check"]')]);
   const widgets = /** @type {HTMLElement[]} */ ([...document.querySelectorAll('[data-js="progress"]')]);
   const live = document.querySelector('[data-js="progress-live"]');
+  const walker = root.querySelector('[data-js="hog-walk"]');
   const template = root.querySelector('[data-js="progress-text"]');
   const ids = new Set(checks.map((check) => check.value));
   const progress = createProgress(ids, {
@@ -168,6 +169,12 @@ export function initChecklist() {
     if (!(check instanceof HTMLInputElement) || check.dataset.js !== 'item-check') return;
     progress.change(check.value, check.checked);
     render({ announce: true });
+    // The last step was just ticked: the hedgehog walks across the window once (CSS shows it only when motion is allowed).
+    if (check.checked && progress.done.size === checks.length) walker?.classList.add('is-walking');
+  });
+
+  walker?.addEventListener('animationend', (event) => {
+    if (event.target === walker) walker.classList.remove('is-walking');
   });
 
   root.querySelector('[data-js="progress-reset"]')?.addEventListener('click', () => {

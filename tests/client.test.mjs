@@ -382,6 +382,35 @@ describe('checklist state (BUG-6, BUG-7)', async () => {
     return { root, checks };
   };
 
+  it('the hedgehog walks once when the last step is ticked, and not for earlier ticks or unticking', () => {
+    const { root, checks } = guidePage();
+    const walker = new FakeElement('span', { js: 'hog-walk' });
+    root.select['[data-js="hog-walk"]'] = [walker];
+    const dom = installDom({ select: { '[data-js="checklist"]': [root] } });
+    const g = /** @type {Record<string, unknown>} */ (globalThis);
+    const before = g.HTMLInputElement;
+    g.HTMLInputElement = FakeElement;
+    /** @param {number} i @param {boolean} checked */
+    const tick = (i, checked) => {
+      checks[i].checked = checked;
+      root.dispatchEvent({ type: 'change', target: checks[i] });
+    };
+    try {
+      initChecklist();
+      tick(0, true);
+      assert.equal(walker.classList.contains('is-walking'), false, 'one step is still open');
+      tick(1, true);
+      assert.equal(walker.classList.contains('is-walking'), true, 'the last step was ticked');
+      walker.dispatchEvent({ type: 'animationend', target: walker });
+      assert.equal(walker.classList.contains('is-walking'), false, 'it leaves when the walk ends');
+      tick(1, false);
+      assert.equal(walker.classList.contains('is-walking'), false, 'unticking starts nothing');
+    } finally {
+      g.HTMLInputElement = before;
+      dom.restore();
+    }
+  });
+
   it('follows this guide\'s progress from another tab, and ignores other keys', () => {
     const { root, checks } = guidePage();
     const dom = installDom({ select: { '[data-js="checklist"]': [root] } });
