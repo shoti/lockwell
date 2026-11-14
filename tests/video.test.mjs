@@ -588,7 +588,23 @@ describe('findings of the 2026-11-15 review', () => {
       assert.equal(verdict, 'ok');
     });
 
-    it('cleans and checks a copy of 50 000 separate pieces, and one of 100 000 small free boxes, quickly', async () => {
+    it('cleans and checks a copy of 50 000 separate pieces, and one of 100 000 small free boxes, in a few reads', async () => {
+      // The copy is a Blob of a part per change, and every read of it costs time for every part: checking it with a
+      // read per piece is quadratic. The number of reads is the guard (the same on any machine); the time limit only
+      // catches a hang, as slow CI machines take several times longer than a laptop.
+      /** Cleans `bytes` and checks the copy, counting the reads of the copy. @param {Uint8Array} bytes */
+      const cleanAndCount = async (bytes) => {
+        const file = new Blob([/** @type {Uint8Array<ArrayBuffer>} */ (bytes)]);
+        const report = await inspectVideo(file);
+        let reads = 0;
+        /** @type {import('../src/client/tool-video.mjs').ReadRange} */
+        const counted = async (blob, offset, length) => {
+          reads += 1;
+          return new Uint8Array(await blob.slice(offset, offset + length).arrayBuffer());
+        };
+        const verdict = await verifyClean(cleanVideo(file, report.patches), file.size, report.findings.secrets, counted);
+        return { report, verdict, reads };
+      };
       const count = 50_000;
       const mdatAt = ftyp().length;
       const header = Uint8Array.from([...ftyp(), ...u32(8 + count * 32), ...chars('mdat')]);
@@ -596,17 +612,19 @@ describe('findings of the 2026-11-15 review', () => {
       const rtmd = dataTrak(2, box('rtmd', fill(6), u16(1)), [full('stsz', u32(16), u32(count)), full('stsc', u32(1), u32(1), u32(1), u32(1)), full('stco', u32(count), offsets)]);
       const many = new Uint8Array(await new Blob([header, big(count * 32, 0x11), Uint8Array.from(box('moov', mvhd(), rtmd))]).arrayBuffer());
       let started = Date.now();
-      const pieces = await cleanAndCheck(many);
+      const pieces = await cleanAndCount(many);
       assert.ok(pieces.report.patches.length >= count);
       assert.equal(pieces.verdict, 'ok');
-      assert.ok(Date.now() - started < 3000, `50 000 pieces took ${Date.now() - started} ms`);
+      assert.ok(pieces.reads < 100, `50 000 pieces: the copy was read ${pieces.reads} times`);
+      assert.ok(Date.now() - started < 20_000, `50 000 pieces took ${Date.now() - started} ms`);
       const free = Uint8Array.from(box('free', [1]));
       const frees = new Uint8Array(await new Blob([Uint8Array.from(ftyp()), ...new Array(100_000).fill(free), Uint8Array.from(box('moov', mvhd()))]).arrayBuffer());
       started = Date.now();
-      const boxes = await cleanAndCheck(frees);
+      const boxes = await cleanAndCount(frees);
       assert.ok(boxes.report.patches.length >= 100_000);
       assert.equal(boxes.verdict, 'ok');
-      assert.ok(Date.now() - started < 3000, `100 000 free boxes took ${Date.now() - started} ms`);
+      assert.ok(boxes.reads < 100, `100 000 free boxes: the copy was read ${boxes.reads} times`);
+      assert.ok(Date.now() - started < 20_000, `100 000 free boxes took ${Date.now() - started} ms`);
     });
 
     it('stays fast with 100 000 removed or unknown boxes in the index, and lists a bounded number of names', async () => {
