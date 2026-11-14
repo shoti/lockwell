@@ -37,6 +37,8 @@ export class FakeElement extends FakeEventTarget {
     /** @type {Record<string, string>} */
     this.attributes = {};
     this.textContent = '';
+    this.hidden = false;
+    this.href = '';
     this.disabled = false;
     this.checked = false;
     this.value = '';
@@ -89,9 +91,31 @@ export class FakeElement extends FakeEventTarget {
 
   focus() {}
 
-  /** Records what was appended, in order (re-appending moves an element to the end, as in a real DOM). @param {FakeElement} child */
-  append(child) {
-    this.children = [...this.children.filter((c) => c !== child), child];
+  /** Records what was appended, in order (re-appending moves an element to the end, as in a real DOM). @param {...FakeElement} nodes */
+  append(...nodes) {
+    for (const child of nodes) this.children = [...this.children.filter((c) => c !== child), child];
+  }
+
+  /**
+   * A deep copy, as a template's content is cloned: the copy's querySelector finds copies of what the original's
+   * found, and an element reachable by several selectors is copied once.
+   * @returns {FakeElement}
+   */
+  cloneNode() {
+    /** @type {Map<FakeElement, FakeElement>} */
+    const copies = new Map();
+    /** @param {FakeElement} original @returns {FakeElement} */
+    const copy = (original) => {
+      const known = copies.get(original);
+      if (known) return known;
+      const out = new FakeElement(original.tagName.toLowerCase(), original.dataset);
+      copies.set(original, out);
+      Object.assign(out, { attributes: { ...original.attributes }, textContent: original.textContent, hidden: original.hidden, href: original.href, className: original.className });
+      out.select = Object.fromEntries(Object.entries(original.select).map(([selector, found]) => [selector, found.map(copy)]));
+      out.children = original.children.map(copy);
+      return out;
+    };
+    return copy(this);
   }
 
   /** @param {FakeElement[]} children */
@@ -161,6 +185,8 @@ export function installDom({ select = {}, matchMedia } = {}) {
     querySelector: (s) => select[s]?.[0] ?? null,
     /** @param {string} s */
     querySelectorAll: (s) => select[s] ?? [],
+    /** @param {string} tag */
+    createElement: (tag) => new FakeElement(tag),
   });
   const window = Object.assign(new FakeEventTarget(), {
     localStorage: local,

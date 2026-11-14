@@ -2259,6 +2259,16 @@
     display: grid;
   }
 
+  /* Attachment checker: names, addresses and commands under a finding, one per line, exactly as found. */
+  .attachment__values {
+    display: grid;
+    gap: var(--space-1);
+    margin-block-start: var(--space-1);
+    font-family: var(--font-mono);
+    font-size: var(--step--1);
+    overflow-wrap: anywhere;
+  }
+
   /* Where the browser has no QR reader, say so instead (set before paint by the head script). */
   [data-qr] .qr-absent {
     display: none;

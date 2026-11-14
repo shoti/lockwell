@@ -17,6 +17,8 @@ const LOADERS = {
   document: () => import('./tool-document.mjs'),
   hidden: () => import('./tool-hidden.mjs'),
   photo: () => import('./tool-photo.mjs'),
+  video: () => import('./tool-video.mjs'),
+  attachment: () => import('./tool-attachment.mjs'),
   browser: () => import('./tool-browser.mjs'),
 };
 

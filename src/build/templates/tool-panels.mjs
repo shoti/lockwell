@@ -36,7 +36,7 @@ function copyButton({ t }, from) {
  */
 function filePicker({ t }, id, name, accept, multiple = false) {
   return html`<div class="file">
-          <input class="file__input" type="file" id="${id}" accept="${accept}" data-js="${name}"${multiple ? html` multiple` : null}>
+          <input class="file__input" type="file" id="${id}"${accept ? html` accept="${accept}"` : null} data-js="${name}"${multiple ? html` multiple` : null}>
           <span class="button button--ghost button--small file__button" aria-hidden="true">${icons.file}<span>${t('tools.chooseFile')}</span></span>
           <span class="file__name" aria-hidden="true" data-js="file-name" data-empty="${t('tools.noFile')}">${t('tools.noFile')}</span>
         </div>`;
@@ -393,6 +393,157 @@ function photoPanel(ctx) {
       </template>`;
 }
 
+/** Video values, in the order they are listed (Findings.fields in tool-video.mjs). */
+const VIDEO_VALUES = [
+  { key: 'taken' },
+  { key: 'timeZone' },
+  { key: 'place' },
+  { key: 'camera' },
+  { key: 'lens' },
+  { key: 'serial', why: true },
+  { key: 'lensSerial', why: true },
+  { key: 'uniqueId', why: true },
+  { key: 'software' },
+  { key: 'author' },
+  { key: 'copyright' },
+  { key: 'title' },
+  { key: 'description' },
+  { key: 'keywords' },
+  { key: 'fileName', why: true },
+];
+const VIDEO_FLAGS = ['emptyLocation', 'thumbnail', 'xmp', 'c2pa', 'cameraData', 'samsung', 'frameData', 'timecode', 'dataTrack', 'gpsLog', 'hiddenData', 'trackNames', 'other'];
+/** What stays in the clean copy (VideoReport.leftIn). */
+const VIDEO_LEFT = ['encoderName', 'subtitles', 'unknownBox'];
+const VIDEO_ERRORS = ['unsupported', 'photo', 'damaged', 'tooLarge', 'fragmented', 'readFailed'];
+
+/** @param {Ctx} ctx */
+function videoPanel(ctx) {
+  const { t } = ctx;
+  /** @param {string} key */
+  const s = (key) => t(`tools.items.video.${key}`);
+  /** "tooLarge" → "too-large" @param {string} key */
+  const dataName = (key) => key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
+  return html`<div class="field">
+        <label class="field__label" for="video__file">${s('file')}</label>
+        ${filePicker(ctx, 'video__file', 'video-file', 'video/mp4,video/quicktime,video/3gpp,video/3gpp2,video/x-m4v,.mp4,.mov,.m4v,.3gp,.3g2')}
+        <p class="facts__why">${s('fileHint')}</p>
+        <div class="tool__actions">
+          <button class="button button--ghost button--small" type="button" data-js="video-example">${icons.eye}<span>${t('tools.example')}</span></button>
+        </div>
+      </div>
+      <p class="visually-hidden" role="status" data-js="video-summary" data-done="${s('done')}"></p>
+      <article class="file-report" data-js="video-report" hidden>
+        <h3 class="file-report__name" data-js="video-name" translate="no"></h3>
+        <p class="tool__message" data-js="video-message" data-reading="${s('reading')}" data-found="${s('found')}" data-none="${s('none')}"${VIDEO_ERRORS.map((code) => html` data-${dataName(code)}="${s(`errors.${code}`)}"`)}></p>
+        <dl class="facts" data-js="video-facts" hidden>
+          <div class="facts__row" data-row="location" hidden><dt>${s('rows.location')}</dt><dd>
+            <span translate="no" data-js="video-coordinates"></span>
+            <span class="facts__why" data-js="video-accuracy" data-template="${s('accuracy')}" hidden></span>
+            <span class="tool__actions">${copyButton(ctx, 'video-coordinates')}<span class="tool__status" role="status" data-js="video-coordinates-status"></span></span>
+            <span class="facts__why">${s('why.location')}</span>
+          </dd></div>
+          <div class="facts__row" data-row="route" hidden><dt>${s('rows.route')}</dt><dd>
+            <span data-js="video-route" data-template="${s('route')}" data-unread="${s('routeUnread')}"></span>
+            <span class="facts__why" translate="no" data-js="video-route-ends" data-template="${s('routeEnds')}" hidden></span>
+            <span class="facts__why">${s('why.route')}</span>
+          </dd></div>
+          ${VIDEO_VALUES.map(
+            ({ key, why }) => html`<div class="facts__row" data-row="${key}" hidden><dt>${s(`rows.${key}`)}</dt><dd><span translate="no" data-js="video-value"></span>${why ? html` <span class="facts__why">${s(`why.${key}`)}</span>` : null}</dd></div>`,
+          )}
+          ${VIDEO_FLAGS.map((row) => html`<div class="facts__row" data-row="${row}" data-flag hidden><dt>${s(`rows.${row}`)}</dt><dd>${s(`flags.${row}`)}</dd></div>`)}
+        </dl>
+        <section class="file-report__group file-report__group--kept" data-js="video-left" hidden>
+          <h4 class="file-report__title">${s('leftTitle')}</h4>
+          <ul class="findings">
+            ${VIDEO_LEFT.map((key) => html`<li data-left="${key}" hidden>${s(`left.${key}`)} <span translate="no" data-js="video-left-names"></span></li>`)}
+          </ul>
+        </section>
+        <p class="tool__note">${s('stays')}</p>
+        <p class="tool__note" data-js="video-verified" data-ok="${s('verified')}" data-failed="${s('verifyFailed')}" hidden></p>
+        ${saveBox(ctx, s('download'))}
+      </article>`;
+}
+
+/**
+ * Everything the attachment checker can find (FINDINGS in src/client/tool-attachment.mjs, same order), and whether a
+ * finding lists values under it: names, addresses, commands.
+ */
+const ATTACHMENT_FINDINGS = /** @type {const} */ ([
+  ['program', false], ['script', false], ['installer', false], ['androidApp', false], ['javaApp', false], ['profile', true], ['shortcut', true], ['riskyExtension', true], ['riskyOpen', true], ['insideProgram', true],
+  ['bidi', true], ['doubleExtension', true], ['padded', false], ['mismatch', true], ['zipSameName', true], ['zipTraversal', true], ['zipNameMismatch', true], ['zipDuplicate', false], ['hiddenFiles', true], ['veryHidden', false], ['pdfObfuscated', true], ['insideDisguise', true],
+  ['macros', false], ['macroSheet', false], ['activeX', false], ['dde', false], ['remote', true], ['embedded', true], ['autoUpdate', false], ['equationEditor', false],
+  ['pdfJavaScript', false], ['pdfAutoAction', false], ['pdfLaunch', true], ['pdfRemote', true], ['pdfSubmit', true], ['pdfAttachments', true], ['pdfMedia', false], ['pdfXfa', false],
+  ['pageScript', false], ['passwordForm', true], ['smuggling', false], ['refresh', true], ['foreignObject', false], ['remoteFolder', true], ['linkToProgram', true], ['diskImage', false], ['insideActive', true],
+  ['encrypted', false], ['cantList', false], ['tooLarge', false], ['damaged', false], ['partlyRead', false], ['nested', false], ['insideLocked', true],
+  ['webPage', false], ['svgPage', false],
+]);
+
+/** What the attachment checker can say a file is (detectType's kinds, refined by the checker). */
+const ATTACHMENT_KINDS = [
+  'exe', 'elf', 'macho', 'javaClass', 'jar', 'apk', 'msi', 'chm', 'mobileconfig', 'shebang', 'lnk', 'url', 'libraryMs', 'searchMs',
+  'iso', 'vhd', 'vhdx', 'dmg', 'zip', 'rar', '7z', 'gzip', 'tar', 'cab', 'xar',
+  'docx', 'xlsx', 'pptx', 'officeLocked', 'odf', 'doc', 'xls', 'ppt', 'msg', 'cfb', 'rtf', 'onenote', 'pdf', 'html', 'svg', 'xml', 'text',
+  'jpeg', 'png', 'gif', 'webp', 'bmp', 'ico', 'heif', 'mp3', 'wav', 'aiff', 'ogg', 'midi', 'mp4', 'webm', 'avi', 'unknown', 'empty',
+];
+
+/** What a configuration profile can set up, in plain words (PAYLOADS in tool-attachment.mjs, plus "other"). */
+const PROFILE_PAYLOADS = ['vpn', 'certificate', 'mdm', 'wifi', 'mail', 'dns', 'webClip', 'restrictions', 'other'];
+
+/** The checker's verdicts, most serious first, and "none". */
+const ATTACHMENT_VERDICTS = ['program', 'disguise', 'active', 'locked', 'none'];
+
+/** "javaClass" → "java-class", the attribute form the client reads back with getAttribute. @param {string} key */
+const attributeName = (key) => key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
+
+/** @param {Ctx} ctx */
+function attachmentPanel(ctx) {
+  const { t } = ctx;
+  /** @param {string} key */
+  const s = (key) => t(`tools.items.attachment.${key}`);
+  /** data-program="…" data-disguise="…" … from one group of strings. @param {string} group */
+  const byVerdict = (group) => ATTACHMENT_VERDICTS.map((verdict) => html` data-${verdict}="${s(`${group}.${verdict}`)}"`);
+  return html`<div class="field">
+        <label class="field__label" for="attachment__file">${s('file')}</label>
+        ${filePicker(ctx, 'attachment__file', 'attachment-file', '', true)}
+        <p class="facts__why">${s('fileHint')}</p>
+        <div class="tool__actions">
+          <button class="button button--ghost button--small" type="button" data-js="attachment-example">${icons.eye}<span>${t('tools.example')}</span></button>
+        </div>
+      </div>
+      <p class="tool__message" role="status" data-js="attachment-summary" data-reading="${s('reading')}" data-done="${s('done')}" data-capped="${s('capped')}"></p>
+      <div class="verdicts" data-js="attachment-results"></div>
+      <p class="tool__note">${s('limit')}</p>
+      <template data-js="attachment-template">
+        <article class="verdict attachment">
+          <h3 class="file-report__name" data-js="attachment-name" translate="no" dir="ltr"></h3>
+          <p class="verdict__summary" data-js="attachment-verdict"${byVerdict('verdicts')}></p>
+          <p data-js="attachment-advice"${byVerdict('advice')}></p>
+          <dl class="facts">
+            <div class="facts__row"><dt>${s('type')}</dt><dd data-js="attachment-kind"${ATTACHMENT_KINDS.map((kind) => html` data-kind-${attributeName(kind)}="${s(`kinds.${kind}`)}"`)}></dd></div>
+          </dl>
+          <section class="file-report__group" data-js="attachment-findings">
+            <h4 class="file-report__title">${s('foundTitle')}</h4>
+            <ul class="findings">
+              ${ATTACHMENT_FINDINGS.map(
+                ([key, listed]) => html`<li data-finding="${key}" hidden>${s(`findings.${key}`)}${listed ? html` <span class="attachment__values" data-js="attachment-values" translate="no" dir="ltr"${key === 'profile' ? PROFILE_PAYLOADS.map((payload) => html` data-payload-${attributeName(payload)}="${s(`payloads.${payload}`)}"`) : null}></span>` : null}</li>`,
+              )}
+            </ul>
+          </section>
+          <section class="file-report__group" data-js="attachment-inside" hidden>
+            <h4 class="file-report__title" data-js="attachment-inside-title" data-template="${s('insideTitle')}"></h4>
+            <ul class="findings" data-js="attachment-inside-list"${byVerdict('levels')}></ul>
+            <p class="facts__why" data-js="attachment-inside-more" data-template="${s('insideMore')}" hidden></p>
+          </section>
+          <section class="file-report__group" data-js="attachment-links" hidden>
+            <h4 class="file-report__title" data-js="attachment-links-title" data-template="${s('linksTitle')}"></h4>
+            <ul class="findings" data-js="attachment-links-list" data-ok="${s('linkOk')}" data-warn="${s('linkWarn')}"></ul>
+            <p class="facts__why" data-js="attachment-links-more" data-template="${s('linksMore')}" hidden></p>
+            <p class="facts__why">${s('linksHint')} <a href="${ctx.url('/tools/link-checker/')}">${t('tools.items.check.title')}</a></p>
+          </section>
+        </article>
+      </template>`;
+}
+
 /** What the hidden character detector looks for, in the order it is listed (see KINDS in tool-hidden.mjs). */
 const HIDDEN_KINDS = ['zeroWidth', 'bidi', 'tags', 'softHyphen', 'spaces', 'trailing', 'lookalike', 'doubleSpace', 'quotes', 'dashes', 'fullwidth', 'mathLetters', 'compatibility', 'composition', 'dotless', 'georgianCase'];
 
@@ -706,5 +857,7 @@ export const PANELS = {
   document: documentPanel,
   hidden: hiddenPanel,
   photo: photoPanel,
+  video: videoPanel,
+  attachment: attachmentPanel,
   browser: browserPanel,
 };

@@ -69,8 +69,9 @@ One-click spyware arrives as a link, often with an urgent or very personal messa
 
 1. Don't tap links you didn't expect, even from people you know. Check with the sender another way.
 2. Don't paste a suspicious link into an online scanner such as VirusTotal: it shares what you submit with its partners and users. The site's [link checker](/tools/link-checker/) works on your device and sends the link nowhere, but it only reads the address and can't tell what the page behind it does.
-3. Instead, take a screenshot of the message and ask a helpline how they want to receive it: see [Know where to get expert help](/guides/threat-modelling/#get-help).
-4. On WhatsApp, if you think you are a target, turn on **Strict account settings** on your main phone: **Settings → Privacy → Advanced** (on Android, tap **⋮** first). It blocks attachments and media from unknown senders, turns off link previews and silences calls from unknown numbers. People who aren't in your contacts, such as new sources, can then no longer send you files.
+3. Be just as careful with files you didn't expect: if you think you are a target, don't open them, and ask a helpline instead. The site's [attachment checker](/tools/attachment-checker/) reads a file on your device and says whether opening it can run something, but it can't tell whether the file is harmful, and it can't find spyware that is already on your phone.
+4. Instead of tapping the link, take a screenshot of the message and ask a helpline how they want to receive it: see [Know where to get expert help](/guides/threat-modelling/#get-help).
+5. On WhatsApp, if you think you are a target, turn on **Strict account settings** on your main phone: **Settings → Privacy → Advanced** (on Android, tap **⋮** first). It blocks attachments and media from unknown senders, turns off link previews and silences calls from unknown numbers. People who aren't in your contacts, such as new sources, can then no longer send you files.
 
 Zero-click spyware needs no tap at all, so careful clicking doesn't protect you from it.
 

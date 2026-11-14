@@ -279,6 +279,21 @@ describe('document tool: PDF, beyond the Info dictionary', () => {
     assert.equal(report.clean, null);
   });
 
+  it('finds scripts and attached files whose names are written with #xx escapes (ISO 32000-1 §7.3.5)', async () => {
+    // "/#4A#53" is "/JS" and "/Java#53cript" is "/JavaScript": the same names to a PDF reader, often used to slip past scanners.
+    const report = await inspectDocument(
+      pdf(
+        [
+          '1 0 obj\n<< /Type /Catalog /Names << /Java#53cript 12 0 R /Em#62eddedFiles 13 0 R >> >>\nendobj',
+          '12 0 obj\n<< /S /Java#53cript /#4A#53 (app.alert\\(1\\)) >>\nendobj',
+          'trailer\n<< /Root 1 0 R >>\n%%EOF\n',
+        ].join('\n'),
+      ),
+    );
+    assert.ok(finding(report, 'scripts'), 'escaped script names are found');
+    assert.ok(finding(report, 'attachments'), 'escaped attachment names are found');
+  });
+
   it('says an encrypted PDF can’t be read, rather than calling it damaged', async () => {
     await assert.rejects(inspectDocument(pdf('trailer\n<< /Root 1 0 R /Encrypt 5 0 R /Info 7 0 R >>\n%%EOF')), (error) => error instanceof DocumentError && error.code === 'encrypted');
   });

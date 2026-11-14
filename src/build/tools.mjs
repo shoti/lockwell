@@ -12,8 +12,8 @@
 /**
  * @typedef {object} Tool
  * @property {string} slug  URL: /tools/<slug>/
- * @property {'password' | 'links' | 'check' | 'photo' | 'redact' | 'document' | 'hidden' | 'browser'} key  UI strings group, panel and client module.
- * @property {'key' | 'link' | 'shield' | 'image' | 'marker' | 'file' | 'eye' | 'monitor'} icon
+ * @property {'password' | 'links' | 'check' | 'photo' | 'video' | 'attachment' | 'redact' | 'document' | 'hidden' | 'browser'} key  UI strings group, panel and client module.
+ * @property {'key' | 'link' | 'shield' | 'image' | 'film' | 'paperclip' | 'marker' | 'file' | 'eye' | 'monitor'} icon
  * @property {number} notes  How many "tools.items.<key>.note<N>" paragraphs explain the tool.
  * @property {number} ai  How many "tools.items.<key>.ai<N>" paragraphs say how the tool compares with asking an AI service (0: no such section).
  * @property {boolean} [requests]  The tool can make a request to its own host when the visitor asks (the browser
@@ -33,6 +33,8 @@ export const TOOLS = [
   { slug: 'image-redaction', key: 'redact', icon: 'marker', notes: 5, ai: 2 },
   { slug: 'document-metadata', key: 'document', icon: 'file', notes: 4, ai: 1 },
   { slug: 'hidden-characters', key: 'hidden', icon: 'eye', notes: 3, ai: 2 },
+  { slug: 'video-metadata', key: 'video', icon: 'film', notes: 5, ai: 1 },
+  { slug: 'attachment-checker', key: 'attachment', icon: 'paperclip', notes: 4, ai: 1 },
 ];
 
 /**
@@ -40,8 +42,8 @@ export const TOOLS = [
  * @type {{ key: 'share' | 'suspicious' | 'device', tools: Tool['key'][] }[]}
  */
 export const TOOL_GROUPS = [
-  { key: 'share', tools: ['photo', 'redact', 'document', 'links', 'hidden'] },
-  { key: 'suspicious', tools: ['check'] },
+  { key: 'share', tools: ['photo', 'video', 'redact', 'document', 'links', 'hidden'] },
+  { key: 'suspicious', tools: ['check', 'attachment'] },
   { key: 'device', tools: ['password', 'browser'] },
 ];
 

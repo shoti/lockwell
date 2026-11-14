@@ -94,8 +94,8 @@ A photo you post can be used to find and harass people who were at the protest. 
 ### All phones
 
 1. Open the camera from the lock screen, so that the phone stays locked if it is snatched. On iPhone, swipe left on the lock screen. On a Pixel, double-press the power button (**Settings → System → Gestures → Double press power button**). On Samsung, double-press the side button (**Settings → Advanced features → Side button**).
-2. Before posting, cover faces, tattoos and distinctive clothing with solid blocks: use the [image redaction tool](/tools/image-redaction/). EFF says blurring can sometimes be reversed.
-3. Remove the location and other hidden details from the file: use the [photo metadata tool](/tools/photo-metadata/) or see [Remove location from your photos](/guides/location-photos/#photo-metadata).
+2. Before posting, cover faces, tattoos and distinctive clothing with solid blocks: use the [image redaction tool](/tools/image-redaction/). EFF says blurring can sometimes be reversed. For videos, cut or cover faces in a video editor, or don't post the clip.
+3. Remove the location and other hidden details from the file: use the [photo metadata tool](/tools/photo-metadata/) for photos and the [video metadata tool](/tools/video-metadata/) for videos, or see [Remove location from your photos](/guides/location-photos/#photo-metadata).
 4. Check the background too: reflections, street signs and other people.
 
 If you are documenting events, the hidden details can help prove when and where a photo was taken: keep the original safe and post a cleaned copy. Face detection in apps misses faces, so check every photo yourself.

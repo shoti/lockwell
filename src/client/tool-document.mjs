@@ -35,13 +35,14 @@
  * The file never leaves the browser.
  */
 import { receiveFiles } from './files.mjs';
-import { ascii, byteString, concat, crc32, startsWith } from './bytes.mjs';
+import { ascii, byteString, crc32, startsWith } from './bytes.mjs';
 import { fillInto, fillText } from './fill.mjs';
 import { hasFindings as photoHasFindings, inspectPhoto } from './tool-photo.mjs';
 import { initSave } from './save.mjs';
-import { FLAG_UTF8, SIG, cleanArchive, writeZip } from './zip.mjs';
+import { dictionaryPart, pdfNames, pdfObjects, pdfString, streamData, stringToken } from './pdf.mjs';
+import { FLAG_UTF8, ZipError, cleanArchive, readZip as readZipEntries, unzip as unzipEntry, writeZip } from './zip.mjs';
 
-export { writeZip };
+export { pdfNames, pdfString, writeZip };
 
 /**
  * A file this tool can't process; `code` picks the message shown.
@@ -72,99 +73,40 @@ export class DocumentError extends Error {
 
 /* ---------- ZIP ---------- */
 
-/** Bit 0 of the flags: the entry is encrypted. */
-const FLAG_ENCRYPTED = 1;
 /** Uncompressed property files are a few kilobytes; anything far larger is not one. */
 const MAX_PART_BYTES = 64 * 1024 * 1024;
 
 /** @typedef {import('./zip.mjs').ZipEntry} ZipEntry */
 
+/** The archive reader's errors, as this tool's. @param {unknown} error */
+const asDocumentError = (error) => (error instanceof ZipError ? new DocumentError(error.code) : error);
+
 /**
- * Lists the entries of a ZIP archive.
+ * Lists the entries of a ZIP archive (zip.mjs).
  * @param {Uint8Array} bytes
  * @returns {ZipEntry[]}
  * @throws {DocumentError} "damaged" for broken archives and archives with two entries of the same name (in any case),
  *   "locked" for encrypted entries, "zip64" for the ZIP64 format.
  */
 export function readZip(bytes) {
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  const damaged = () => new DocumentError('damaged');
-
-  // The directory is at the end, after an optional comment of up to 65,535 bytes.
-  let end = -1;
-  for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 22 - 0xffff); i -= 1) {
-    if (view.getUint32(i, true) === SIG.end) {
-      end = i;
-      break;
-    }
+  try {
+    return readZipEntries(bytes);
+  } catch (error) {
+    throw asDocumentError(error);
   }
-  if (end === -1) throw damaged();
-  const count = view.getUint16(end + 10, true);
-  let at = view.getUint32(end + 16, true);
-  // 0xFFFF / 0xFFFFFFFF mean "see the ZIP64 record".
-  if (count === 0xffff || at === 0xffffffff) throw new DocumentError('zip64');
-
-  /** @type {ZipEntry[]} */
-  const entries = [];
-  const seen = new Set();
-  const decoder = new TextDecoder();
-  for (let n = 0; n < count; n += 1) {
-    if (at + 46 > bytes.length || view.getUint32(at, true) !== SIG.central) throw damaged();
-    const flags = view.getUint16(at + 8, true);
-    const compressedSize = view.getUint32(at + 20, true);
-    const size = view.getUint32(at + 24, true);
-    const nameLength = view.getUint16(at + 28, true);
-    const local = view.getUint32(at + 42, true);
-    if (compressedSize === 0xffffffff || size === 0xffffffff || local === 0xffffffff) throw new DocumentError('zip64');
-    if (flags & FLAG_ENCRYPTED) throw new DocumentError('locked');
-    if (local + 30 > bytes.length || view.getUint32(local, true) !== SIG.local) throw damaged();
-    const dataStart = local + 30 + view.getUint16(local + 26, true) + view.getUint16(local + 28, true);
-    if (dataStart + compressedSize > bytes.length || at + 46 + nameLength > bytes.length) throw damaged();
-    const rawName = bytes.subarray(at + 46, at + 46 + nameLength);
-    const name = decoder.decode(rawName);
-    // Two entries of one name: a reader would see one and a cleaner might copy the other.
-    if (seen.has(name.toLowerCase())) throw damaged();
-    seen.add(name.toLowerCase());
-    entries.push({ name, rawName, flags, method: view.getUint16(at + 10, true), crc: view.getUint32(at + 16, true), size, data: bytes.subarray(dataStart, dataStart + compressedSize) });
-    at += 46 + nameLength + view.getUint16(at + 30, true) + view.getUint16(at + 32, true);
-  }
-  return entries;
 }
 
 /**
- * An entry's contents, decompressed. The size the archive declares is enforced while inflating: a part that grows
- * past it is not what it says, and may be built to exhaust memory.
+ * An entry's contents, decompressed, at most MAX_PART_BYTES (zip.mjs).
  * @param {ZipEntry} entry
  * @returns {Promise<Uint8Array>}
  */
 export async function unzip(entry) {
-  if (entry.method === 0) {
-    if (entry.data.length !== entry.size) throw new DocumentError('damaged');
-    return entry.data;
-  }
-  if (entry.method !== 8) throw new DocumentError('damaged');
-  if (typeof DecompressionStream !== 'function') throw new DocumentError('browser');
-  if (entry.size > MAX_PART_BYTES) throw new DocumentError('damaged');
-  /** @type {Uint8Array[]} */
-  const chunks = [];
-  let total = 0;
   try {
-    const reader = new Blob([/** @type {Uint8Array<ArrayBuffer>} */ (entry.data)]).stream().pipeThrough(new DecompressionStream('deflate-raw')).getReader();
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      total += value.length;
-      if (total > entry.size) {
-        await reader.cancel();
-        break;
-      }
-      chunks.push(value);
-    }
-  } catch {
-    throw new DocumentError('damaged');
+    return await unzipEntry(entry, MAX_PART_BYTES);
+  } catch (error) {
+    throw asDocumentError(error);
   }
-  if (total !== entry.size) throw new DocumentError('damaged');
-  return concat(chunks);
 }
 
 /**
@@ -1252,61 +1194,6 @@ const ORDER = [
 
 /* ---------- PDF ---------- */
 
-/**
- * The PDF string that starts at `at`: "(…)" with nested parentheses and escapes, or "<hex>".
- * @param {string} text
- * @param {number} at
- * @returns {string}  The token, or "" when no string starts there.
- */
-function stringToken(text, at) {
-  if (text[at] === '<' && text[at + 1] !== '<') {
-    const end = text.indexOf('>', at);
-    return end === -1 ? '' : text.slice(at, end + 1);
-  }
-  if (text[at] !== '(') return '';
-  let depth = 0;
-  for (let i = at; i < text.length; i += 1) {
-    if (text[i] === '\\') i += 1;
-    else if (text[i] === '(') depth += 1;
-    else if (text[i] === ')') {
-      depth -= 1;
-      if (depth === 0) return text.slice(at, i + 1);
-    }
-  }
-  return '';
-}
-
-/**
- * The text of a PDF string object: "(…)" with escapes, or "<hex>". A string may start with a byte order mark:
- * FE FF (UTF-16BE, the usual one), FF FE (UTF-16LE) or EF BB BF (UTF-8, PDF 2.0).
- * @param {string} token
- */
-export function pdfString(token) {
-  let raw = '';
-  if (token.startsWith('<')) {
-    const hex = token.slice(1, -1).replace(/\s/g, '');
-    for (let i = 0; i + 1 < hex.length; i += 2) raw += String.fromCharCode(Number.parseInt(hex.slice(i, i + 2), 16));
-  } else {
-    const escapes = { n: '\n', r: '\r', t: '\t', b: '\b', f: '\f' };
-    raw = token
-      .slice(1, -1)
-      .replace(/\\(\r\n|\r|\n)/g, '')
-      .replace(/\\([0-7]{1,3})|\\(.)/g, (_, octal, char) =>
-        octal ? String.fromCharCode(Number.parseInt(octal, 8) & 0xff) : (escapes[/** @type {keyof typeof escapes} */ (char)] ?? char),
-      );
-  }
-  /** @param {number} from @param {boolean} big */
-  const utf16 = (from, big) => {
-    let text = '';
-    for (let i = from; i + 1 < raw.length; i += 2) text += String.fromCharCode(big ? (raw.charCodeAt(i) << 8) | raw.charCodeAt(i + 1) : raw.charCodeAt(i) | (raw.charCodeAt(i + 1) << 8));
-    return text;
-  };
-  if (raw.startsWith('\xfe\xff')) return utf16(2, true).trim();
-  if (raw.startsWith('\xff\xfe')) return utf16(2, false).trim();
-  if (raw.startsWith('\xef\xbb\xbf')) return new TextDecoder().decode(ascii(raw.slice(3))).trim();
-  return raw.trim();
-}
-
 /** "D:20261109140322+04'00'" → "2026-11-09 14:03" @param {string} value */
 const pdfDate = (value) => value.replace(/^D:(\d{4})(\d{2})(\d{2})(?:(\d{2})(\d{2}))?.*$/, (_, y, m, d, h, min) => `${y}-${m}-${d}${h ? ` ${h}:${min}` : ''}`);
 
@@ -1314,86 +1201,6 @@ const pdfDate = (value) => value.replace(/^D:(\d{4})(\d{2})(\d{2})(?:(\d{2})(\d{
 const PDF_KEYS = { Author: 'author', Title: 'title', Subject: 'subject', Keywords: 'keywords', Creator: 'software', Producer: 'producer', CreationDate: 'created', ModDate: 'modified' };
 /** Annotations people add (comments, highlights, stamps…), as opposed to form fields and links. */
 const MARKUP = /\/Subtype\s*\/(Text|FreeText|Highlight|Underline|Squiggly|StrikeOut|Ink|Stamp|Caret|Popup|Square|Circle|Line|Polygon|PolyLine|FileAttachment|Sound|Redact)\b/;
-
-/**
- * Inflates a Flate-compressed (zlib) stream.
- * @param {Uint8Array} data
- * @returns {Promise<Uint8Array | null>}  null when the browser can't or the data is damaged.
- */
-async function inflate(data) {
-  if (typeof DecompressionStream !== 'function') return null;
-  try {
-    const stream = new Blob([/** @type {Uint8Array<ArrayBuffer>} */ (data)]).stream().pipeThrough(new DecompressionStream('deflate'));
-    return new Uint8Array(await new Response(stream).arrayBuffer());
-  } catch {
-    return null;
-  }
-}
-
-/**
- * The data of a stream object, decoded when it is Flate-compressed.
- * @param {Uint8Array} bytes  The whole file.
- * @param {number} at  Where the object's body starts.
- * @param {string} body  The object's text (one character per byte).
- * @param {Map<number, string>} [objects]  For a length given as a reference to another object.
- * @returns {Promise<string | null>}  null when it can't be decoded.
- */
-async function streamData(bytes, at, body, objects) {
-  const start = /stream\r?\n/.exec(body);
-  if (!start) return null;
-  const from = at + start.index + start[0].length;
-  const dictionary = body.slice(0, start.index);
-  const direct = /\/Length\s+(\d+)(?!\s+\d+\s+R)/.exec(dictionary)?.[1];
-  const reference = /\/Length\s+(\d+)\s+\d+\s+R/.exec(dictionary)?.[1];
-  const length = Number(direct ?? (reference ? objects?.get(Number(reference))?.trim() : undefined) ?? Number.NaN);
-  // Without a length, the data runs to "endstream", less the line break before it.
-  const end = Number.isFinite(length) ? from + length : at + body.lastIndexOf('endstream') - (/\r?\n$/.exec(body.slice(0, body.lastIndexOf('endstream')))?.[0].length ?? 0);
-  const raw = bytes.subarray(from, Math.max(from, end));
-  const filter = /\/Filter\s*\[?\s*\/(\w+)/.exec(dictionary)?.[1];
-  if (!filter) return byteString(raw);
-  if (filter !== 'FlateDecode') return null;
-  const inflated = await inflate(raw);
-  return inflated ? byteString(inflated) : null;
-}
-
-/**
- * Every object of a PDF, by number: the plain ones and those packed in
- * compressed object streams. When a number appears more than once (the file
- * was saved again with changes appended), the later one counts.
- * @param {Uint8Array} bytes
- * @param {string} text
- * @returns {Promise<{ objects: Map<number, string>, unreadable: boolean }>}
- */
-async function pdfObjects(bytes, text) {
-  /** @type {Map<number, string>} */
-  const objects = new Map();
-  let unreadable = false;
-  /** @type {{ at: number, body: string }[]} */
-  const packed = [];
-  for (const match of text.matchAll(/(?:^|[\r\n\s])(\d+)\s+(\d+)\s+obj\b/g)) {
-    const at = match.index + match[0].length;
-    const end = text.indexOf('endobj', at);
-    const body = text.slice(at, end === -1 ? undefined : end);
-    objects.set(Number(match[1]), body);
-    if (/\/Type\s*\/ObjStm\b/.test(body.slice(0, body.search(/stream\r?\n/) + 1 || undefined))) packed.push({ at, body });
-  }
-  for (const { at, body } of packed) {
-    const data = await streamData(bytes, at, body, objects);
-    const count = Number(/\/N\s+(\d+)/.exec(body)?.[1] ?? 0);
-    const first = Number(/\/First\s+(\d+)/.exec(body)?.[1] ?? 0);
-    if (data === null) {
-      unreadable = true;
-      continue;
-    }
-    const numbers = data.slice(0, first).trim().split(/\s+/).map(Number);
-    for (let i = 0; i < count; i += 1) {
-      const start = first + numbers[i * 2 + 1];
-      const end = i + 1 < count ? first + numbers[i * 2 + 3] : data.length;
-      objects.set(numbers[i * 2], data.slice(start, end));
-    }
-  }
-  return { objects, unreadable };
-}
 
 /**
  * What an XMP packet says: every author, the title, the software and the document IDs, written as elements or as
@@ -1423,10 +1230,10 @@ async function inspectPdf(bytes) {
   const text = byteString(bytes);
   // In an encrypted PDF the strings are scrambled: it can't be read, which is not the same as having nothing.
   // The dictionary may be a reference ("/Encrypt 5 0 R") or written in place ("/Encrypt<<…>>").
-  if (/\/Encrypt\s*(?:<<|\d+\s+\d+\s+R)/.test(text)) throw new DocumentError('encrypted');
+  if (/\/Encrypt\s*(?:<<|\d+\s+\d+\s+R)/.test(pdfNames(text))) throw new DocumentError('encrypted');
   const findings = new Findings();
   const { objects, unreadable } = await pdfObjects(bytes, text);
-  const all = [...objects.values()];
+  const all = [...objects.values()].map(pdfNames);
 
   /** A string value that may be written in place or as a reference to another object. @param {string} source @param {string} key */
   const value = (source, key) => {
@@ -1490,9 +1297,10 @@ async function inspectPdf(bytes) {
   // A field's type may be set on its parent, so any widget that isn't a signature or a button counts.
   const typed = unique(all.filter((body) => /\/FT\s*\/(Tx|Ch)\b/.test(body) || (/\/Subtype\s*\/Widget\b/.test(body) && !/\/FT\s*\/(Sig|Btn)\b/.test(body))).map((body) => value(body, 'V')));
   if (typed.length) findings.add('formValues', 'kept', typed);
-  else if (/\/AcroForm\b/.test(text) && all.some((body) => /\/Fields\s*\[\s*\d/.test(body))) findings.add('forms', 'kept');
+  else if (/\/AcroForm\b/.test(pdfNames(text)) && all.some((body) => /\/Fields\s*\[\s*\d/.test(body))) findings.add('forms', 'kept');
   findings.addValues('pdfSignatures', 'kept', unique(all.filter((body) => /\/Type\s*\/Sig\b/.test(body)).map((body) => value(body, 'Name'))));
-  if (all.some((body) => /\/(JavaScript|JS)\b/.test(body))) findings.add('scripts', 'kept');
+  // Only in dictionaries: stream data (thumbnails, fonts) can hold "/JS" by chance.
+  if (all.some((body) => /\/(JavaScript|JS)\b/.test(dictionaryPart(body)))) findings.add('scripts', 'kept');
   // Links to files on someone's computer or network.
   const links = all.flatMap((body) => [value(body, 'URI'), /\/S\s*\/(Launch|GoToR)\b/.test(body) ? value(body, 'F') : '']);
   findings.addValues('external', 'kept', unique(links.filter((link) => LOCAL_PATH.test(link))));
