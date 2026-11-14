@@ -20,7 +20,7 @@ There are few privacy resources in Georgian. Most advice online is written in En
 
 ## Get involved
 
-The code is published under the MIT license and the guides under CC BY-SA 4.0, so anyone can reuse and adapt them. Corrections, translations and new guides are welcome on [GitHub](https://github.com/shoti/lockwell).
+The code is published under the MIT license and the guides under CC BY-SA 4.0, so anyone can reuse and adapt them. Corrections, translations and new guides are welcome on [GitHub](https://github.com/shoti/lockwell). You can also write by email: mtvarelishvili (at) proton.me.
 
 > [!note]
 > Privacy advice goes out of date as apps change. Each guide shows the date it was last reviewed.
