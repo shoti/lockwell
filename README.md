@@ -1,18 +1,9 @@
 # Lockwell
 
-**Practical online privacy guides for people in Georgia, in Georgian and English.**
-
 Short, step-by-step checklists that help you protect your accounts, phone and
 conversations. No tracking, no ads, no cookies.
 
 Website: [lockwell.org](https://lockwell.org/)
-
-> [!NOTE]
-> There are 25 guides in two tracks: 12 for everyone and 13 for people at
-> higher risk, such as journalists, activists and human rights defenders. They
-> are written from vendor and expert sources and fact-checked, but have not yet
-> been tested on real devices or reviewed by a native Georgian speaker.
-> Corrections are welcome.
 
 ## Features
 
