@@ -53,6 +53,7 @@ import { ROOT } from './site.mjs';
  * @property {string} title
  * @property {string} description  Meta description for search results.
  * @property {string} summary  One line shown under the title and on cards.
+ * @property {typeof import('./frontmatter.mjs').ARTICLE_ICONS[number]} icon  Subject icon on its card and above its title (see ARTICLE_ICONS).
  * @property {string} published  YYYY-MM-DD
  * @property {string | undefined} updated  YYYY-MM-DD, when the text last changed in substance.
  * @property {boolean} draft  Drafts show a notice and are hidden from search engines.
@@ -114,6 +115,7 @@ const ARTICLE_FIELDS = {
   title: 'text',
   description: 'text',
   summary: 'text',
+  icon: 'articleIcon',
   published: 'date',
   updated: 'date?',
   status: 'status?',
@@ -290,6 +292,7 @@ async function loadArticles(contentDir, lang) {
       title: String(meta.title),
       description: String(meta.description),
       summary: String(meta.summary),
+      icon: /** @type {Article['icon']} */ (meta.icon),
       published,
       updated,
       draft: meta.status === 'draft',
@@ -394,8 +397,11 @@ function checkTranslations(site, content) {
       }
     }
     for (const article of content.articles[lang]) {
-      if (!content.articles[base].some((a) => a.slug === article.slug)) {
+      const original = content.articles[base].find((a) => a.slug === article.slug);
+      if (!original) {
         content.warnings.push(`${article.file}: no ${base} version exists. Add content/${base}/articles/${article.slug}.md.`);
+      } else if (article.icon !== original.icon) {
+        throw new ContentError(article.file, 0, `"icon" must match ${original.file} (${original.icon}).`);
       }
     }
     for (const kind of /** @type {const} */ (['guides', 'articles', 'pages'])) {

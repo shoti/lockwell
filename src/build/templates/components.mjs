@@ -158,6 +158,7 @@ export function articleCard(ctx, article, headingLevel) {
   const { t, url } = ctx;
   return html`<article class="card">
   <div class="card__top">
+    <span class="card__icon article-icon">${icons[article.icon]}</span>
     <time class="card__date" datetime="${article.published}">${formatDate(article.published, t('dateLocale'))}</time>
     ${article.draft ? draftBadge(ctx) : null}
   </div>

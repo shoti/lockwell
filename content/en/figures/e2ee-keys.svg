@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 339">
+  <title>How end-to-end encryption locks a message</title>
+  <desc>Three steps. 1: Your friend’s phone makes a pair of keys and sends out the public one, which can lock a message but can’t open it. 2: Your phone locks the message with that key, and the company’s servers pass on something they can’t read. 3: Only the private key opens it, and it never leaves your friend’s phone.</desc>
+  <rect x="0" y="0" width="96" height="48.4" rx="8" class="box"/>
+  <text x="48" y="28.2" class="t-sm t-b" text-anchor="middle">You</text>
+  <rect x="122" y="0" width="96" height="48.4" rx="8" class="box"/>
+  <text x="170" y="19.6" class="t-sm t-b" text-anchor="middle">Company’s</text>
+  <text x="170" y="36.8" class="t-sm t-b" text-anchor="middle">servers</text>
+  <rect x="244" y="0" width="96" height="48.4" rx="8" class="box"/>
+  <text x="292" y="28.2" class="t-sm t-b" text-anchor="middle">Your friend</text>
+  <circle cx="10" cy="72.4" r="10" class="box-good"/>
+  <text x="10" y="77" class="t-sm t-b" text-anchor="middle">1</text>
+  <text x="28" y="77" class="t-sm">Your friend’s phone makes a pair of keys and sends</text>
+  <text x="28" y="94.2" class="t-sm">out the public one. It can lock a message but can’t</text>
+  <text x="28" y="111.4" class="t-sm">open it.</text>
+  <line x1="48" y1="124.4" x2="48" y2="158.4" class="line line-thin line-dash"/>
+  <line x1="170" y1="124.4" x2="170" y2="158.4" class="line line-thin line-dash"/>
+  <line x1="292" y1="124.4" x2="292" y2="158.4" class="line line-thin line-dash"/>
+  <line x1="284" y1="141.4" x2="63" y2="141.4" class="line-good"/>
+  <polygon points="56,141.4 63,137.2 63,145.6" class="fill-good"/>
+  <rect x="148" y="130.4" width="44" height="22" class="fill-bg"/>
+  <circle cx="162" cy="140.4" r="4.5" class="line-good"/>
+  <path d="M166.5 140.4 H182 M176 140.4 V145.4 M181 140.4 V144.4" class="line-good"/>
+  <circle cx="10" cy="181.4" r="10" class="box-good"/>
+  <text x="10" y="186" class="t-sm t-b" text-anchor="middle">2</text>
+  <text x="28" y="186" class="t-sm">Your phone locks the message with that key. The</text>
+  <text x="28" y="203.2" class="t-sm">servers pass on something they can’t read.</text>
+  <line x1="48" y1="216.2" x2="48" y2="250.2" class="line line-thin line-dash"/>
+  <line x1="170" y1="216.2" x2="170" y2="250.2" class="line line-thin line-dash"/>
+  <line x1="292" y1="216.2" x2="292" y2="250.2" class="line line-thin line-dash"/>
+  <rect x="0" y="221.2" width="35.6" height="24" rx="12" class="box-soft"/>
+  <text x="17.8" y="237.7" class="t-sm" text-anchor="middle">Hi!</text>
+  <rect x="35.6" y="221.2" width="6" height="24" class="fill-bg"/>
+  <line x1="43.6" y1="233.2" x2="277" y2="233.2" class="line"/>
+  <polygon points="284,233.2 277,237.4 277,229" class="fill-muted"/>
+  <rect x="144" y="220.2" width="52" height="26" class="fill-bg"/>
+  <rect x="148" y="221.2" width="44" height="24" rx="12" class="box-good"/>
+  <path d="M166 231.2 V228.2 A4 4 0 0 1 174 228.2 V231.2" class="line-good"/>
+  <rect x="163" y="231.2" width="14" height="10" rx="2" class="fill-good"/>
+  <circle cx="10" cy="273.2" r="10" class="box-good"/>
+  <text x="10" y="277.8" class="t-sm t-b" text-anchor="middle">3</text>
+  <text x="28" y="277.8" class="t-sm">Only the private key opens it, and it never leaves</text>
+  <text x="28" y="295" class="t-sm">your friend’s phone.</text>
+  <circle cx="187.4" cy="324" r="4.5" class="line-good"/>
+  <path d="M191.9 324 H207.4 M201.4 324 V329 M206.4 324 V328" class="line-good"/>
+  <text x="216.4" y="329.5" class="t-b" text-anchor="middle">+</text>
+  <rect x="226.4" y="313" width="44" height="24" rx="12" class="box-good"/>
+  <path d="M244.4 323 V320 A4 4 0 0 1 252.4 320 V323" class="line-good"/>
+  <rect x="241.4" y="323" width="14" height="10" rx="2" class="fill-good"/>
+  <line x1="276.4" y1="325" x2="291.4" y2="325" class="line-good"/>
+  <polygon points="298.4,325 291.4,329.2 291.4,320.8" class="fill-good"/>
+  <rect x="304.4" y="313" width="35.6" height="24" rx="12" class="box-soft"/>
+  <text x="322.2" y="329.5" class="t-sm" text-anchor="middle">Hi!</text>
+</svg>

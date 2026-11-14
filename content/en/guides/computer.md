@@ -7,7 +7,7 @@ group: devices
 icon: laptop
 order: 9
 time: 45
-reviewed: 2026-11-11
+reviewed: 2026-11-14
 status: published
 ---
 

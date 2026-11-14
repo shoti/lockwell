@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 336">
+  <title>სად მიდის ის, რასაც ჩატბოტს სწერთ</title>
+  <desc>რასაც სწერთ, კომპანიის სერვერებზე იგზავნება და თქვენს ანგარიშში ინახება, როგორც წესი, სანამ არ წაშლით. იქ მას ოთხი რამ შეიძლება დაემართოს. 1, შეიძლება ადამიანებმა წაიკითხონ: თანამშრომლები და კონტრაქტორები მიმოწერების ნაწილს ამოწმებენ. 2, შეიძლება მოდელის სასწავლად გამოიყენონ: ზოგ სერვისში ეს სტანდარტულად ჩართულია. 3, შეიძლება რეკლამის შესარჩევად გამოიყენონ: ზოგ ჩატბოტში, მიმდინარე საუბრის თემის მიხედვით. 4, შეიძლება სასამართლომ გამოითხოვოს: კანონი მას ისე არ იცავს, როგორც ექიმთან ან ადვოკატთან საუბარს.</desc>
+  <rect x="150" y="0" width="190" height="88.8" rx="8" class="box-info"/>
+  <text x="245" y="22" class="t-sm t-b" text-anchor="middle">კომპანიის სერვერები</text>
+  <text x="245" y="39.2" class="t-sm" text-anchor="middle">ინახება თქვენს</text>
+  <text x="245" y="56.4" class="t-sm" text-anchor="middle">ანგარიშში, როგორც წესი,</text>
+  <text x="245" y="73.6" class="t-sm" text-anchor="middle">სანამ არ წაშლით</text>
+  <rect x="0" y="29.8" width="100.3" height="29.2" rx="14" class="box-soft"/>
+  <text x="50.1" y="47.8" class="t-sm" text-anchor="middle">რასაც სწერთ</text>
+  <line x1="106.3" y1="44.4" x2="139" y2="44.4" class="line"/>
+  <polygon points="146,44.4 139,48.6 139,40.2" class="fill-muted"/>
+  <text x="0" y="114.8" class="t-b">სერვერზე მას ოთხი რამ შეიძლება დაემართოს</text>
+  <circle cx="10" cy="140.8" r="10" class="box-warn"/>
+  <text x="10" y="145.4" class="t-sm t-b t-warn" text-anchor="middle">1</text>
+  <text x="28" y="145.4" class="t-sm t-b">შეიძლება ადამიანებმა წაიკითხონ</text>
+  <text x="28" y="162.6" class="t-sm">თანამშრომლები და კონტრაქტორები</text>
+  <text x="28" y="179.8" class="t-sm">მიმოწერების ნაწილს ამოწმებენ.</text>
+  <circle cx="10" cy="201.8" r="10" class="box-warn"/>
+  <text x="10" y="206.4" class="t-sm t-b t-warn" text-anchor="middle">2</text>
+  <text x="28" y="206.4" class="t-sm t-b">შეიძლება მოდელის სასწავლად გამოიყენონ</text>
+  <text x="28" y="223.6" class="t-sm">ზოგ სერვისში ეს სტანდარტულად ჩართულია.</text>
+  <circle cx="10" cy="245.6" r="10" class="box-warn"/>
+  <text x="10" y="250.2" class="t-sm t-b t-warn" text-anchor="middle">3</text>
+  <text x="28" y="250.2" class="t-sm t-b">შეიძლება რეკლამის შესარჩევად გამოიყენონ</text>
+  <text x="28" y="267.4" class="t-sm">ზოგ ჩატბოტში, მიმდინარე საუბრის მიხედვით.</text>
+  <circle cx="10" cy="289.4" r="10" class="box-warn"/>
+  <text x="10" y="294" class="t-sm t-b t-warn" text-anchor="middle">4</text>
+  <text x="28" y="294" class="t-sm t-b">შეიძლება სასამართლომ გამოითხოვოს</text>
+  <text x="28" y="311.2" class="t-sm">კანონი მას ისე არ იცავს, როგორც ექიმთან</text>
+  <text x="28" y="328.4" class="t-sm">ან ადვოკატთან საუბარს.</text>
+</svg>

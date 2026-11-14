@@ -47,6 +47,22 @@ async function draftAllGuides(contentDir) {
   }
 }
 
+/**
+ * Marks every article in a content copy as a draft, so tests don't depend on what is published today.
+ * @param {string} contentDir
+ */
+async function draftAllArticles(contentDir) {
+  for (const lang of ['ka', 'en']) {
+    const folder = join(contentDir, lang, 'articles');
+    for (const name of await readdir(folder)) {
+      const file = join(folder, name);
+      const source = await readFile(file, 'utf8');
+      assert.match(source, /^status: .+$/m, `${file} has a status line to change`);
+      await writeFile(file, source.replace(/^status: .+$/m, 'status: draft'));
+    }
+  }
+}
+
 describe('site build', () => {
   before(async () => {
     workDir = await mkdtemp(join(tmpdir(), 'lockwell-test-'));
@@ -502,6 +518,7 @@ describe('feed', () => {
   it('writes no feed, and links to none, while everything is a draft', async () => {
     const contentDir = await contentCopy();
     await draftAllGuides(contentDir);
+    await draftAllArticles(contentDir);
     await build({ outDir, contentDir, siteUrl: 'https://example.org/' });
     await assert.rejects(read('feed.xml'), /ENOENT/);
     await assert.rejects(read('en/feed.xml'), /ENOENT/);
@@ -511,13 +528,14 @@ describe('feed', () => {
   it('lists published guides and articles per language, newest first, and leaves drafts out', async () => {
     const contentDir = await contentCopy();
     await draftAllGuides(contentDir);
+    await draftAllArticles(contentDir);
     await publish(contentDir, ['en/guides/accounts.md', 'ka/guides/accounts.md', 'en/articles/end-to-end-encryption.md']);
     await build({ outDir, contentDir, siteUrl: 'https://example.org/sub/' });
 
     const feed = await read('en/feed.xml');
     assert.match(feed, /^<\?xml version="1\.0" encoding="UTF-8"\?>\n<feed xmlns="http:\/\/www\.w3\.org\/2005\/Atom" xml:lang="en">/);
     assert.match(feed, /<link rel="self" type="application\/atom\+xml" href="https:\/\/example\.org\/sub\/en\/feed\.xml"\/>/);
-    assert.match(feed, /<updated>2026-11-11T00:00:00Z<\/updated>\n {2}<author>/, 'feed date is the newest entry');
+    assert.match(feed, /<updated>2026-11-14T00:00:00Z<\/updated>\n {2}<author>/, 'feed date is the newest entry');
     assert.match(feed, /<author><name>Shota Mtvarelishvili<\/name><uri>https:\/\/github\.com\/shoti<\/uri><\/author>\n {2}<rights>© 2026 Shota Mtvarelishvili<\/rights>/);
     const ids = [...feed.matchAll(/<id>([^<]+)<\/id>/g)].map((m) => m[1]);
     assert.deepEqual(ids, [
@@ -527,7 +545,7 @@ describe('feed', () => {
     ]);
     assert.doesNotMatch(feed, /messaging/, 'drafts stay out');
     assert.match(feed, /<title>What end-to-end encryption means, and what it doesn&#39;t<\/title>/, 'text is escaped');
-    assert.match(feed, /<published>2026-11-11T00:00:00Z<\/published>/);
+    assert.match(feed, /<published>2026-11-14T00:00:00Z<\/published>/);
 
     const ka = await read('feed.xml');
     assert.match(ka, /xml:lang="ka"/);
@@ -569,11 +587,11 @@ describe('articles', () => {
     const article = await read('en/articles/end-to-end-encryption/index.html');
     assert.match(article, /<html lang="en"/);
     assert.match(article, /<div class="prose prose--article"><p>/);
-    assert.match(article, /<time datetime="2026-11-11">11 November 2026<\/time>/);
+    assert.match(article, /<time datetime="2026-11-14">14 November 2026<\/time>/);
     assert.match(article, /\d+ min read/);
     assert.match(article, /<a class="site-nav__link" href="\/en\/articles\/" aria-current="true">Articles<\/a>/);
     assert.match(article, /class="lang-switch" href="\/articles\/end-to-end-encryption\/" hreflang="ka"/, 'the language switch points to the translation');
-    assert.match(article, /"datePublished":"2026-11-11","dateModified":"2026-11-11"/);
+    assert.match(article, /"datePublished":"2026-11-14","dateModified":"2026-11-14"/);
     assert.match(await read('articles/end-to-end-encryption/index.html'), /<html lang="ka"/);
 
     const list = await read('en/articles/index.html');
@@ -588,17 +606,20 @@ describe('articles', () => {
   });
 
   it('keeps draft articles out of search engines, and lists published ones in the sitemap with their last change', async () => {
-    await build({ outDir, siteUrl: 'https://example.org/' });
+    const drafts = await contentCopy();
+    await draftAllArticles(drafts);
+    await build({ outDir, contentDir: drafts, siteUrl: 'https://example.org/' });
     assert.match(await read('articles/end-to-end-encryption/index.html'), /<meta name="robots" content="noindex">/);
     assert.doesNotMatch(await read('sitemap.xml'), /end-to-end-encryption/);
 
     const contentDir = await contentCopy();
+    await draftAllArticles(contentDir);
     for (const lang of ['ka', 'en']) await editArticle(contentDir, lang, 'status: draft', 'updated: 2026-12-01');
     await build({ outDir, contentDir, siteUrl: 'https://example.org/' });
     const page = await read('en/articles/end-to-end-encryption/index.html');
     assert.doesNotMatch(page, /noindex/);
     assert.match(page, /Updated <time datetime="2026-12-01">/);
-    assert.match(page, /"datePublished":"2026-11-11","dateModified":"2026-12-01"/);
+    assert.match(page, /"datePublished":"2026-11-14","dateModified":"2026-12-01"/);
     assert.match(await read('sitemap.xml'), /<loc>https:\/\/example\.org\/en\/articles\/end-to-end-encryption\/<\/loc>\s*<lastmod>2026-12-01<\/lastmod>/);
   });
 
@@ -618,8 +639,35 @@ describe('articles', () => {
     assert.doesNotMatch(ka, /hreflang="x-default"/, 'no alternates for a page that exists in one language');
   });
 
+  it('every article has a subject icon, the same in both languages, shown on its card and above its title', async () => {
+    const { ARTICLE_ICONS } = await import('../src/build/frontmatter.mjs');
+    const { icons } = await import('../src/build/templates/icons.mjs');
+    for (const name of ARTICLE_ICONS) assert.ok(Object.hasOwn(icons, name), `ARTICLE_ICONS names "${name}", which icons.mjs must draw`);
+    const slugs = (await readdir(join(PATHS.content, 'en', 'articles'))).filter((f) => f.endsWith('.md')).map((f) => f.replace('.md', ''));
+    /** @param {string} lang @param {string} slug */
+    const iconOf = async (lang, slug) => /^icon: (.+)$/m.exec(await readFile(join(PATHS.content, lang, 'articles', `${slug}.md`), 'utf8'))?.[1];
+    const used = await Promise.all(slugs.map((slug) => iconOf('en', slug)));
+    assert.ok(used.every(Boolean), 'every article sets "icon"');
+    assert.equal(new Set(used).size, used.length, `no two articles share an icon: ${used.join(', ')}`);
+
+    await build({ outDir, siteUrl: 'https://example.org/' });
+    const list = await read('en/articles/index.html');
+    for (const slug of slugs) {
+      assert.match(list, new RegExp(`<article class="card">\\s*<div class="card__top">\\s*<span class="card__icon article-icon"><svg class="icon"[^>]*aria-hidden="true"[^>]*>[\\s\\S]*?</svg></span>\\s*<time class="card__date"[\\s\\S]*?<a class="card__link" href="/en/articles/${slug}/">`), slug);
+      assert.match(await read(`en/articles/${slug}/index.html`), /<span class="card__icon article-icon article__icon"><svg class="icon"[^>]*>[\s\S]*?<\/svg><\/span>\s*<h1 class="page-header__title">/, slug);
+    }
+
+    const contentDir = await contentCopy();
+    await editArticle(contentDir, 'en', 'icon: lock', 'icon: robot');
+    await assert.rejects(build({ outDir, contentDir, siteUrl: 'https://example.org/' }), /en\/articles\/end-to-end-encryption\.md — "icon" must match \S+ka\/articles\/end-to-end-encryption\.md \(lock\)/);
+    const missing = await contentCopy();
+    await editArticle(missing, 'ka', 'icon: lock\n', '');
+    await assert.rejects(build({ outDir, contentDir: missing, siteUrl: 'https://example.org/' }), /Missing required front matter key "icon"/);
+  });
+
   it('rejects an "updated" date before "published", and a page that would take the /articles/ URL', async () => {
     const contentDir = await contentCopy();
+    await draftAllArticles(contentDir);
     await editArticle(contentDir, 'en', 'status: draft', 'updated: 2026-11-10');
     await assert.rejects(build({ outDir, contentDir, siteUrl: 'https://example.org/' }), /end-to-end-encryption\.md:\d+ — "updated" \(2026-11-10\) can't be earlier than "published"/);
 
@@ -868,9 +916,20 @@ describe('guide tracks', () => {
   it('leaves out a track that has no guides', async () => {
     const contentDir = await contentCopy();
     for (const lang of ['ka', 'en']) {
+      /** @type {string[]} */
+      const removed = [];
       for (const name of await readdir(join(contentDir, lang, 'guides'))) {
         const file = join(contentDir, lang, 'guides', name);
-        if (/^audience: high-risk$/m.test(await readFile(file, 'utf8'))) await rm(file);
+        if (/^audience: high-risk$/m.test(await readFile(file, 'utf8'))) {
+          await rm(file);
+          removed.push(name.replace(/\.md$/, ''));
+        }
+      }
+      // Articles may point to high-risk guides; without those guides the links would be broken.
+      const links = new RegExp(`\\[([^\\]]+)\\]\\(/guides/(?:${removed.join('|')})/[^)]*\\)`, 'g');
+      for (const name of await readdir(join(contentDir, lang, 'articles'))) {
+        const file = join(contentDir, lang, 'articles', name);
+        await writeFile(file, (await readFile(file, 'utf8')).replace(links, '$1'));
       }
     }
     await build({ outDir, contentDir, siteUrl: 'https://example.org/' });

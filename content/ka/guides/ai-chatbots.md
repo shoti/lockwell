@@ -7,7 +7,7 @@ group: habits
 icon: sparkle
 order: 8
 time: 30
-reviewed: 2026-11-12
+reviewed: 2026-11-14
 status: published
 ---
 

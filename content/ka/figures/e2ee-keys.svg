@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 374">
+  <title>როგორ კეტავს End-to-end დაშიფვრა შეტყობინებას</title>
+  <desc>სამი ნაბიჯი. 1: მეგობრის ტელეფონი ქმნის გასაღებების წყვილს და საჯარო გასაღებს გიგზავნით. ის შეტყობინებას კეტავს, მაგრამ ვერ ხსნის. 2: თქვენი ტელეფონი შეტყობინებას ამ გასაღებით კეტავს, კომპანიის სერვერები კი ატარებენ მონაცემებს, რომელთა წაკითხვაც არ შეუძლიათ. 3: შეტყობინებას მხოლოდ პირადი გასაღები ხსნის, რომელიც მეგობრის ტელეფონს არასდროს ტოვებს.</desc>
+  <rect x="0" y="0" width="96" height="48.4" rx="8" class="box"/>
+  <text x="48" y="28.2" class="t-sm t-b" text-anchor="middle">თქვენ</text>
+  <rect x="122" y="0" width="96" height="48.4" rx="8" class="box"/>
+  <text x="170" y="19.6" class="t-sm t-b" text-anchor="middle">კომპანიის</text>
+  <text x="170" y="36.8" class="t-sm t-b" text-anchor="middle">სერვერები</text>
+  <rect x="244" y="0" width="96" height="48.4" rx="8" class="box"/>
+  <text x="292" y="28.2" class="t-sm t-b" text-anchor="middle">მეგობარი</text>
+  <circle cx="10" cy="72.4" r="10" class="box-good"/>
+  <text x="10" y="77" class="t-sm t-b" text-anchor="middle">1</text>
+  <text x="28" y="77" class="t-sm">მეგობრის ტელეფონი ქმნის გასაღებების</text>
+  <text x="28" y="94.2" class="t-sm">წყვილს და საჯარო გასაღებს გიგზავნით. ის</text>
+  <text x="28" y="111.4" class="t-sm">შეტყობინებას კეტავს, მაგრამ ვერ ხსნის.</text>
+  <line x1="48" y1="124.4" x2="48" y2="158.4" class="line line-thin line-dash"/>
+  <line x1="170" y1="124.4" x2="170" y2="158.4" class="line line-thin line-dash"/>
+  <line x1="292" y1="124.4" x2="292" y2="158.4" class="line line-thin line-dash"/>
+  <line x1="284" y1="141.4" x2="63" y2="141.4" class="line-good"/>
+  <polygon points="56,141.4 63,137.2 63,145.6" class="fill-good"/>
+  <rect x="148" y="130.4" width="44" height="22" class="fill-bg"/>
+  <circle cx="162" cy="140.4" r="4.5" class="line-good"/>
+  <path d="M166.5 140.4 H182 M176 140.4 V145.4 M181 140.4 V144.4" class="line-good"/>
+  <circle cx="10" cy="181.4" r="10" class="box-good"/>
+  <text x="10" y="186" class="t-sm t-b" text-anchor="middle">2</text>
+  <text x="28" y="186" class="t-sm">თქვენი ტელეფონი შეტყობინებას ამ გასაღებით</text>
+  <text x="28" y="203.2" class="t-sm">კეტავს. სერვერები ატარებენ იმას, რის</text>
+  <text x="28" y="220.4" class="t-sm">წაკითხვაც არ შეუძლიათ.</text>
+  <line x1="48" y1="233.4" x2="48" y2="267.4" class="line line-thin line-dash"/>
+  <line x1="170" y1="233.4" x2="170" y2="267.4" class="line line-thin line-dash"/>
+  <line x1="292" y1="233.4" x2="292" y2="267.4" class="line line-thin line-dash"/>
+  <rect x="0" y="238.4" width="72" height="24" rx="12" class="box-soft"/>
+  <text x="36" y="254.9" class="t-sm" text-anchor="middle">სალამი!</text>
+  <rect x="72" y="238.4" width="6" height="24" class="fill-bg"/>
+  <line x1="80" y1="250.4" x2="277" y2="250.4" class="line"/>
+  <polygon points="284,250.4 277,254.6 277,246.2" class="fill-muted"/>
+  <rect x="144" y="237.4" width="52" height="26" class="fill-bg"/>
+  <rect x="148" y="238.4" width="44" height="24" rx="12" class="box-good"/>
+  <path d="M166 248.4 V245.4 A4 4 0 0 1 174 245.4 V248.4" class="line-good"/>
+  <rect x="163" y="248.4" width="14" height="10" rx="2" class="fill-good"/>
+  <circle cx="10" cy="290.4" r="10" class="box-good"/>
+  <text x="10" y="295" class="t-sm t-b" text-anchor="middle">3</text>
+  <text x="28" y="295" class="t-sm">შეტყობინებას მხოლოდ პირადი გასაღები</text>
+  <text x="28" y="312.2" class="t-sm">ხსნის, რომელიც მეგობრის ტელეფონს</text>
+  <text x="28" y="329.4" class="t-sm">არასდროს ტოვებს.</text>
+  <circle cx="151" cy="358.4" r="4.5" class="line-good"/>
+  <path d="M155.5 358.4 H171 M165 358.4 V363.4 M170 358.4 V362.4" class="line-good"/>
+  <text x="180" y="363.9" class="t-b" text-anchor="middle">+</text>
+  <rect x="190" y="347.4" width="44" height="24" rx="12" class="box-good"/>
+  <path d="M208 357.4 V354.4 A4 4 0 0 1 216 354.4 V357.4" class="line-good"/>
+  <rect x="205" y="357.4" width="14" height="10" rx="2" class="fill-good"/>
+  <line x1="240" y1="359.4" x2="255" y2="359.4" class="line-good"/>
+  <polygon points="262,359.4 255,363.6 255,355.2" class="fill-good"/>
+  <rect x="268" y="347.4" width="72" height="24" rx="12" class="box-soft"/>
+  <text x="304" y="363.9" class="t-sm" text-anchor="middle">სალამი!</text>
+</svg>

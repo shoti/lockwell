@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 301">
+  <title>Where what you type into a chatbot goes</title>
+  <desc>What you type is sent to the company’s servers and saved to your account, usually until you delete it. There, four things can happen. 1, people may read it: staff and contractors review some chats. 2, it may train the model: on some services this is on by default. 3, it may be used to choose ads: in some chatbots, based on the current chat. 4, a court can demand it: the law may not protect it like a talk with a doctor or a lawyer.</desc>
+  <rect x="150" y="0" width="190" height="71.6" rx="8" class="box-info"/>
+  <text x="245" y="22" class="t-sm t-b" text-anchor="middle">The company’s servers</text>
+  <text x="245" y="39.2" class="t-sm" text-anchor="middle">Saved to your account,</text>
+  <text x="245" y="56.4" class="t-sm" text-anchor="middle">usually until you delete it</text>
+  <rect x="0" y="21.2" width="106.2" height="29.2" rx="14" class="box-soft"/>
+  <text x="53.1" y="39.2" class="t-sm" text-anchor="middle">What you type</text>
+  <line x1="112.2" y1="35.8" x2="139" y2="35.8" class="line"/>
+  <polygon points="146,35.8 139,40 139,31.6" class="fill-muted"/>
+  <text x="0" y="97.6" class="t-b">There, four things can happen</text>
+  <circle cx="10" cy="123.6" r="10" class="box-warn"/>
+  <text x="10" y="128.2" class="t-sm t-b t-warn" text-anchor="middle">1</text>
+  <text x="28" y="128.2" class="t-sm t-b">People may read it</text>
+  <text x="28" y="145.4" class="t-sm">Staff and contractors review some chats.</text>
+  <circle cx="10" cy="167.4" r="10" class="box-warn"/>
+  <text x="10" y="172" class="t-sm t-b t-warn" text-anchor="middle">2</text>
+  <text x="28" y="172" class="t-sm t-b">It may train the model</text>
+  <text x="28" y="189.2" class="t-sm">On some services this is on by default.</text>
+  <circle cx="10" cy="211.2" r="10" class="box-warn"/>
+  <text x="10" y="215.8" class="t-sm t-b t-warn" text-anchor="middle">3</text>
+  <text x="28" y="215.8" class="t-sm t-b">It may be used to choose ads</text>
+  <text x="28" y="233" class="t-sm">In some chatbots, based on the current chat.</text>
+  <circle cx="10" cy="255" r="10" class="box-warn"/>
+  <text x="10" y="259.6" class="t-sm t-b t-warn" text-anchor="middle">4</text>
+  <text x="28" y="259.6" class="t-sm t-b">A court can demand it</text>
+  <text x="28" y="276.8" class="t-sm">The law may not protect it like a talk with a doctor</text>
+  <text x="28" y="294" class="t-sm">or a lawyer.</text>
+</svg>
