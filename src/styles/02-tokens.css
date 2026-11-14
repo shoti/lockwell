@@ -64,6 +64,10 @@
     --color-bg: #fbfaf7;
     --color-surface: #ffffff;
     --color-surface-2: #f2efe9;
+    /* The home page hedgehog keeps its own light face and dark eyes in both themes. */
+    --color-hog-fur: #ffffff;
+    --color-hog-ink: #16233a;
+    --color-hog-cheek: #f9d3d0;
     --color-text: #16233a;
     --color-text-muted: #535e73;
     --color-border: #e3dfd6;

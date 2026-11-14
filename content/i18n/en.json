@@ -808,27 +808,19 @@
     "guidesHeading": "Where to start",
     "articlesHeading": "Latest articles",
     "allArticles": "All articles",
-    "promises": {
-      "tracking": {
-        "title": "No tracking"
-      },
-      "device": {
-        "title": "Stays on your device"
-      },
-      "open": {
-        "title": "Open and free"
-      }
-    },
     "highRiskGuides": "For people at higher risk",
     "allGuidesCount": {
       "one": "All guides",
       "other": "All {n} guides"
     },
-    "urgent": "Hacked or harassed right now?",
     "highRisk": {
       "title": "At higher risk?",
       "cta": "Make your security plan",
       "text": "If you are an activist or a journalist, or have reason to think someone is targeting you, start with your security plan: it helps you work out which guides you need."
+    },
+    "demo": {
+      "toggle": "Protection",
+      "hello": "Hi!"
     }
   },
   "footer": {

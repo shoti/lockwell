@@ -4,18 +4,19 @@
  */
 import { html } from '../html.mjs';
 import { href, localePath } from '../site.mjs';
+import { hedgehogBall } from './hedgehog.mjs';
 
 /** @typedef {import('./layout.mjs').Ctx} Ctx */
 
 /**
  * GitHub Pages serves a single /404.html for every language, so the page
- * offers a way home in each language.
+ * offers a way home in each language. The zero of "404" is the curled-up hedgehog.
  * @param {Ctx} ctx
  */
 export function notFoundPage(ctx) {
   const { site, t } = ctx;
   const body = html`<div class="container page not-found">
-  <p class="not-found__code" aria-hidden="true">404</p>
+  <p class="not-found__code" aria-hidden="true">4<svg class="not-found__hog" viewBox="92 110 176 176" focusable="false">${hedgehogBall}</svg>4</p>
   ${site.languages.map((lang) => {
     const tLang = ctx.tFor(lang);
     const primary = lang === ctx.lang;
