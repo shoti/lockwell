@@ -178,7 +178,7 @@ function header(ctx, page) {
 /** @param {Ctx} ctx */
 function footer(ctx) {
   const { site, t, url } = ctx;
-  // The legal row is the copyright line only (owner's choice). About is still in the header from 50rem.
+  // The legal row is the copyright line, plus the About link on screens too narrow for it in the header (below 50rem).
   return html`<footer class="site-footer">
   <div class="container site-footer__inner">
     <div class="site-footer__brand">
@@ -197,6 +197,7 @@ function footer(ctx) {
       ${site.author?.inFooter
         ? html`<span>${t('footer.copyright', { year: site.copyrightYear ?? '' })} <a href="${site.author.url}" rel="author external noreferrer">${site.author.name}</a></span>`
         : html`<span>${t('footer.copyright', { year: site.copyrightYear ?? '' })} ${t('siteName')}</span>`}
+      <a class="site-footer__about" href="${url('/about/')}">${t('nav.about')}</a>
     </p>
   </div>
 </footer>`;

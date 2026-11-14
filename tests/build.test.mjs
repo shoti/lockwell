@@ -174,14 +174,18 @@ describe('site build', () => {
       const page = await read(path);
       assert.match(page, /<meta name="author" content="Shota Mtvarelishvili">/);
       const legal = /<p class="site-footer__legal">([\s\S]*?)<\/p>/.exec(page)?.[1].trim() ?? '';
-      assert.equal(legal, '<span>© 2026 Lockwell</span>', `${path}: "author.inFooter" is false, so the footer credits the site`);
+      const about = path === 'index.html' ? '<a class="site-footer__about" href="/sub/about/">შესახებ</a>' : '<a class="site-footer__about" href="/sub/en/about/">About</a>';
+      assert.equal(legal.replace(/\s+/g, ' '), `<span>© 2026 Lockwell</span> ${about}`, `${path}: "author.inFooter" is false, so the footer credits the site`);
       assert.doesNotMatch(/<footer class="site-footer">[\s\S]*?<\/footer>/.exec(page)?.[0] ?? '', /Mtvarelishvili|mailto:|@proton/, `${path}: no name or email address in the footer`);
       assert.match(page, /"copyrightHolder":\{"@type":"Person","name":"Shota Mtvarelishvili"/);
     }
     for (const path of ['about/index.html', 'en/about/index.html']) {
       const main = /<main[\s\S]*?<\/main>/.exec(await read(path))?.[0] ?? '';
       assert.ok(main.length > 0);
-      assert.doesNotMatch(main, /Mtvarelishvili|proton\.me|shoti\.github\.io/, `${path}: the About text names no author during the beta`);
+      assert.doesNotMatch(main, /Mtvarelishvili|shoti\.github\.io/, `${path}: the About text names no author during the beta`);
+      // The contact address is there (owner's choice), written out so that scrapers looking for "@" or mailto: miss it.
+      assert.match(main, /mtvarelishvili \(at\) proton\.me/, path);
+      assert.doesNotMatch(main, /mailto:|@proton/, `${path}: the address is plain text, not a link`);
     }
     const guide = await read('en/guides/accounts/index.html');
     assert.match(guide, /<meta property="article:author" content="https:\/\/github\.com\/shoti">/);
@@ -219,7 +223,7 @@ describe('site build', () => {
     const shown = join(workDir, 'author-in-footer');
     await build({ outDir: shown, contentDir, siteUrl: 'https://example.org/' });
     const legal = /<p class="site-footer__legal">([\s\S]*?)<\/p>/.exec(await readFile(join(shown, 'en/index.html'), 'utf8'))?.[1].trim();
-    assert.equal(legal, '<span>© 2026 <a href="https://github.com/shoti" rel="author external noreferrer">Shota Mtvarelishvili</a></span>');
+    assert.equal(legal?.replace(/\s+/g, ' '), '<span>© 2026 <a href="https://github.com/shoti" rel="author external noreferrer">Shota Mtvarelishvili</a></span> <a class="site-footer__about" href="/en/about/">About</a>');
 
     config.author.inFooter = 'no';
     await writeFile(file, JSON.stringify(config));
@@ -1137,6 +1141,9 @@ describe('UX review 2026-11-12', () => {
     }
     const css = await readOut('assets/site.css');
     assert.match(css, /@media \(max-width: 49\.99rem\) \{\s*\.site-nav__item--wide \{\s*display: none;/);
+    // Where the header drops "About", the footer carries it, so the page is reachable on a phone.
+    assert.match(await readOut('index.html'), /<p class="site-footer__legal">[\s\S]*?<a class="site-footer__about" href="\/about\/">შესახებ<\/a>\s*<\/p>/);
+    assert.match(css, /@media \(min-width: 50rem\) \{\s*\.site-footer__about \{\s*display: none;/);
     assert.match(css, /@media \(min-width: 45rem\) \{\s*\.site-header__inner \{[^}]*grid-template-areas: "brand nav actions";/);
     // 40rem was too early: four Georgian links wrapped to a second row between 640 and 790px.
     assert.doesNotMatch(css, /@media \(min-width: 40rem\) \{\s*\.site-(header|nav)/);
