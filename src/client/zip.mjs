@@ -6,7 +6,7 @@
 import { concat, crc32 } from './bytes.mjs';
 import { hasDate, savedName } from './save.mjs';
 
-export const SIG = { local: 0x04034b50, central: 0x02014b50, end: 0x06054b50 };
+const SIG = { local: 0x04034b50, central: 0x02014b50, end: 0x06054b50 };
 /** Bit 11 of the flags: the name is UTF-8. */
 export const FLAG_UTF8 = 1 << 11;
 /** 1 January 1980, the earliest date a ZIP entry can carry. */
@@ -26,7 +26,7 @@ const DOS_DATE_ZERO = 0x0021;
 /* ---------- Reading ---------- */
 
 /** Bit 0 of the flags: the entry is encrypted (APPNOTE 4.4.4). */
-export const FLAG_ENCRYPTED = 1;
+const FLAG_ENCRYPTED = 1;
 
 /**
  * An archive this reader can't use; `code` says why.
@@ -85,8 +85,10 @@ export function scanZip(bytes) {
 
   // Bytes in front of the archive (a self-extractor's program, a mail tool's header) move everything by the same
   // amount; archive tools find the directory from the end record and shift every offset by the difference.
+  // ZIP64 end records sit between the directory and the end record, so the gap there is expected: no shift.
   const directorySize = view.getUint32(end + 12, true);
-  const shift = end - directorySize - at;
+  const zip64Records = end >= 20 && view.getUint32(end - 20, true) === 0x07064b50;
+  const shift = zip64Records ? 0 : end - directorySize - at;
   if (shift > 0 && end - directorySize >= 0 && view.getUint32(end - directorySize, true) === SIG.central) at += shift;
   const offset = shift > 0 && at === end - directorySize ? shift : 0;
 

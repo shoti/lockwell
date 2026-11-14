@@ -48,7 +48,7 @@ export class VideoError extends Error {
  *   dataTrack: a track of data this tool can't read. gpsLog: a GPS log in a box of the camera maker's own.
  *   emptyLocation: a location field that says 0, 0 (no position fix). hiddenData: data inside free space.
  *   trackNames: the names tracks give their handlers, which can name the device or app ("GoPro AVC") or carry a date.
- * @typedef {'subtitles' | 'unknownTrack' | 'unknownBox' | 'encoderName'} LeftIn  Kinds of content left as they are.
+ * @typedef {'subtitles' | 'unknownBox' | 'encoderName'} LeftIn  Kinds of content left as they are.
  *   encoderName: the encoder named in the video's codec description, which players read and this tool doesn't edit.
  *
  * @typedef {{ lat: number, lon: number }} Point
@@ -82,6 +82,13 @@ export const MAX_MOOV = 256 * 1024 * 1024;
 const MAX_FREE_READ = 16 * 1024 * 1024;
 /** Most separate ranges zeroed; a crafted file can't make the page build millions of pieces. */
 export const MAX_PATCHES = 1_000_000;
+/** Most names listed for each kind of thing left in. */
+const MAX_NAMES = 50;
+/**
+ * Small reads are served from a window of this size read once: a file of many small boxes, or a copy built from many
+ * pieces (where every read costs time for each piece), is then read in a few large reads.
+ */
+const READ_WINDOW = 1024 * 1024;
 /** Longest value shown. */
 const MAX_VALUE = 300;
 
@@ -112,7 +119,7 @@ const KEEP_TOP = new Set(['ftyp', 'moov', 'mdat', 'moof', 'mfra', 'sidx', 'styp'
 const KEEP_UDTA = new Set(['ludt', 'chpl', 'tsel', 'kind', 'hinf', 'hnti']);
 /** Track handlers whose samples are the picture, sound or text the visitor sees and hears. */
 const MEDIA_HANDLERS = new Set(['vide', 'soun', 'auxv', 'hint']);
-const TEXT_HANDLERS = new Set(['text', 'sbtl', 'subt', 'clcp']);
+const TEXT_HANDLERS = new Set(['text', 'sbtl', 'subt', 'clcp', 'subp']);
 /**
  * The boxes the movie index is built from, by the container they sit in (ISO 14496-12, QuickTime File Format). Any
  * other box directly in these containers is listed as left in; `udta` and `meta` are read on their own.
@@ -458,6 +465,8 @@ function collector(fileSize) {
   const patches = [];
   /** @type {Map<LeftIn, string[]>} */
   const leftIn = new Map();
+  /** The names of each kind, for finding duplicates in constant time. @type {Map<LeftIn, Set<string>>} */
+  const seen = new Map();
 
   return {
     findings,
@@ -468,16 +477,12 @@ function collector(fileSize) {
     fileSize,
     /** The index announces fragments (`mvex`). */
     fragmented: false,
-    /** Boxes turned into free space: what was inside them went with them. @type {Box[]} */
-    blanked: /** @type {Box[]} */ ([]),
+    /** The box last turned into free space: what was inside it went with it. @type {Box | null} */
+    lastBlanked: /** @type {Box | null} */ (null),
     /** Sample tables of the picture and sound, which data patches must never touch. @type {Box[]} */
     media: /** @type {Box[]} */ ([]),
     /** Blocks of GPS data in `mdat` that a dashcam's index points to. @type {SampleRange[]} */
     gpsBlocks: /** @type {SampleRange[]} */ ([]),
-    /** True for a box inside one already blanked. @param {Box} box */
-    inside(box) {
-      return this.blanked.some((outer) => box.start > outer.start && box.end <= outer.end);
-    },
     /** First source of a field wins. @param {string} key @param {string | undefined} value */
     field(key, value) {
       const text = value ? oneLine(value) : '';
@@ -491,11 +496,15 @@ function collector(fileSize) {
       else findings.location ??= point;
       if (raw.length >= 4) findings.secrets.push(raw);
     },
-    /** @param {LeftIn} kind @param {string} name */
+    /** Up to MAX_NAMES names of each kind are listed, then an ellipsis. @param {LeftIn} kind @param {string} name */
     keep(kind, name) {
       const names = leftIn.get(kind) ?? [];
-      if (!names.includes(name)) names.push(name);
+      const known = seen.get(kind) ?? new Set();
+      if (known.has(name) || names.length > MAX_NAMES) return;
+      known.add(name);
+      names.push(names.length === MAX_NAMES ? '…' : name);
       leftIn.set(kind, names);
+      seen.set(kind, known);
     },
     /** @param {number} offset @param {number} length @param {Uint8Array} [bytes] */
     patch(offset, length, bytes) {
@@ -511,7 +520,7 @@ function collector(fileSize) {
       const header = box.data - box.start - (box.uuid ? 16 : 0);
       this.patch(box.start + 4, 4, FREE);
       this.patch(box.start + header, box.end - box.start - header);
-      this.blanked.push(box);
+      this.lastBlanked = box;
     },
   };
 }
@@ -848,18 +857,29 @@ function trackKind(bytes, trak, base) {
   /** @type {Box | undefined} */ let stsd;
   /** @type {Box | undefined} */ let stbl;
   /** @type {Box | undefined} */ let dref;
+  /** @type {Box | undefined} */ let tkhd;
   walk(bytes, trak.data - base, trak.end - base, (box, path) => {
+    if (box.type === 'tkhd' && path.at(-1) === 'trak') tkhd = box;
     if (box.type === 'hdlr' && path.at(-1) === 'mdia') hdlr = box;
     if (box.type === 'stbl') stbl = box;
     if (box.type === 'stsd' && path.at(-1) === 'stbl') stsd = box;
     if (box.type === 'dref' && path.at(-1) === 'dinf') dref = box;
   }, base, ['trak']);
-  // The first data reference (after version, flags and count): without the "self-contained" flag, the samples are
-  // in another file, and their offsets are not offsets into this one.
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  // The first data reference (after version, flags and count): without the "self-contained" flag and with a location
+  // (a URL or an alias) after its flags, the samples are in another file, and their offsets are not offsets into this
+  // one. Without a location there is no other file: players read this one.
   let external = false;
   if (dref && dref.end - dref.data >= 20) {
     const at = dref.data + 8 - base;
-    external = (bytes[at + 11] & 1) === 0;
+    external = (bytes[at + 11] & 1) === 0 && view.getUint32(at) > 12;
+  }
+  // Track ID: after version, flags and the creation and modification times (64-bit in version 1).
+  let id = 0;
+  if (tkhd) {
+    const { version, fields } = fullBox(bytes, tkhd, base);
+    const at = fields + (version === 1 ? 16 : 8);
+    if (at + 4 <= tkhd.end) id = view.getUint32(at - base);
   }
   const handler = hdlr && hdlr.end - hdlr.data >= 12 ? String.fromCharCode(...bytes.subarray(hdlr.data + 8 - base, hdlr.data + 12 - base)) : '';
   let format = '';
@@ -867,12 +887,12 @@ function trackKind(bytes, trak, base) {
   let entry = new Uint8Array(0);
   if (stsd && stsd.end - stsd.data >= 16) {
     const at = stsd.data + 8 - base;
-    const size = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint32(at);
+    const size = view.getUint32(at);
     format = String.fromCharCode(...bytes.subarray(at + 4, at + 8));
     entry = bytes.subarray(at, Math.min(at + size, stsd.end - base));
   }
   const descriptions = stsd ? bytes.subarray(stsd.data - base, stsd.end - base) : new Uint8Array(0);
-  return { handler, format, entry, descriptions, stbl, external };
+  return { id, handler, format, entry, descriptions, stbl, external };
 }
 
 /** @param {Uint8Array} haystack @param {string} text */
@@ -887,7 +907,8 @@ const containsText = (haystack, text) => {
 
 /**
  * @typedef {{ offset: number, length: number, samples: number }} SampleRange
- * @typedef {{ ranges: SampleRange[], format: string, handler: string }} TimedTrack  A track of data, not picture or sound.
+ * @typedef {{ id: number, ranges: SampleRange[], format: string, handler: string }} TimedTrack  A track of data, not
+ *   picture, sound or text.
  */
 
 /**
@@ -899,7 +920,7 @@ const containsText = (haystack, text) => {
  * @param {TimedTrack[]} timed  Collects data tracks.
  */
 function reportTrack(out, bytes, trak, base, timed) {
-  const { handler, format, entry, descriptions, stbl, external } = trackKind(bytes, trak, base);
+  const { id, handler, format, entry, descriptions, stbl, external } = trackKind(bytes, trak, base);
   // A video sample description names its encoder in a 32-byte field at byte 50 (8 header, 6 reserved, 2 reference
   // index, 16 reserved, width, height, resolutions, 4 reserved, frame count), a length byte first.
   if (handler === 'vide' && entry.length >= 82 && entry[50] > 0 && entry[50] < 32) out.keep('encoderName', decodeString(entry.subarray(51, 51 + entry[50])));
@@ -914,13 +935,10 @@ function reportTrack(out, bytes, trak, base, timed) {
   // Apple's timed metadata keeps orientation and Live Photo data, needed to show the video; it goes only when its
   // keys include a location (none of the iPhone samples do, docs/samples/video/SOURCES.md), in any of its descriptions.
   if (format === 'mebx' && !containsText(descriptions, 'location')) return;
-  if (handler !== 'meta' && handler !== 'tmcd' && handler !== 'camm' && handler !== 'data' && format !== 'mebx') {
-    out.keep('unknownTrack', handler || format || '?');
-    return;
-  }
+  // Every other track is data, whatever its handler: ffmpeg copies an unknown data track with the handler `url `.
   if (!stbl || external) return;
   // Listed even with no samples here: in a fragmented file they are all in the fragments.
-  timed.push({ ranges: sampleRanges(bytes, stbl, base, out.fileSize), format, handler });
+  timed.push({ id, ranges: sampleRanges(bytes, stbl, base, out.fileSize), format, handler });
 }
 
 /**
@@ -935,26 +953,35 @@ function reportTrack(out, bytes, trak, base, timed) {
  */
 async function reportTimed(out, file, read, { ranges, format, handler }) {
   const samples = ranges.reduce((sum, range) => sum + range.samples, 0);
-  /** @type {Point[]} */
-  const points = [];
+  const decode = format === 'gpmd' ? gpmfPoints : format === 'camm' ? cammPoints : null;
+  // Only the count and the first and last positions are kept: a long recording has millions.
+  let count = 0;
+  /** @type {Point | null} */
+  let first = null;
+  /** @type {Point | null} */
+  let last = null;
   let empty = true;
   for (const range of ranges) {
-    if (!empty && format !== 'gpmd') break;
+    if (!empty && !decode) break;
     for (let at = 0; at < range.length; at += MAX_FREE_READ) {
       const data = await read(file, range.offset + at, Math.min(MAX_FREE_READ, range.length - at));
       if (empty && data.some((byte) => byte !== 0)) empty = false;
-      if (format === 'gpmd' && range.length <= MAX_FREE_READ) for (const point of gpmfPoints(data)) points.push(point);
-      else if (!empty) break;
+      if (decode && range.length <= MAX_FREE_READ) {
+        const points = decode(data);
+        count += points.length;
+        first ??= points[0] ?? null;
+        last = points.at(-1) ?? last;
+      } else if (!empty) break;
     }
   }
   if (empty) return;
-  // djmd (DJI), camm (Google) and location-bearing mebx (Apple) carry positions this tool doesn't decode: one per sample.
-  const route = format === 'gpmd' ? points.length : ['djmd', 'camm', 'mebx'].includes(format) ? samples : 0;
+  // djmd (DJI) and location-bearing mebx (Apple) carry positions this tool doesn't decode: one per sample.
+  const route = decode ? count : ['djmd', 'mebx'].includes(format) ? samples : 0;
   if (route) {
     const found = out.findings.route ?? { points: 0, first: null, last: null };
     found.points += route;
-    found.first ??= points[0] ?? null;
-    found.last = points.at(-1) ?? found.last;
+    found.first ??= first;
+    found.last = last ?? found.last;
     out.findings.route = found;
   } else if (handler === 'tmcd') out.findings.flags.add('timecode');
   else if (format === 'rtmd') out.findings.flags.add('frameData');
@@ -962,6 +989,35 @@ async function reportTimed(out, file, read, { ranges, format, handler }) {
   // GoPro telemetry beyond GPS (motion sensors, settings) goes with the route.
   if (format === 'gpmd' && route) out.findings.flags.add('dataTrack');
   for (const range of ranges) out.patch(range.offset, range.length);
+}
+
+/** Payload sizes of the camm sample types (Google's Camera Motion Metadata): angle, exposure, gyro, acceleration, position, GPS, GPS with accuracy, magnetic field. */
+const CAMM_SIZES = [12, 8, 12, 12, 12, 24, 56, 12];
+
+/**
+ * Positions in consecutive camm samples: each is 2 reserved bytes, its type and its fields, little-endian. Type 5 holds
+ * latitude, longitude and altitude as doubles; type 6 a time, a fix type, then latitude and longitude. Motion sensors
+ * are skipped; reading stops at a type it doesn't know.
+ * @param {Uint8Array} data
+ * @returns {Point[]}
+ */
+function cammPoints(data) {
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  /** @type {Point[]} */
+  const points = [];
+  for (let at = 0; at + 4 <= data.length; ) {
+    const type = view.getUint16(at + 2, true);
+    const size = CAMM_SIZES[type];
+    if (size === undefined || at + 4 + size > data.length) break;
+    const fields = type === 5 ? at + 4 : type === 6 ? at + 16 : -1;
+    if (fields !== -1) {
+      const lat = view.getFloat64(fields, true);
+      const lon = view.getFloat64(fields + 8, true);
+      if (Math.abs(lat) <= 90 && Math.abs(lon) <= 180 && (lat !== 0 || lon !== 0)) points.push({ lat, lon });
+    }
+    at += 4 + size;
+  }
+  return points;
 }
 
 /**
@@ -976,12 +1032,11 @@ function reportMovie(out, bytes, base, timed) {
   const times = [];
   const moov = readBoxes(bytes, 0, bytes.length, base)[0];
   walk(bytes, moov.data - base, moov.end - base, (box, path) => {
-    // What sits inside a box already turned into free space went with it.
-    if (out.inside(box)) return;
     const parent = path.at(-1) ?? '';
     if (parent === 'udta') reportUserData(out, bytes, box, base);
     else if (box.type === 'free' || box.type === 'skip') clearFree(out, bytes.subarray(box.data - base, box.end - base), box);
-    else if (box.type === 'meta' && (parent === 'moov' || parent === 'trak')) {
+    // Metadata wherever it is (ISO 14496-12 allows it in many boxes); in `udta` it is read with the user data.
+    else if (box.type === 'meta') {
       reportItems(out, metadataItems(bytes, box, base));
       out.blank(box);
     } else if (box.type === 'uuid') reportUuid(out, bytes.subarray(box.data - base, box.end - base), box);
@@ -993,6 +1048,8 @@ function reportMovie(out, bytes, base, timed) {
     else if (box.type === 'cmov') throw new VideoError('unsupported', 'compressed movie index');
     else if (box.type === 'gps ' && parent === 'moov') reportGpsIndex(out, bytes, box, base);
     else if (STRUCTURE[parent] && !STRUCTURE[parent].has(box.type)) out.keep('unknownBox', box.type);
+    // What sits inside a box turned into free space went with it.
+    return out.lastBlanked !== box;
   }, base, ['moov']);
   out.field('camera', device(out.device.make, out.device.model));
   if (times.length) out.field('taken', quickTimeDate(times.reduce((a, b) => Math.min(a, b))));
@@ -1082,10 +1139,43 @@ function reportCameraXml(out, xml) {
   out.findings.flags.add('cameraData');
 }
 
+/** @typedef {(blob: Blob, offset: number, length: number) => Promise<Uint8Array>} ReadRange */
+
+/**
+ * Serves small reads that follow each other closely (a file of many small boxes, samples packed together) from a
+ * window of READ_WINDOW bytes read once; reads far apart stay as they are. For the clean copy: it is built from a piece
+ * per change, and each read of it costs time for every piece, so tens of thousands of small reads would take minutes.
+ * @param {ReadRange} read
+ * @returns {ReadRange}
+ */
+function windowed(read) {
+  /** @type {Blob | null} */
+  let source = null;
+  let start = 0;
+  /** @type {Uint8Array} */
+  let window = new Uint8Array(0);
+  let last = -Infinity;
+  return async (blob, offset, length) => {
+    if (blob !== source) {
+      source = blob;
+      window = new Uint8Array(0);
+      last = -Infinity;
+    }
+    const end = offset + length;
+    const close = Math.abs(offset - last) < READ_WINDOW / 16;
+    last = end;
+    if (offset >= start && end <= start + window.length) return window.subarray(offset - start, end - start);
+    if (!close || length >= READ_WINDOW) return read(blob, offset, length);
+    window = await read(blob, offset, READ_WINDOW);
+    start = offset;
+    return window.subarray(0, length);
+  };
+}
+
 /**
  * Reads a video and works out how to clean it: what it reveals, and the patches that remove it.
  * @param {Blob} file
- * @param {(blob: Blob, offset: number, length: number) => Promise<Uint8Array>} [read]  How to read a range (tests pass their own).
+ * @param {ReadRange} [read]  How to read a range (tests pass their own).
  * @returns {Promise<VideoReport>}
  * @throws {VideoError}
  */
@@ -1123,15 +1213,22 @@ export async function inspectVideo(file, read = readRange) {
     if (error instanceof BoxError) throw new VideoError('damaged', error.message);
     throw error;
   }
-  // Timed data inside fragments would need each fragment cleaned; refuse rather than leave it in.
-  if (timed.length && (out.fragmented || types.includes('moof'))) throw new VideoError('fragmented');
+  // Timed data inside fragments would need each fragment cleaned; refuse rather than leave it in: a data track with no
+  // samples in the index, or one the fragments carry samples for. (ffmpeg keeps a timecode's one sample in the index.)
+  if (timed.length && (out.fragmented || types.includes('moof'))) {
+    const ids = new Set(timed.map((track) => track.id));
+    if (timed.some((track) => track.ranges.length === 0) || (await fragmentsCarry(file, read, top, ids))) throw new VideoError('fragmented');
+  }
+  // A dashcam's GPS block can be a top-level free box of its own, which is zeroed whole with the other free boxes.
+  const spare = top.filter((box) => box.type === 'free' || box.type === 'skip');
+  const loose = out.gpsBlocks.filter((block) => !within(spare, block));
   // Checked before anything is read, so a crafted table can't make the page read the same data many times.
-  checkDataRanges([...timed.flatMap((track) => track.ranges), ...out.gpsBlocks], top.filter((box) => box.type === 'mdat'), media);
+  checkDataRanges([...timed.flatMap((track) => track.ranges), ...loose], top.filter((box) => box.type === 'mdat'), media);
   for (const block of out.gpsBlocks) {
     const head = await read(file, block.offset, 12);
     if (latin1(head.subarray(4, 12)) !== 'freeGPS ') throw new VideoError('damaged', `the GPS index points at byte ${block.offset}, which holds no GPS block`);
-    out.patch(block.offset, block.length);
   }
+  for (const block of loose) out.patch(block.offset, block.length);
   for (const track of timed) await reportTimed(out, file, read, track);
 
   const patches = out.patches.sort((a, b) => a.offset - b.offset);
@@ -1143,6 +1240,50 @@ export async function inspectVideo(file, read = readRange) {
   const kept = [...out.leftIn.values()].flat();
   out.findings.secrets = [...new Set(out.findings.secrets)].filter((secret) => !kept.some((name) => name.includes(secret)));
   return { findings: out.findings, patches, leftIn: out.leftIn };
+}
+
+/**
+ * True when the range lies inside one of the boxes.
+ * @param {Box[]} boxes  In file order, not overlapping.
+ * @param {SampleRange} range
+ */
+function within(boxes, { offset, length }) {
+  let low = 0;
+  let high = boxes.length - 1;
+  while (low <= high) {
+    const middle = (low + high) >> 1;
+    if (boxes[middle].start <= offset) low = middle + 1;
+    else high = middle - 1;
+  }
+  return high >= 0 && offset + length <= boxes[high].end;
+}
+
+/**
+ * True when a fragment (`moof`) carries samples for one of the tracks (its `traf` names the track), or can't be read.
+ * @param {Blob} file
+ * @param {ReadRange} read
+ * @param {Box[]} top
+ * @param {Set<number>} ids  Track IDs.
+ */
+async function fragmentsCarry(file, read, top, ids) {
+  for (const moof of top) {
+    if (moof.type !== 'moof') continue;
+    if (moof.end - moof.start > MAX_MOOV) return true;
+    const bytes = await read(file, moof.start, moof.end - moof.start);
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    let carries = false;
+    try {
+      walk(bytes, 0, bytes.length, (box, path) => {
+        // A track fragment's header: version and flags, then the track ID.
+        if (box.type === 'tfhd' && path.at(-1) === 'traf') carries ||= box.end - box.data < 8 || ids.has(view.getUint32(box.data + 4));
+      });
+    } catch (error) {
+      if (error instanceof BoxError) return true;
+      throw error;
+    }
+    if (carries) return true;
+  }
+  return false;
 }
 
 /**
@@ -1248,11 +1389,12 @@ function containsBytes(haystack, needle) {
  * @param {Blob} clean
  * @param {number} size  The original's size.
  * @param {string[]} secrets  From the original's report.
- * @param {(blob: Blob, offset: number, length: number) => Promise<Uint8Array>} [read]
+ * @param {ReadRange} [readFile]
  * @returns {Promise<'ok' | 'size' | 'findings' | 'changes' | 'secret'>}  Why it failed, or "ok".
  */
-export async function verifyClean(clean, size, secrets, read = readRange) {
+export async function verifyClean(clean, size, secrets, readFile = readRange) {
   if (clean.size !== size) return 'size';
+  const read = windowed(readFile);
   const again = await inspectVideo(clean, read);
   if (hasFindings(again.findings)) return 'findings';
   if (again.patches.length) return 'changes';

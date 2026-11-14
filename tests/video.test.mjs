@@ -314,15 +314,16 @@ describe('inspectVideo', () => {
 
   it('refuses a fragmented file whose data tracks would need each fragment cleaned', async () => {
     const { bytes } = sampleVideo();
-    const fragmented = Uint8Array.from([...bytes, ...box('moof', full('mfhd', u32(1)))]);
+    const fragmented = Uint8Array.from([...bytes, ...box('moof', full('mfhd', u32(1)), box('traf', full('tfhd', u32(2))))]);
     await assert.rejects(inspectVideo(new Blob([fragmented])), (error) => error instanceof VideoError && error.code === 'fragmented');
   });
 
-  it('lists boxes and tracks it does not know as left in, by name', async () => {
+  it('lists boxes it does not know as left in, by name; a track of a kind it does not know is data', async () => {
     const bytes = Uint8Array.from([...box('moov', mvhd(), box('trak', box('mdia', hdlr('zzzz', '')))), ...box('abcd', [1, 2, 3])]);
-    const { leftIn } = await inspectVideo(new Blob([bytes]));
-    assert.deepEqual(leftIn.get('unknownTrack'), ['zzzz']);
+    const { leftIn, findings } = await inspectVideo(new Blob([bytes]));
+    assert.deepEqual([...leftIn.keys()], ['unknownBox']);
     assert.deepEqual(leftIn.get('unknownBox'), ['abcd']);
+    assert.equal(findings.flags.has('dataTrack'), false, 'a data track with no samples has nothing to zero');
   });
 
   it('keeps the number of separate changes bounded', () => {
@@ -548,5 +549,148 @@ describe('findings of the 2026-11-15 review', () => {
     assert.ok(!new TextDecoder('latin1').decode(out).includes("Nino's camera"));
     assert.ok(report.patches.every((patch) => patch.offset >= ftyp().length), 'nothing in this file is zeroed for the other file’s samples');
     assert.deepEqual(readBoxes(out, 0, out.length).map((b) => b.type), ['ftyp', 'moov', 'free', 'mdat']);
+  });
+
+  describe('the final review', () => {
+    const latin = (/** @type {Uint8Array} */ bytes) => new TextDecoder('latin1').decode(bytes);
+    /** A track with the given handler and minf children. @param {number} id @param {string} handler @param {number[][]} minf */
+    const anyTrak = (id, handler, ...minf) => box('trak', tkhd(id), box('mdia', mdhd(), hdlr(handler, ''), box('minf', ...minf)));
+    /** A camm sample: reserved, type (little-endian), then the payload. @param {number} type @param {number[]} payload */
+    const cammSample = (type, payload) => [0, 0, type, 0, ...payload];
+    /** @param {number[]} values */
+    const doubles = (values) => {
+      const view = new DataView(new ArrayBuffer(values.length * 8));
+      values.forEach((value, i) => view.setFloat64(i * 8, value, true));
+      return [...new Uint8Array(view.buffer)];
+    };
+    /** @param {number} n @param {number} value */
+    const big = (n, value) => new Uint8Array(n).fill(value);
+
+    it("zeroes a data track whose handler is ffmpeg's `url ` and whose description is empty", async () => {
+      const sample = gps5Sample([[41.7151, 44.8271]]);
+      const mdatAt = ftyp().length;
+      const track = anyTrak(2, 'url ', box('stbl', full('stsd', u32(1)), ...table(mdatAt + 8, [sample.length])));
+      const { report, out, verdict } = await cleanAndCheck(Uint8Array.from([...ftyp(), ...box('mdat', sample), ...box('moov', mvhd(), track)]));
+      assert.ok(!latin(out).includes('GPS5'), 'the telemetry is zeroed');
+      assert.ok(report.findings.flags.has('dataTrack'));
+      assert.equal(report.leftIn.size, 0);
+      assert.equal(verdict, 'ok');
+    });
+
+    it('zeroes a data track whose data reference lacks the self-contained flag but names no other file', async () => {
+      const sample = gps5Sample([[41.7151, 44.8271]]);
+      const mdatAt = ftyp().length;
+      const dinf = box('dinf', full('dref', u32(1), box('url ', [0, 0, 0, 0])));
+      const track = anyTrak(2, 'meta', dinf, box('stbl', full('stsd', u32(1), box('gpmd', fill(6), u16(1))), ...table(mdatAt + 8, [sample.length])));
+      const { report, out, verdict } = await cleanAndCheck(Uint8Array.from([...ftyp(), ...box('mdat', sample), ...box('moov', mvhd(), track)]));
+      assert.equal(report.findings.route?.points, 1);
+      assert.ok(!latin(out).includes('GPS5'));
+      assert.equal(verdict, 'ok');
+    });
+
+    it('cleans and checks a copy of 50 000 separate pieces, and one of 100 000 small free boxes, quickly', async () => {
+      const count = 50_000;
+      const mdatAt = ftyp().length;
+      const header = Uint8Array.from([...ftyp(), ...u32(8 + count * 32), ...chars('mdat')]);
+      const offsets = Array.from({ length: count }, (_, i) => u32(mdatAt + 8 + i * 32)).flat();
+      const rtmd = dataTrak(2, box('rtmd', fill(6), u16(1)), [full('stsz', u32(16), u32(count)), full('stsc', u32(1), u32(1), u32(1), u32(1)), full('stco', u32(count), offsets)]);
+      const many = new Uint8Array(await new Blob([header, big(count * 32, 0x11), Uint8Array.from(box('moov', mvhd(), rtmd))]).arrayBuffer());
+      let started = Date.now();
+      const pieces = await cleanAndCheck(many);
+      assert.ok(pieces.report.patches.length >= count);
+      assert.equal(pieces.verdict, 'ok');
+      assert.ok(Date.now() - started < 3000, `50 000 pieces took ${Date.now() - started} ms`);
+      const free = Uint8Array.from(box('free', [1]));
+      const frees = new Uint8Array(await new Blob([Uint8Array.from(ftyp()), ...new Array(100_000).fill(free), Uint8Array.from(box('moov', mvhd()))]).arrayBuffer());
+      started = Date.now();
+      const boxes = await cleanAndCheck(frees);
+      assert.ok(boxes.report.patches.length >= 100_000);
+      assert.equal(boxes.verdict, 'ok');
+      assert.ok(Date.now() - started < 3000, `100 000 free boxes took ${Date.now() - started} ms`);
+    });
+
+    it('stays fast with 100 000 removed or unknown boxes in the index, and lists a bounded number of names', async () => {
+      const removed = Uint8Array.from([...ftyp(), ...box('moov', mvhd(), box('udta', new Array(100_000).fill(box('abcd')).flat()))]);
+      const types = Array.from({ length: 100_000 }, (_, i) => box(String.fromCharCode(65 + (i % 26), 65 + (Math.floor(i / 26) % 26), 65 + (Math.floor(i / 676) % 26), 65 + (Math.floor(i / 17_576) % 26))));
+      const unknown = Uint8Array.from([...ftyp(), ...box('moov', mvhd(), types.flat())]);
+      const started = Date.now();
+      const first = await inspectVideo(new Blob([removed]));
+      assert.ok(first.patches.length >= 100_000);
+      const second = await inspectVideo(new Blob([unknown]));
+      const names = second.leftIn.get('unknownBox') ?? [];
+      assert.ok(names.length > 10 && names.length <= 51, `${names.length} names`);
+      assert.ok(Date.now() - started < 2000, `took ${Date.now() - started} ms`);
+    });
+
+    it('counts GoPro positions across many samples, keeping the first and the last', async () => {
+      const samples = Array.from({ length: 50 }, (_, i) => gps5Sample(Array.from({ length: 20 }, (_, k) => /** @type {[number, number]} */ ([41 + i / 100 + k / 10_000, 44.8]))));
+      const mdatAt = ftyp().length;
+      const track = dataTrak(2, box('gpmd', fill(6), u16(1)), table(mdatAt + 8, samples.map((sample) => sample.length)));
+      const { report } = await cleanAndCheck(Uint8Array.from([...ftyp(), ...box('mdat', samples.flat()), ...box('moov', mvhd(), track)]));
+      const route = report.findings.route;
+      assert.equal(route?.points, 1000);
+      assert.ok(route?.first && Math.abs(route.first.lat - 41) < 1e-6);
+      assert.ok(route?.last && Math.abs(route.last.lat - (41 + 0.49 + 0.0019)) < 1e-6);
+    });
+
+    it("zeroes a dashcam's GPS blocks kept in a top-level free box", async () => {
+      const picture = fill(16, 0xaa);
+      const mdatAt = ftyp().length;
+      const mdat = box('mdat', picture);
+      const block = box('free', chars('GPS '), utf8('$GPRMC,140322,A,4142.906,N,04449.626,E'));
+      const video = trak({ id: 1, kind: 'vide', name: '', entry: videoEntry('enc'), offset: mdatAt + 8, sizes: [16] });
+      const blockAt = mdatAt + mdat.length;
+      const bytes = Uint8Array.from([...ftyp(), ...mdat, ...block, ...box('moov', mvhd(), video, box('gps ', u32(0x101), u32(1), u32(blockAt), u32(block.length)))]);
+      const { report, out, verdict } = await cleanAndCheck(bytes);
+      assert.ok(report.findings.flags.has('gpsLog'));
+      assert.ok(!latin(out).includes('$GPRMC'));
+      assert.equal(verdict, 'ok');
+    });
+
+    it("cleans a fragmented file whose timecode keeps its sample in the index, and refuses one whose fragments carry data", async () => {
+      const picture = fill(16, 0xaa);
+      const timecode = u32(0x01020304);
+      const mdatAt = ftyp().length;
+      const video = trak({ id: 1, kind: 'vide', name: '', entry: videoEntry('enc'), offset: mdatAt + 8, sizes: [16] });
+      const tmcd = trak({ id: 3, kind: 'tmcd', name: '', entry: box('tmcd', fill(6), u16(1), fill(16)), offset: mdatAt + 24, sizes: [4] });
+      const mvex = box('mvex', full('trex', u32(1), u32(1), u32(0), u32(0), u32(0)), full('trex', u32(3), u32(1), u32(0), u32(0), u32(0)));
+      /** @param {number} id */
+      const build = (id) => Uint8Array.from([...ftyp(), ...box('mdat', picture, timecode), ...box('moov', mvhd(), video, tmcd, mvex), ...box('moof', full('mfhd', u32(1)), box('traf', full('tfhd', u32(id)))), ...box('mdat', fill(16, 0xbb))]);
+      const { report, out, verdict } = await cleanAndCheck(build(1));
+      assert.ok(report.findings.flags.has('timecode'));
+      assert.deepEqual([...out.subarray(mdatAt + 24, mdatAt + 28)], [0, 0, 0, 0]);
+      assert.equal(verdict, 'ok');
+      await assert.rejects(inspectVideo(new Blob([build(3)])), (error) => error instanceof VideoError && error.code === 'fragmented');
+    });
+
+    it('counts only the positions in a camm track: motion sensors alone are not a route', async () => {
+      const mdatAt = ftyp().length;
+      /** @param {number[][]} samples */
+      const build = (samples) => {
+        const stbl = box('stbl', full('stsd', u32(1), box('camm', fill(6), u16(1))), ...table(mdatAt + 8, samples.map((sample) => sample.length)));
+        return Uint8Array.from([...ftyp(), ...box('mdat', samples.flat()), ...box('moov', mvhd(), anyTrak(2, 'camm', stbl))]);
+      };
+      const gyro = await cleanAndCheck(build(new Array(5).fill(cammSample(2, fill(12, 0x3f)))));
+      assert.equal(gyro.report.findings.route, null);
+      assert.ok(gyro.report.findings.flags.has('dataTrack'));
+      assert.equal(gyro.verdict, 'ok');
+      const gps = await cleanAndCheck(build([cammSample(2, fill(12, 0x3f)), cammSample(5, doubles([41.7151, 44.8271, 450])), cammSample(5, doubles([41.716, 44.828, 450]))]));
+      assert.equal(gps.report.findings.route?.points, 2);
+      assert.ok(gps.report.findings.route?.first && Math.abs(gps.report.findings.route.first.lat - 41.7151) < 1e-9);
+      assert.equal(gps.verdict, 'ok');
+    });
+
+    it("removes metadata kept in a track's media box", async () => {
+      const picture = fill(16, 0xaa);
+      const mdatAt = ftyp().length;
+      const meta = mdtaMeta([['com.apple.quicktime.location.ISO6709', '+41.7151+044.8271/']]);
+      const stbl = box('stbl', full('stsd', u32(1), videoEntry('enc')), ...table(mdatAt + 8, [16]));
+      const video = box('trak', tkhd(1), box('mdia', mdhd(), hdlr('vide', ''), meta, box('minf', stbl)));
+      const { report, out, verdict } = await cleanAndCheck(Uint8Array.from([...ftyp(), ...box('mdat', picture), ...box('moov', mvhd(), video)]));
+      assert.ok(report.findings.location && Math.abs(report.findings.location.lat - 41.7151) < 1e-6);
+      assert.ok(!latin(out).includes('+41.7151'));
+      assert.equal(report.leftIn.has('unknownBox'), false);
+      assert.equal(verdict, 'ok');
+    });
   });
 });

@@ -411,7 +411,6 @@
         "left": {
           "encoderName": "The name of the encoder, part of the video settings that players read",
           "subtitles": "Subtitles or other text tracks, which can hold any text, including a position. Check them before you share",
-          "unknownTrack": "Tracks this tool doesn’t know",
           "unknownBox": "Parts of the file this tool doesn’t know"
         },
         "stays": "This tool doesn’t change what the video shows and records: faces, voices, signs, number plates and the place. Cut or cover them before you share. A clean copy isn’t anonymous.",

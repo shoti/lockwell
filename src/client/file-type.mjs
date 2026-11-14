@@ -23,7 +23,7 @@ import { readRange } from './file-read.mjs';
  */
 
 /** Bytes read from the start: enough for every signature, the PDF and HTML rules, and a text check. */
-export const HEAD_BYTES = 64 * 1024;
+const HEAD_BYTES = 64 * 1024;
 /** Bytes read from the end, for formats that sign their last bytes (disk images). */
 const TAIL_BYTES = 512;
 

@@ -143,7 +143,7 @@ export function childrenOf(bytes, box, base = 0, parent = '') {
  * @param {Uint8Array} bytes
  * @param {number} start  Offset into `bytes`.
  * @param {number} end
- * @param {(box: Box, path: string[]) => void} visit
+ * @param {(box: Box, path: string[]) => unknown} visit  Returning false skips the box's children.
  * @param {number} [base]  File offset of bytes[0].
  * @param {string[]} [path]  Ancestors of the boxes between `start` and `end`.
  * @throws {BoxError}
@@ -152,7 +152,7 @@ export function walk(bytes, start, end, visit, base = 0, path = []) {
   /** @param {Box[]} boxes @param {string[]} ancestors */
   const each = (boxes, ancestors) => {
     for (const box of boxes) {
-      visit(box, ancestors);
+      if (visit(box, ancestors) === false) continue;
       const children = childrenOf(bytes, box, base, ancestors.at(-1));
       if (children.length === 0) continue;
       if (ancestors.length + 1 > MAX_DEPTH) throw new BoxError(`Boxes are nested more than ${MAX_DEPTH} deep at byte ${box.start}.`);

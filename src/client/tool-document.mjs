@@ -39,7 +39,7 @@ import { ascii, byteString, crc32, startsWith } from './bytes.mjs';
 import { fillInto, fillText } from './fill.mjs';
 import { hasFindings as photoHasFindings, inspectPhoto } from './tool-photo.mjs';
 import { initSave } from './save.mjs';
-import { pdfNames, pdfObjects, pdfString, streamData, stringToken } from './pdf.mjs';
+import { dictionaryPart, pdfNames, pdfObjects, pdfString, streamData, stringToken } from './pdf.mjs';
 import { FLAG_UTF8, ZipError, cleanArchive, readZip as readZipEntries, unzip as unzipEntry, writeZip } from './zip.mjs';
 
 export { pdfNames, pdfString, writeZip };
@@ -1299,7 +1299,8 @@ async function inspectPdf(bytes) {
   if (typed.length) findings.add('formValues', 'kept', typed);
   else if (/\/AcroForm\b/.test(pdfNames(text)) && all.some((body) => /\/Fields\s*\[\s*\d/.test(body))) findings.add('forms', 'kept');
   findings.addValues('pdfSignatures', 'kept', unique(all.filter((body) => /\/Type\s*\/Sig\b/.test(body)).map((body) => value(body, 'Name'))));
-  if (all.some((body) => /\/(JavaScript|JS)\b/.test(body))) findings.add('scripts', 'kept');
+  // Only in dictionaries: stream data (thumbnails, fonts) can hold "/JS" by chance.
+  if (all.some((body) => /\/(JavaScript|JS)\b/.test(dictionaryPart(body)))) findings.add('scripts', 'kept');
   // Links to files on someone's computer or network.
   const links = all.flatMap((body) => [value(body, 'URI'), /\/S\s*\/(Launch|GoToR)\b/.test(body) ? value(body, 'F') : '']);
   findings.addValues('external', 'kept', unique(links.filter((link) => LOCAL_PATH.test(link))));

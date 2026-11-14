@@ -61,15 +61,35 @@ export function pdfString(token) {
 }
 
 /** A decoded stream larger than this is not read: a few kilobytes of Flate data can inflate to gigabytes. */
-export const MAX_STREAM_BYTES = 64 * 1024 * 1024;
+const MAX_STREAM_BYTES = 64 * 1024 * 1024;
+
+/** Bytes inflated from all the object streams of one file together, before the rest are reported unread. */
+const MAX_PACKED_BYTES = 256 * 1024 * 1024;
+
+/**
+ * Counts the bytes inflated, including those of streams that grew past their limit and were dropped, so a caller can
+ * stop a file that makes it inflate the same bomb again and again.
+ * @typedef {{ inflated: number }} Meter
+ */
+
+/**
+ * The part of an object before its stream data: the dictionary, where names such as /JS mean something. Stream data
+ * (pictures, fonts, thumbnails) can hold "/JS" or "/AA" by chance.
+ * @param {string} body
+ */
+export function dictionaryPart(body) {
+  const at = body.search(/(?:^|[^A-Za-z])stream\r?\n/);
+  return at === -1 ? body : body.slice(0, at + 1);
+}
 
 /**
  * Inflates a Flate-compressed (zlib) stream, up to maxBytes.
  * @param {Uint8Array} data
  * @param {number} maxBytes
+ * @param {Meter} [meter]
  * @returns {Promise<Uint8Array | null>}  null when the browser can't, the data is damaged, or it grows past maxBytes.
  */
-async function inflate(data, maxBytes) {
+async function inflate(data, maxBytes, meter) {
   if (typeof DecompressionStream !== 'function') return null;
   /** @type {Uint8Array[]} */
   const chunks = [];
@@ -80,6 +100,7 @@ async function inflate(data, maxBytes) {
       const { done, value } = await reader.read();
       if (done) break;
       total += value.length;
+      if (meter) meter.inflated += value.length;
       if (total > maxBytes) {
         await reader.cancel();
         return null;
@@ -101,9 +122,10 @@ async function inflate(data, maxBytes) {
  * @param {string} body  The object's text (one character per byte).
  * @param {Map<number, string>} [objects]  For a length given as a reference to another object.
  * @param {number} [maxBytes]  Largest decoded size read.
+ * @param {Meter} [meter]  Counts the bytes inflated, whether or not the stream fits.
  * @returns {Promise<string | null>}  null when it can't be decoded or is larger than maxBytes.
  */
-export async function streamData(bytes, at, body, objects, maxBytes = MAX_STREAM_BYTES) {
+export async function streamData(bytes, at, body, objects, maxBytes = MAX_STREAM_BYTES, meter = undefined) {
   const start = /stream\r?\n/.exec(body);
   if (!start) return null;
   const from = at + start.index + start[0].length;
@@ -117,7 +139,7 @@ export async function streamData(bytes, at, body, objects, maxBytes = MAX_STREAM
   const filter = /\/Filter\s*\[?\s*\/(\w+)/.exec(dictionary)?.[1];
   if (!filter) return raw.length > maxBytes ? null : byteString(raw);
   if (filter !== 'FlateDecode') return null;
-  const inflated = await inflate(raw, maxBytes);
+  const inflated = await inflate(raw, maxBytes, meter);
   return inflated ? byteString(inflated) : null;
 }
 
@@ -162,8 +184,14 @@ export async function pdfObjects(bytes, text) {
     const streamAt = body.search(/stream\r?\n/);
     if (/\/Type\s*\/ObjStm\b/.test(streamAt === -1 ? body : body.slice(0, streamAt + 1))) packed.push({ at, body });
   });
+  /** @type {Meter} */
+  const meter = { inflated: 0 };
   for (const { at, body } of packed) {
-    const data = await streamData(bytes, at, body, objects);
+    if (meter.inflated >= MAX_PACKED_BYTES) {
+      unreadable = true;
+      break;
+    }
+    const data = await streamData(bytes, at, body, objects, Math.min(MAX_STREAM_BYTES, MAX_PACKED_BYTES - meter.inflated), meter);
     const declared = Number(/\/N\s+(\d+)/.exec(body)?.[1] ?? 0);
     const first = Number(/\/First\s+(\d+)/.exec(body)?.[1] ?? 0);
     if (data === null) {
@@ -171,12 +199,17 @@ export async function pdfObjects(bytes, text) {
       continue;
     }
     const numbers = data.slice(0, first).trim().split(/\s+/).map(Number);
-    // The count can't exceed the number/offset pairs actually written.
+    // The count can't exceed the number/offset pairs actually written, and offsets must increase: objects that
+    // overlap would let a small stream stand for thousands of copies of the same megabytes.
     const count = Math.min(declared, Math.floor(numbers.length / 2));
     for (let i = 0; i < count; i += 1) {
       const start = first + numbers[i * 2 + 1];
       const end = i + 1 < count ? first + numbers[i * 2 + 3] : data.length;
-      if (Number.isFinite(numbers[i * 2]) && Number.isFinite(start) && Number.isFinite(end)) keep(numbers[i * 2], data.slice(start, end));
+      if (!Number.isFinite(numbers[i * 2]) || !Number.isFinite(start) || !Number.isFinite(end) || end < start || end > data.length) {
+        unreadable = true;
+        break;
+      }
+      keep(numbers[i * 2], data.slice(start, end));
     }
   }
   return { objects, versions, unreadable };

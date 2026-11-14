@@ -1154,7 +1154,7 @@ describe('tool pages', () => {
       const videoValues = ['location', 'route', 'taken', 'timeZone', 'place', 'camera', 'lens', 'serial', 'lensSerial', 'uniqueId', 'software', 'author', 'copyright', 'title', 'description', 'keywords', 'fileName'];
       const videoFlags = ['emptyLocation', 'thumbnail', 'xmp', 'c2pa', 'cameraData', 'samsung', 'frameData', 'timecode', 'dataTrack', 'gpsLog', 'hiddenData', 'trackNames', 'other'];
       for (const row of [...videoValues, ...videoFlags]) assert.match(video, new RegExp(`<div class="facts__row" data-row="${row}"( data-flag)? hidden><dt>[^<]+</dt>`), `${lang} video ${row}`);
-      for (const kept of ['encoderName', 'subtitles', 'unknownTrack', 'unknownBox']) assert.match(video, new RegExp(`<li data-left="${kept}" hidden>[^<]+<span translate="no" data-js="video-left-names">`), `${lang} video left ${kept}`);
+      for (const kept of ['encoderName', 'subtitles', 'unknownBox']) assert.match(video, new RegExp(`<li data-left="${kept}" hidden>[^<]+<span translate="no" data-js="video-left-names">`), `${lang} video left ${kept}`);
       for (const message of ['reading', 'found', 'none', 'unsupported', 'photo', 'damaged', 'too-large', 'fragmented', 'read-failed', 'ok', 'failed', 'done']) {
         assert.match(video, new RegExp(`data-${message}="[^"]+"`), `${lang} video ${message}`);
       }

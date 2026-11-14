@@ -18,7 +18,7 @@ import { readRange } from './file-read.mjs';
 import { detectType } from './file-type.mjs';
 import { receiveFiles } from './files.mjs';
 import { fillInto, fillText } from './fill.mjs';
-import { pdfNames, pdfObjects, pdfString, streamData, stringToken } from './pdf.mjs';
+import { dictionaryPart, pdfNames, pdfObjects, pdfString, streamData, stringToken } from './pdf.mjs';
 import { inspectLink } from './tool-check.mjs';
 import { ZipError, scanZip, unzip, writeZip } from './zip.mjs';
 
@@ -258,6 +258,8 @@ const MAX_INNER = 64 * 1024 * 1024;
 const MAX_UNPACKED = 256 * 1024 * 1024;
 /** Files inside one container that are checked; the rest are counted. */
 const MAX_INSIDE = 2000;
+/** Files checked inside one received file, across all its containers. */
+const MAX_FILES_INSIDE = 10_000;
 /** Files inside listed on the page. */
 export const MAX_INSIDE_SHOWN = 200;
 /** Links judged and listed on the page. */
@@ -268,14 +270,14 @@ const MAX_VALUES = 20;
 const MAX_DEPTH = 2;
 /** XML parts of Office files are read up to this size. */
 const MAX_PART = 16 * 1024 * 1024;
-/** XML parts read from one Office file; real documents have a few hundred at most. */
-const MAX_PARTS = 2000;
+/** XML parts read from one Office file; a large deck has a few thousand. */
+const MAX_PARTS = 10_000;
 
 /**
  * State shared by one file and everything found inside it.
  * @typedef {object} Context
  * @property {number} depth
- * @property {{ unpacked: number }} budget
+ * @property {{ unpacked: number, files: number }} budget  Shared by a file and everything inside it.
  */
 
 /**
@@ -296,7 +298,7 @@ const MAX_PARTS = 2000;
  * @returns {Promise<FileReport>}
  */
 export async function inspectFile(file, name) {
-  return inspect(file, name, { depth: 0, budget: { unpacked: 0 } });
+  return inspect(file, name, { depth: 0, budget: { unpacked: 0, files: 0 } });
 }
 
 /**
@@ -351,7 +353,8 @@ async function inspect(file, name, context) {
     findings,
     verdict: verdictOf(findings),
     inside: inside.slice(0, MAX_INSIDE_SHOWN),
-    insideTotal: Math.max(work.childTotal, inside.length),
+    // Files in nested containers count too: two archives of 2,000 files each hold 4,002.
+    insideTotal: Math.max(work.childTotal + work.children.reduce((sum, { report }) => sum + report.insideTotal, 0), inside.length),
     links: links.slice(0, MAX_LINKS_SHOWN).map(judgeLink),
     linksTotal: links.length,
   };
@@ -459,6 +462,12 @@ async function addChild(work, name, read, size) {
   work.childTotal += 1;
   if (work.childTotal > MAX_INSIDE) return;
   const context = { depth: work.context.depth + 1, budget: work.context.budget };
+  // Files checked across every container of one file together: archives of archives can't multiply the work.
+  context.budget.files += 1;
+  if (context.budget.files > MAX_FILES_INSIDE) {
+    work.found.add('partlyRead');
+    return;
+  }
   /** @param {FindingKey} key */
   const unread = (key) => {
     const found = new Findings();
@@ -472,6 +481,9 @@ async function addChild(work, name, read, size) {
     work.children.push({ name, report: unread('tooLarge') });
     return;
   }
+  // The declared size is charged before reading, so a read that fails (an entry that inflates past its size, a
+  // stream past its cap) still counts: the same inflation can't be repeated without limit.
+  context.budget.unpacked += size;
   /** @type {Uint8Array} */
   let bytes;
   try {
@@ -480,7 +492,7 @@ async function addChild(work, name, read, size) {
     work.children.push({ name, report: unread(error instanceof ZipError && error.code === 'locked' ? 'encrypted' : 'damaged') });
     return;
   }
-  context.budget.unpacked += bytes.length;
+  context.budget.unpacked += bytes.length - size;
   const report = await inspect(new Blob([/** @type {Uint8Array<ArrayBuffer>} */ (bytes)]), name.split('/').at(-1) ?? name, context);
   work.children.push({ name, report });
 }
@@ -546,8 +558,20 @@ async function inspectZip(bytes, work) {
   if (problems.has('duplicate')) found.add('zipDuplicate');
   // A file and a folder with the same name: WinRAR before 6.23 opened a file from the folder instead (CVE-2023-38831).
   const files = entries.filter((entry) => !entry.name.endsWith('/'));
-  const folders = new Set(entries.flatMap((entry) => entry.name.split('/').slice(0, -1).map((_, i, parts) => parts.slice(0, i + 1).join('/'))));
-  const sameName = files.filter((entry) => folders.has(entry.name));
+  // Sorted names put "report.pdf /…" right after "report.pdf /": one binary search per file, whatever the depth.
+  const sorted = entries.map((entry) => entry.name).sort();
+  /** @param {string} prefix */
+  const anyStartsWith = (prefix) => {
+    let low = 0;
+    let high = sorted.length;
+    while (low < high) {
+      const middle = (low + high) >>> 1;
+      if (sorted[middle] < prefix) low = middle + 1;
+      else high = middle;
+    }
+    return low < sorted.length && sorted[low].startsWith(prefix);
+  };
+  const sameName = files.filter((entry) => anyStartsWith(`${entry.name}/`));
   if (sameName.length) found.add('zipSameName', sameName.map((entry) => entry.name));
 
   /** @param {string} name */
@@ -566,9 +590,11 @@ async function inspectZip(bytes, work) {
       found.add('partlyRead');
       return '';
     }
+    // Charged before reading, so a part that fails (a wrong checksum, a bad stream) still costs what it inflated.
+    budget.unpacked += item.size;
     try {
       const data = await unzip(item, MAX_PART);
-      budget.unpacked += data.length;
+      budget.unpacked += data.length - item.size;
       return utf8(data);
     } catch {
       found.add('partlyRead');
@@ -601,22 +627,68 @@ async function inspectZip(bytes, work) {
 const LINK_RELATIONSHIPS = new Set(['hyperlink']);
 
 /** A target on another computer: a web address, a network share (UNC or file://host/), or WebDAV. @param {string} target */
-const isNetworkTarget = (target) => /^(?:https?:|\\\\|\/\/|file:\/{0,2}\\\\|file:\/\/(?!\/|localhost\/)[^/]|webdav)/i.test(target.trim());
-
-/** Programs a link can start: a hyperlink to one of these runs it (the PowerPoint mouse-over attack). */
-const PROGRAM_TARGET = /^(?:"?[a-z]:\\[^"]*\\)?"?(?:cmd|powershell|pwsh|mshta|rundll32|regsvr32|wscript|cscript|certutil|bitsadmin|msiexec|conhost|explorer|forfiles|curl)(?:\.exe)?\b/i;
+/** A target on another computer: a network share (UNC, or file: with a host) or WebDAV. @param {string} target */
+const isNetworkTarget = (target) => /^(?:\\\\|\/\/|file:\/*\\\\|file:\/{4}|file:\/\/(?!\/|localhost\/)[^/]|webdav)/i.test(target.trim());
 
 /**
- * A hyperlink that runs something or opens a file on another computer instead of a web page: a command, a program's
- * path, a network share, or a Windows protocol such as search-ms: or ms-msdt:.
+ * A target on this computer: a drive path, file:///C:…, or a path relative to the document. Anything else an Office
+ * file points to outside itself (a web or share address, mhtml:, another scheme) is fetched from elsewhere.
+ * @param {string} target
+ */
+function isLocalTarget(target) {
+  const trimmed = target.trim();
+  if (/^[a-z]:[\\/]/i.test(trimmed) || /^file:\/{0,3}(?:localhost\/)?[a-z]:/i.test(trimmed)) return true;
+  return !/^[a-z][a-z0-9+.-]*:/i.test(trimmed) && !/^[\\/]{2}/.test(trimmed);
+}
+
+/** Programs a link can start (the PowerPoint mouse-over attack). */
+const PROGRAMS = 'cmd|powershell|pwsh|mshta|rundll32|regsvr32|wscript|cscript|certutil|bitsadmin|msiexec|conhost|explorer|forfiles|curl';
+/**
+ * A program as a link target: its name, optionally after a drive path, then ".exe" or arguments that look like a
+ * command line (starting with "-", "/", a quote or an address). "Explorer brochure.pdf" and "curl-notes.txt" are not.
+ */
+const PROGRAM_TARGET = new RegExp(`^(?:"?[a-z]:\\\\[^"]*\\\\)?"?(?:${PROGRAMS})(?:\\.exe"?(?=\\s|$)|"?(?=$|\\s+(?:[-/"]|[a-z]+:)))`, 'i');
+
+/**
+ * A hyperlink that runs something instead of opening a web page: a command, a Windows protocol such as search-ms: or
+ * ms-msdt:, or a path (drive, share or file:) to a file with a risky ending. A link to an ordinary file on a company
+ * share is not reported.
  * @param {string} target
  */
 function linksToProgram(target) {
   const trimmed = target.trim();
-  if (/^(?:https?|mailto):/i.test(trimmed) || trimmed.startsWith('#')) return false;
-  const path = trimmed.replace(/[?#].*$/, '').replace(/^"|"$/g, '');
-  const ending = path.split(/[\\/]/).at(-1)?.split('.').at(-1)?.toLowerCase() ?? '';
-  return isNetworkTarget(trimmed) || PROGRAM_TARGET.test(trimmed) || /^(?:ms-[a-z-]+|search-ms|search):/i.test(trimmed) || (path.includes('.') && RISKY_EXTENSIONS.has(ending));
+  if (/^(?:https?|mailto|tel|sms):/i.test(trimmed) || trimmed.startsWith('#')) return false;
+  if (/^(?:ms-[a-z-]+|search-ms|search):/i.test(trimmed)) return true;
+  const command = trimmed.replace(/^file:\/*(?:localhost\/)?/i, '');
+  if (PROGRAM_TARGET.test(command)) return true;
+  if (!/^(?:[a-z]:[\\/]|[\\/]{2}|file:)/i.test(trimmed)) return false;
+  // The ending of the whole path, and of its first word when arguments follow ("cmd.exe /c calc").
+  const path = command.replace(/[?#].*$/, '').replace(/^"|"$/g, '');
+  return [path, path.split(/\s/)[0]].some((part) => RISKY_EXTENSIONS.has(part.split(/[\\/]/).at(-1)?.split('.').at(-1)?.toLowerCase() ?? ''));
+}
+
+/**
+ * A part's name from a relationship target: relative to the folder of the source part, or from the package root when
+ * it starts with "/".
+ * @param {string} base  "word/" for word/_rels/document.xml.rels.
+ * @param {string} target
+ */
+function resolvePart(base, target) {
+  /** @type {string[]} */
+  const parts = [];
+  for (const piece of (target.startsWith('/') ? target.slice(1) : `${base}${target}`).split('/')) {
+    if (piece === '..') parts.pop();
+    else if (piece !== '.' && piece !== '') parts.push(piece);
+  }
+  return parts.join('/');
+}
+
+/**
+ * Where INCLUDEPICTURE and INCLUDETEXT fields fetch from, with field-code escapes undone ("\\\\host" is "\\host").
+ * @param {string} fields  Field instructions as text.
+ */
+function includedTargets(fields) {
+  return [...fields.matchAll(/\bINCLUDE(?:PICTURE|TEXT)\s+(?:\\[a-z]\s+)*"([^"]+)"/gi)].map((match) => match[1].replace(/\\\\/g, '\\'));
 }
 
 /**
@@ -632,11 +704,13 @@ async function inspectOoxml(entries, text, work) {
   const names = entries.map((entry) => entry.name);
   work.kind = names.some((name) => /^word\//i.test(name)) ? 'docx' : names.some((name) => /^xl\//i.test(name)) ? 'xlsx' : names.some((name) => /^ppt\//i.test(name)) ? 'pptx' : 'docx';
   const types = await text(entries.find((entry) => entry.name === '[Content_Types].xml'));
-  /** @type {{ type: string, target: string, external: boolean }[]} */
+  /** @type {{ type: string, target: string, external: boolean, base: string }[]} */
   const relationships = [];
   for (const entry of entries.filter((item) => /\.rels$/i.test(item.name))) {
+    // Targets inside the package are relative to the folder of the part the .rels file describes.
+    const base = entry.name.replace(/_rels\/[^/]*$/, '');
     for (const [tag] of (await text(entry)).matchAll(/<(?:\w+:)?Relationship\b[^>]*>/g)) {
-      relationships.push({ type: attribute(tag, 'Type').split('/').at(-1) ?? '', target: attribute(tag, 'Target'), external: /^external$/i.test(attribute(tag, 'TargetMode')) });
+      relationships.push({ type: attribute(tag, 'Type').split('/').at(-1) ?? '', target: attribute(tag, 'Target'), external: /^external$/i.test(attribute(tag, 'TargetMode')), base });
     }
   }
   /** @param {string} type */
@@ -651,16 +725,17 @@ async function inspectOoxml(entries, text, work) {
   const embedded = entries.filter((entry) => /\/embeddings\/[^/]+$/i.test(entry.name));
   const objects = embedded.filter((entry) => !/\.(docx|docm|xlsx|xlsm|xlsb|pptx|pptm|sldx|sldm)$/i.test(entry.name));
   if (objects.length || related('oleObject').some((item) => !item.external)) found.add('embedded', objects.map((entry) => entry.name.split('/').at(-1) ?? entry.name));
-  // Parts fetched from another computer when the file opens. Local paths (a template in the user's own folder, a link
-  // to another workbook) are ordinary in office documents and not reported.
-  const remote = relationships.filter((item) => item.external && !LINK_RELATIONSHIPS.has(item.type) && isNetworkTarget(item.target));
+  // Parts fetched from elsewhere when the file opens: web and share addresses, mhtml: (CVE-2021-40444) and any other
+  // scheme. Local paths (a template in the user's own folder, a link to another workbook) are ordinary in office
+  // documents and not reported.
+  const remote = relationships.filter((item) => item.external && !LINK_RELATIONSHIPS.has(item.type) && !isLocalTarget(item.target));
   if (remote.length) found.add('remote', remote.map((item) => item.target));
   const hyperlinks = relationships.filter((item) => item.external && LINK_RELATIONSHIPS.has(item.type));
   work.links.push(...hyperlinks.filter((item) => isWebLink(item.target)).map((item) => item.target));
   const programs = hyperlinks.filter((item) => linksToProgram(item.target));
   if (programs.length) found.add('linkToProgram', programs.map((item) => item.target));
   // PowerPoint's "run program" action on a click or a mouse-over.
-  for (const entry of entries.filter((item) => /^ppt\/slides\/[^/]+\.xml$/i.test(item.name))) {
+  for (const entry of entries.filter((item) => /^ppt\/(?:slides|slideLayouts|slideMasters|notesSlides)\/[^/]+\.xml$/i.test(item.name))) {
     if (/ppaction:\/\/program/i.test(await text(entry))) found.add('linkToProgram');
   }
 
@@ -673,8 +748,16 @@ async function inspectOoxml(entries, text, work) {
   }
   let excelDde = false;
   for (const entry of entries.filter((item) => /^xl\/externalLinks\/[^/]+\.xml$/i.test(item.name))) excelDde ||= /<(?:\w+:)?ddeLink\b/.test(await text(entry));
-  if (/\bDDE(?:AUTO)?\b/i.test(decodeEntities(instructions)) || excelDde) found.add('dde');
-  const files = embedded.filter((item) => !objects.includes(item));
+  const fields = decodeEntities(instructions);
+  if (/\bDDE(?:AUTO)?\b/i.test(fields) || excelDde) found.add('dde');
+  // Fields that fetch a picture or text when the document opens or updates.
+  const fetched = includedTargets(fields).filter((target) => !isLocalTarget(target));
+  if (fetched.length) found.add('remote', fetched);
+
+  // Files inside: embedded Office files, and alternative-format chunks (altChunk) that Word imports when it opens the
+  // document, such as a whole RTF file with its own objects.
+  const chunks = related('aFChunk').filter((item) => !item.external).map((item) => entries.find((entry) => entry.name === resolvePart(item.base, item.target))).filter((entry) => entry !== undefined);
+  const files = [...embedded.filter((item) => !objects.includes(item)), ...chunks];
   if (!files.length || tooDeep(work)) return;
   for (const entry of files) await addChild(work, entry.name.split('/').at(-1) ?? entry.name, () => unzip(entry, MAX_INNER), entry.size);
 }
@@ -754,6 +837,16 @@ async function inspectCfb(bytes, work) {
   if (at('Macros') || at('_VBA_PROJECT_CUR') || entries.some((entry) => /(^|\/)VBA\/_VBA_PROJECT$/i.test(entry.path))) found.add('macros');
   if (at('ObjectPool') || entries.some((entry) => /^MBD[0-9A-F]{8}$/i.test(entry.name)) || anyNamed('\u0001Ole10Native')) found.add('embedded');
 
+  // Word 97–2003 keeps field codes in the document text, 8-bit or UTF-16: a DDE field reads "DDEAUTO …" there.
+  const document = at('WordDocument');
+  if (document) {
+    try {
+      const stream = cfb.read(document, MAX_INNER);
+      if ([byteString(stream), new TextDecoder('utf-16le').decode(stream)].some((text) => /\x13\s*DDE(?:AUTO)?\s/i.test(text))) found.add('dde');
+    } catch {
+      found.add('partlyRead');
+    }
+  }
   const workbook = at('Workbook') ?? at('Book');
   if (workbook) {
     try {
@@ -809,8 +902,13 @@ async function messageAttachments(cfb, work, base = '', prefix = '') {
     const nameStream = MSG_NAMES.map(stream).find(Boolean);
     let name = storage.name;
     if (nameStream) {
-      const raw = cfb.read({ ...nameStream, size: Math.min(nameStream.size, MAX_NAME_BYTES) }, MAX_NAME_BYTES);
-      name = (nameStream.name.endsWith('001F') ? new TextDecoder('utf-16le') : new TextDecoder('windows-1252')).decode(raw).replace(/\0[\s\S]*$/, '') || storage.name;
+      // A broken name is no reason to skip the attachment, or the ones after it.
+      try {
+        const raw = cfb.read({ ...nameStream, size: Math.min(nameStream.size, MAX_NAME_BYTES) }, MAX_NAME_BYTES);
+        name = (nameStream.name.endsWith('001F') ? new TextDecoder('utf-16le') : new TextDecoder('windows-1252')).decode(raw).replace(/\0[\s\S]*$/, '') || storage.name;
+      } catch {
+        work.found.add('partlyRead');
+      }
     }
     const data = stream(MSG_DATA);
     const message = stream(MSG_MESSAGE);
@@ -818,7 +916,7 @@ async function messageAttachments(cfb, work, base = '', prefix = '') {
     // An attached message: its own attachments are checked as one more level down.
     else if (message && message.type === 'storage' && !prefix) await messageAttachments(cfb, work, message.path, `${name}/`);
     else if (message) work.found.add('nested');
-    else work.found.add('partlyRead');
+    // No data and no message: an attachment sent as a link (by reference or to cloud storage), nothing to check here.
   }
 }
 
@@ -850,6 +948,12 @@ function inspectRtf(bytes, work) {
   if (/\\objupdate\b/i.test(text)) found.add('autoUpdate');
   if (classes.some((name) => /^equation\.3$/i.test(name.trim()))) found.add('equationEditor');
   if (/\\fldinst\b[^}]*\bDDE(?:AUTO)?\b/i.test(text)) found.add('dde');
+  // A template or a picture fetched from elsewhere when Word opens the document (RTF escapes "\" as "\\"). Field
+  // instructions are unescaped once only: Word also takes "\\host" there, and a path that starts with two
+  // backslashes either way is on another computer.
+  const template = /\{\\\*\\template\s+([^}]+)\}/i.exec(text)?.[1]?.trim().replace(/\\\\/g, '\\') ?? '';
+  const fetched = [...(template && !isLocalTarget(template) ? [template] : []), ...[...text.matchAll(/\\fldinst\b([^}]*)/gi)].flatMap((match) => includedTargets(match[1])).filter((target) => !isLocalTarget(target))];
+  if (fetched.length) found.add('remote', fetched);
   work.links.push(...[...text.matchAll(/HYPERLINK\s+"([^"]+)"/g)].map((match) => match[1]).filter(isWebLink));
 }
 
@@ -875,7 +979,9 @@ async function inspectPdf(bytes, work) {
   if (unreadable) found.add('partlyRead');
   // Every version of every object: a reader follows the cross-reference table, so a later copy with the same number
   // (even one written inside a stream's data) must not hide the earlier one from these checks.
-  const all = versions.size ? [...versions.values()].flat().map(pdfNames) : [decoded];
+  // Only dictionaries are searched: stream data (pictures, fonts, thumbnails) can hold "/JS" or "/AA" by chance.
+  const dictionaries = versions.size ? [...versions.values()].flat().map(dictionaryPart) : [text];
+  const all = dictionaries.map(pdfNames);
   /** @param {string} name */
   const pattern = (name) => new RegExp(`/${name}${NAME_END}`);
   /** @param {string} name */
@@ -915,7 +1021,7 @@ async function inspectPdf(bytes, work) {
   work.links.push(...bodies('URI').map((body) => value(body, 'URI')).filter(isWebLink));
 
   // Names spelled with escapes that a PDF reader decodes, used to hide them from simple checks.
-  const hidden = new Set([...text.matchAll(/\/[^\s/[\]<>(){}%]*#[0-9A-Fa-f]{2}[^\s/[\]<>(){}%]*/g)].map((match) => pdfNames(match[0]).slice(1)).filter((name) => PDF_KEYWORDS.has(name)));
+  const hidden = new Set(dictionaries.flatMap((body) => [...body.matchAll(/\/[^\s/[\]<>(){}%]*#[0-9A-Fa-f]{2}[^\s/[\]<>(){}%]*/g)]).map((match) => pdfNames(match[0]).slice(1)).filter((name) => PDF_KEYWORDS.has(name)));
   if (hidden.size) found.add('pdfObfuscated', [...hidden].map((name) => `/${name}`));
 
   // Attached files: each file specification with an embedded file stream (§7.11.4).
@@ -929,22 +1035,27 @@ async function inspectPdf(bytes, work) {
   const positions = new Map();
   const headers = [...text.matchAll(/(?:^|[\r\n\s])(\d+)\s+\d+\s+obj\b/g)];
   headers.forEach((match, i) => positions.set(Number(match[1]), { at: match.index + match[0].length, end: headers[i + 1]?.index ?? text.length }));
+  // Each embedded file once, however many specifications point at it.
+  const seen = new Set();
   for (const spec of specs) {
     const number = Number(/\/EF\s*<<[^>]*?\/(?:UF|F)\s+(\d+)\s+\d+\s+R/.exec(spec)?.[1] ?? Number.NaN);
     const position = positions.get(number);
-    if (!position) continue;
+    if (!position || seen.has(number)) continue;
+    seen.add(number);
+    if (seen.size > MAX_INSIDE) break;
     const { at } = position;
-    const endobj = text.indexOf('endobj', at);
-    const body = text.slice(at, endobj === -1 ? position.end : Math.min(endobj, position.end));
+    const own = text.slice(at, position.end);
+    const endobj = own.indexOf('endobj');
+    const body = endobj === -1 ? own : own.slice(0, endobj);
     const name = value(spec, 'UF') || value(spec, 'F') || `${number}`;
-    const declared = Number(/\/Length\s+(\d+)/.exec(body)?.[1] ?? 0);
+    // A small stream can inflate to gigabytes: it is inflated no further than a file inside may be and the shared
+    // budget allows, and that much is charged whether or not it fits.
+    const allowed = Math.min(MAX_INNER, Math.max(0, MAX_UNPACKED - work.context.budget.unpacked));
     await addChild(work, name, async () => {
-      // Inflated no further than a file inside may be, and than the shared budget allows: a small stream can
-      // inflate to gigabytes.
-      const data = await streamData(bytes, at, body, objects, Math.min(MAX_INNER, MAX_UNPACKED - work.context.budget.unpacked));
+      const data = await streamData(bytes, at, body, objects, allowed);
       if (data === null) throw new Error('stream not decoded, or larger than allowed');
       return ascii(data);
-    }, declared);
+    }, allowed);
   }
 }
 
@@ -966,7 +1077,9 @@ function inspectPage(bytes, work) {
   /** @param {string} url */
   const runsScript = (url) => /^(?:javascript|vbscript):/i.test(url.replace(/[\t\n\r]/g, '').replace(/^[\u0000-\u0020]+/, ''));
   const scriptLinks = tags.some((tag) => ['href', 'xlink:href', 'action', 'formaction', 'src'].some((name) => runsScript(attribute(tag, name))));
-  if (/<script\b/i.test(text) || handlers || scriptLinks) found.add('pageScript');
+  // A script runs when it has no type or a JavaScript one; data blocks such as JSON-LD in newsletters don't.
+  const scripts = tags.some((tag) => /^<script\b/i.test(tag) && /^(?:|module|(?:text|application)\/(?:x-)?(?:java|ecma)script(?:;.*)?)$/i.test(attribute(tag, 'type').trim()));
+  if (scripts || handlers || scriptLinks) found.add('pageScript');
 
   // The type is read after character references are decoded: type="pass&#119;ord" is a password box too.
   const passwordBox = tags.some((tag) => /^<input\b/i.test(tag) && attribute(tag, 'type').trim().toLowerCase() === 'password');
@@ -1140,6 +1253,8 @@ async function inspectGzip(bytes, name, work) {
     return;
   }
   const inner = name.replace(/\.tgz$/i, '.tar').replace(/\.gz$/i, '') || name;
+  // gzip doesn't say how large its file is: the most it may unpack to is charged, and the stream stops there.
+  const allowed = Math.min(MAX_INNER, Math.max(0, MAX_UNPACKED - work.context.budget.unpacked));
   await addChild(work, inner, async () => {
     const reader = new Blob([/** @type {Uint8Array<ArrayBuffer>} */ (bytes)]).stream().pipeThrough(new DecompressionStream('gzip')).getReader();
     /** @type {Uint8Array[]} */
@@ -1149,7 +1264,7 @@ async function inspectGzip(bytes, name, work) {
       const { done, value } = await reader.read();
       if (done) break;
       total += value.length;
-      if (total > MAX_INNER) {
+      if (total > allowed) {
         await reader.cancel();
         throw new Error('too large');
       }
@@ -1158,7 +1273,7 @@ async function inspectGzip(bytes, name, work) {
     const out = new Uint8Array(total);
     chunks.reduce((offset, chunk) => (out.set(chunk, offset), offset + chunk.length), 0);
     return out;
-  }, 0);
+  }, allowed);
 }
 
 /**
@@ -1190,7 +1305,11 @@ async function inspectTar(bytes, work) {
       const name = longName || utf8(ascii(prefix ? `${prefix}/${field(at, 100)}` : field(at, 100)));
       longName = '';
       // Regular files: "0", the old "\0", and "7" (contiguous), which tools unpack as ordinary files.
-      if (['0', '\0', '7'].includes(type) && from + size <= bytes.length) await addChild(work, name, async () => data, size);
+      if (['0', '\0', '7'].includes(type)) {
+        // A file cut short by the end of the archive is not unpacked, and the visitor is told part was not read.
+        if (from + size <= bytes.length) await addChild(work, name, async () => data, size);
+        else work.found.add('partlyRead');
+      }
     }
     at = from + Math.ceil(size / 512) * 512;
   }

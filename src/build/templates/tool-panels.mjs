@@ -413,7 +413,7 @@ const VIDEO_VALUES = [
 ];
 const VIDEO_FLAGS = ['emptyLocation', 'thumbnail', 'xmp', 'c2pa', 'cameraData', 'samsung', 'frameData', 'timecode', 'dataTrack', 'gpsLog', 'hiddenData', 'trackNames', 'other'];
 /** What stays in the clean copy (VideoReport.leftIn). */
-const VIDEO_LEFT = ['encoderName', 'subtitles', 'unknownTrack', 'unknownBox'];
+const VIDEO_LEFT = ['encoderName', 'subtitles', 'unknownBox'];
 const VIDEO_ERRORS = ['unsupported', 'photo', 'damaged', 'tooLarge', 'fragmented', 'readFailed'];
 
 /** @param {Ctx} ctx */
