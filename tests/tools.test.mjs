@@ -13,6 +13,7 @@ import { TOOLS, TOOL_GROUPS } from '../src/build/tools.mjs';
 import { FONTS, TRACE_URL, autofillLeak, browserFacts, canvasNoise, canvasPattern, compareFacts, detectFonts, detectProtections, fingerprintSource, layoutSample, parseTrace, protectionNotes, rememberedFacts, utcOffset } from '../src/client/tool-browser.mjs';
 import { imitatedBrand, inspectLink, nestedDomain, oneEditApart, punycodeDecode, scriptTrick, siteOf, unicodeHost } from '../src/client/tool-check.mjs';
 import { KINDS as HIDDEN_KINDS } from '../src/client/tool-hidden.mjs';
+import { EXPECTED_KINDS, FINDINGS as ATTACHMENT_FINDINGS } from '../src/client/tool-attachment.mjs';
 import { cleanText, cleanUrl, findLinks, isTracking } from '../src/client/tool-links.mjs';
 import { ZOOMS, boxFromDrag, checkCovered, commit, createHistory, currentDrawing, exportSize, frameRect, handleAt, hitShape, isAnimated, moveBox, moveShape, outputFrame, pinchZoom, pixelRect, previewGrow, previewSize, redo, resizeBox, resizeFromHandle, shapeBounds, stepZoom, straightEnd, undo, unsavedWork } from '../src/client/tool-redact.mjs';
 import { charSets, entropyBits, generatePassphrase, generatePassword, guessTime, passphraseBits, pinOdds, randomInt, strengthOf } from '../src/client/tool-password.mjs';
@@ -1067,6 +1068,14 @@ describe('tool pages', () => {
     const section = /<section class="tool-guides" aria-labelledby="tool__guides">([\s\S]*?)<\/section>/.exec(page)?.[1] ?? '';
     for (const slug of ['location-photos', 'protest', 'sources-documents']) assert.match(section, new RegExp(`href="/en/guides/${slug}/"`), slug);
     assert.doesNotMatch(section, /guides\/accounts\//);
+    for (const [lang, prefix] of [['en', '/en'], ['ka', '']]) {
+      const video = await read(`${lang === 'en' ? 'en/' : ''}tools/video-metadata/index.html`);
+      const videoGuides = /<section class="tool-guides" aria-labelledby="tool__guides">([\s\S]*?)<\/section>/.exec(video)?.[1] ?? '';
+      for (const slug of ['location-photos', 'protest', 'sources-documents']) assert.match(videoGuides, new RegExp(`href="${prefix}/guides/${slug}/"`), `${lang} video ${slug}`);
+      const attachment = await read(`${lang === 'en' ? 'en/' : ''}tools/attachment-checker/index.html`);
+      const attachmentGuides = /<section class="tool-guides" aria-labelledby="tool__guides">([\s\S]*?)<\/section>/.exec(attachment)?.[1] ?? '';
+      for (const slug of ['phishing', 'spyware', 'sources-documents']) assert.match(attachmentGuides, new RegExp(`href="${prefix}/guides/${slug}/"`), `${lang} attachment ${slug}`);
+    }
     assert.match(await read('tools/link-checker/index.html'), /<section class="tool-guides"[\s\S]*?href="\/guides\/phishing\/"/, 'Georgian too');
     for (const tool of TOOLS) {
       const html = await read(`en/tools/${tool.slug}/index.html`);
@@ -1140,6 +1149,39 @@ describe('tool pages', () => {
     assert.match(photo, /data-js="photo-example"/);
     assert.match(photo, /data-copy-from="photo-coordinates"/, 'coordinates can be copied');
     assert.doesNotMatch(photo, /maps\.|openstreetmap|geo:/i, 'no map link: it would send the location elsewhere');
+    for (const lang of ['en', 'ka']) {
+      const video = await read(`${lang === 'en' ? 'en/' : ''}tools/video-metadata/index.html`);
+      const videoValues = ['location', 'route', 'taken', 'timeZone', 'place', 'camera', 'lens', 'serial', 'lensSerial', 'uniqueId', 'software', 'author', 'copyright', 'title', 'description', 'keywords', 'fileName'];
+      const videoFlags = ['emptyLocation', 'thumbnail', 'xmp', 'c2pa', 'cameraData', 'samsung', 'frameData', 'timecode', 'dataTrack', 'gpsLog', 'hiddenData', 'trackNames', 'other'];
+      for (const row of [...videoValues, ...videoFlags]) assert.match(video, new RegExp(`<div class="facts__row" data-row="${row}"( data-flag)? hidden><dt>[^<]+</dt>`), `${lang} video ${row}`);
+      for (const kept of ['encoderName', 'subtitles', 'unknownTrack', 'unknownBox']) assert.match(video, new RegExp(`<li data-left="${kept}" hidden>[^<]+<span translate="no" data-js="video-left-names">`), `${lang} video left ${kept}`);
+      for (const message of ['reading', 'found', 'none', 'unsupported', 'photo', 'damaged', 'too-large', 'fragmented', 'read-failed', 'ok', 'failed', 'done']) {
+        assert.match(video, new RegExp(`data-${message}="[^"]+"`), `${lang} video ${message}`);
+      }
+      for (const template of ['{value}', '{n}', '{first}']) assert.ok(video.includes(template), `${lang} video ${template}`);
+      assert.match(video, /data-js="video-example"/);
+      assert.match(video, /data-copy-from="video-coordinates"/, 'coordinates can be copied');
+      assert.doesNotMatch(video, /maps\.|openstreetmap|geo:/i, 'no map link: it would send the location elsewhere');
+      assert.match(/Content-Security-Policy" content="([^"]+)"/.exec(video)?.[1] ?? '', /connect-src 'none'/, 'the video page makes no requests');
+    }
+    for (const lang of ['en', 'ka']) {
+      const page = await read(`${lang === 'en' ? 'en/' : ''}tools/attachment-checker/index.html`);
+      for (const key of Object.keys(ATTACHMENT_FINDINGS)) assert.match(page, new RegExp(`<li data-finding="${key}" hidden>[^<]+`), `${lang} attachment finding ${key}`);
+      for (const kind of new Set([...Object.values(EXPECTED_KINDS).flat(), 'elf', 'macho', 'javaClass', 'shebang', 'libraryMs', 'searchMs', 'mobileconfig', 'xar', 'cfb', 'aiff', 'midi', 'unknown', 'empty'])) {
+        const attribute = kind.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
+        assert.match(page, new RegExp(`data-kind-${attribute}="[^"]+"`), `${lang} attachment kind ${kind}`);
+      }
+      for (const verdict of ['program', 'disguise', 'active', 'locked', 'none']) {
+        for (const part of ['verdict', 'advice', 'inside-list']) assert.match(page, new RegExp(`data-js="attachment-${part}"[^>]*data-${verdict}="[^"]+"`), `${lang} attachment ${part} ${verdict}`);
+      }
+      for (const payload of ['vpn', 'certificate', 'mdm', 'wifi', 'mail', 'dns', 'web-clip', 'restrictions', 'other']) assert.match(page, new RegExp(`data-payload-${payload}="[^"]+"`), `${lang} attachment payload ${payload}`);
+      for (const message of ['reading', 'done', 'capped', 'ok', 'warn']) assert.match(page, new RegExp(`data-${message}="[^"]+"`), `${lang} attachment ${message}`);
+      for (const template of ['{n}', '{max}']) assert.ok(page.includes(template), `${lang} attachment ${template}`);
+      assert.match(page, new RegExp(`<a href="${lang === 'en' ? '/en' : ''}/tools/link-checker/">[^<]+</a>`), 'links point to the link checker');
+      assert.match(page, /<input class="file__input" type="file" id="attachment__file" data-js="attachment-file" multiple>/, 'any file, several at once');
+      assert.match(page, /data-js="attachment-example"/);
+      assert.match(/Content-Security-Policy" content="([^"]+)"/.exec(page)?.[1] ?? '', /connect-src 'none'/, 'the attachment page makes no requests');
+    }
     const browser = await read('en/tools/browser-check/index.html');
     const instant = Object.keys(browserFacts({ navigator: {}, screen: { width: 1, height: 1 }, window: { innerWidth: 1, innerHeight: 1 }, timeZone: '', offsetMinutes: 0, media: () => false, referrer: '' }));
     for (const key of [...instant, 'os', 'model', 'gpu', 'canvas', 'fonts', 'keyboard', 'voices', 'blocker', 'fingerprint']) {

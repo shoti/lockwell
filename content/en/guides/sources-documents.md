@@ -57,6 +57,7 @@ Office files and PDFs can carry the author's name, comments, tracked changes, ea
 
 1. Our [document metadata tool](/tools/document-metadata/) reads Word, Excel, PowerPoint, LibreOffice and PDF files on your device. In the clean copy it removes the file properties, replaces the names on comments and tracked changes and removes their dates, but the comments and changes themselves stay in: delete them by hand. Anything it can't read, it lists rather than calling the file clean. PDFs it can only check, not clean.
 2. For photos, our [photo metadata remover](/tools/photo-metadata/) removes location, device details and dates, and in JPEG, PNG and WebP photos the embedded preview too: see [Remove location from your photos](/guides/location-photos/#photo-metadata).
+3. For videos, our [video metadata remover](/tools/video-metadata/) removes location, recording time and device details from MP4, MOV, M4V and 3GP files without encoding them again.
 
 FPF warns that pictures inside a document keep their own metadata even after you clean the document. FPF suggests exporting to a different format, or copying the text into a new, empty document. None of this hides what the text itself says.
 
@@ -117,6 +118,7 @@ FPF says the best way not to compromise a source is to keep as little informatio
 4. Security in a Box suggests encrypted containers or drives, such as VeraCrypt, for external drives. Close an encrypted volume before you walk away, before your computer sleeps, and before you plug in a USB stick you don't trust.
 5. Switch devices off when you don't need them, for example overnight: see [Know why switching off matters](/guides/device-seizure/#before-first-unlock).
 6. If you often open files from people you don't know, consider Qubes OS, which Privacy Guides lists for security. It runs tasks in separate, isolated virtual machines, and can open an untrusted file in a disposable one that keeps it away from your other files and is deleted afterwards. It needs a computer with hardware virtualisation and at least 6 GB of memory; Qubes recommends an Intel processor and 16 GB. Check its lists of certified and community-recommended computers before you buy. It keeps a harmful file away from the rest of your computer; it doesn't remove hidden data from the file itself.
+7. Before you open a file from someone you don't know, check it with our [attachment checker](/tools/attachment-checker/). It reads the file on your device and says what it really is and whether opening it can run something; it can't tell whether a file is harmful. To read a document without opening the original, Dangerzone, which FPF maintains, makes a "virtual photocopy" of it on your computer and gives you a safe PDF. Like a printout, the copy has no macros or spreadsheet formulas, and Dangerzone doesn't remove printer tracking dots.
 
 Encryption doesn't help while a device is on and unlocked or a volume is open, and it doesn't help against malware on the device. If the recovery key is stored in your Microsoft or Apple account, the disk is only as safe as that account.
 

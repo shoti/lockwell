@@ -31,6 +31,7 @@ Good spelling proves nothing: scammers now write flawless messages with AI. When
 1. Don't reply, and don't tap links or open attachments in the message, including an "unsubscribe" link.
 2. Check through a channel you already know: open the company's app, type its address yourself, or call the number on your card or statement.
 3. If a friend asks for money, call them on the number you normally use. A voice on the phone can be faked with AI too: if a call sounds off or asks for something unusual, check another way.
+4. If you're unsure about a file you were sent, check it with our [attachment checker](/tools/attachment-checker/) before you open it. It reads the file on your device and says what it really is and whether opening it can run something. It can't tell whether a file is harmful.
 
 ## Never share login codes or passwords {#never-share .essential}
 
