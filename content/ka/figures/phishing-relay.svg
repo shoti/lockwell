@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 383">
   <title>რატომ შეუძლია ყალბ გვერდს კოდის მოპარვა და უსაფრთხოების გასაღებისა არა</title>
-  <desc>პაროლით და კოდით: თავდამსხმელი თქვენს ანგარიშშია. უსაფრთხოების გასაღებით ან passkey-ით: გასაღები მხოლოდ იმ საიტზე მუშაობს, სადაც დაარეგისტრირეთ. ყალბ გვერდს გადასაცემი არაფერი რჩება.</desc>
+  <desc>პაროლით და კოდით: თავდამსხმელი თქვენს ანგარიშშია. უსაფრთხოების გასაღებით ან Passkey-ით: გასაღები მხოლოდ იმ საიტზე მუშაობს, სადაც დაარეგისტრირეთ. ყალბ გვერდს გადასაცემი არაფერი რჩება.</desc>
   <rect x="0" y="0" width="340" height="170.4" rx="8" class="box-bad"/>
   <text x="12" y="26.4" class="t-b t-bad">პაროლით და კოდით</text>
   <text x="109" y="50.3" class="t-sm" text-anchor="middle">პაროლი და</text>
@@ -23,9 +23,9 @@
   <path d="M18.2 144.6 L25.8 152.2 M25.8 144.6 L18.2 152.2" class="line-bad"/>
   <text x="40" y="150.9" class="t-sm t-b t-bad">თავდამსხმელი თქვენს ანგარიშშია.</text>
   <rect x="0" y="180.4" width="340" height="201.9" rx="8" class="box-good"/>
-  <text x="12" y="206.8" class="t-b t-good">უსაფრთხოების გასაღებით ან passkey-ით</text>
+  <text x="12" y="206.8" class="t-b t-good">უსაფრთხოების გასაღებით ან Passkey-ით</text>
   <text x="109" y="230.7" class="t-sm" text-anchor="middle">გასაღები ან</text>
-  <text x="109" y="247.9" class="t-sm" text-anchor="middle">passkey</text>
+  <text x="109" y="247.9" class="t-sm" text-anchor="middle">Passkey</text>
   <rect x="0" y="256.6" width="96" height="52.3" rx="8" class="box"/>
   <text x="48" y="286.6" class="t-sm t-b" text-anchor="middle">თქვენ</text>
   <rect x="122" y="256.6" width="96" height="52.3" rx="8" class="box-bad"/>

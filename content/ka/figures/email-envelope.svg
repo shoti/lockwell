@@ -1,8 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 321">
-  <title>რას მალავს ბოლომდე დაშიფრული ელფოსტა და რას არა</title>
-  <desc>კონვერტი: მას სერვისები ბოლომდე დაშიფვრის დროსაც ხედავენ ვისგან: you@example.org; ვის: editor@example.net; გაიგზავნა: 12 ნოემბერი 2026, 09:14; თემა: პარასკევის დოკუმენტები; გამგზავნის IP მისამართი: ზოგ სერვისთან. თავად წერილი: ბოლომდე დაშიფვრას მისი დამალვა შეუძლია</desc>
-  <text x="0" y="12.5" class="t-sm t-b t-bad">კონვერტი: მას სერვისები ბოლომდე დაშიფვრის</text>
-  <text x="0" y="29.6" class="t-sm t-b t-bad">დროსაც ხედავენ</text>
+  <title>რას მალავს End-to-end დაშიფრული ელფოსტა და რას — არა</title>
+  <desc>კონვერტი: სერვისები მას End-to-end დაშიფვრის დროსაც ხედავენ ვისგან: you@example.org; ვის: editor@example.net; გაიგზავნა: 12 ნოემბერი 2026, 09:14; თემა: პარასკევის დოკუმენტები; გამგზავნის IP მისამართი: ზოგ სერვისთან. თავად წერილი: End-to-end დაშიფვრას მისი დამალვა შეუძლია</desc>
+  <text x="0" y="12.5" class="t-sm t-b t-bad">კონვერტი: სერვისები მას End-to-end</text>
+  <text x="0" y="29.6" class="t-sm t-b t-bad">დაშიფვრის დროსაც ხედავენ</text>
   <rect x="0" y="40.3" width="340" height="159.8" rx="6" class="box-bad"/>
   <path d="M1 41.3 L170 74.3 L339 41.3" class="line-bad line-thin"/>
   <text x="14" y="97.4" class="t-sm t-b">ვისგან:</text>
@@ -15,7 +15,7 @@
   <text x="53.7" y="160.9" class="t-sm">პარასკევის დოკუმენტები</text>
   <text x="14" y="182" class="t-sm t-b">გამგზავნის IP მისამართი:</text>
   <text x="185.3" y="182" class="t-sm">ზოგ სერვისთან</text>
-  <text x="0" y="228.6" class="t-sm t-b t-good">თავად წერილი: ბოლომდე დაშიფვრას მისი</text>
+  <text x="0" y="228.6" class="t-sm t-b t-good">თავად წერილი: End-to-end დაშიფვრას მისი</text>
   <text x="0" y="245.8" class="t-sm t-b t-good">დამალვა შეუძლია</text>
   <rect x="0" y="256.4" width="340" height="64" rx="6" class="box-good"/>
   <rect x="14" y="274.4" width="36" height="28" rx="6" class="fill-bg"/>
