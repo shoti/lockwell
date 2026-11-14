@@ -169,7 +169,7 @@ function header(ctx, page) {
         <span class="icon-button__on">${icons.moon}</span><span class="icon-button__off">${icons.sun}</span>
         <span class="visually-hidden">${t('theme.toggle')}</span>
       </button>
-      ${site.repo ? html`<a class="icon-button site-header__repo" href="${site.repo}" rel="external noreferrer">${icons.github}<span class="visually-hidden">${t('nav.source')}</span></a>` : null}
+      ${site.repo ? html`<a class="icon-button site-header__repo" href="${site.repo}" target="_blank" rel="external noopener noreferrer">${icons.github}<span class="visually-hidden">${t('nav.source')}</span></a>` : null}
     </div>
   </div>
 </header>`;
@@ -195,7 +195,7 @@ function footer(ctx) {
     </div>
     <p class="site-footer__legal">
       ${site.author?.inFooter
-        ? html`<span>${t('footer.copyright', { year: site.copyrightYear ?? '' })} <a href="${site.author.url}" rel="author external noreferrer">${site.author.name}</a></span>`
+        ? html`<span>${t('footer.copyright', { year: site.copyrightYear ?? '' })} <a href="${site.author.url}" target="_blank" rel="author external noopener noreferrer">${site.author.name}</a></span>`
         : html`<span>${t('footer.copyright', { year: site.copyrightYear ?? '' })} ${t('siteName')}</span>`}
       <a class="site-footer__about" href="${url('/about/')}">${t('nav.about')}</a>
     </p>
