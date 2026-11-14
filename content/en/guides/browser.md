@@ -1,6 +1,6 @@
 ---
 title: Make your web browser more private
-description: Settings for Chrome, Safari, Firefox and Edge: updates, extensions, blocking trackers and third-party cookies, private windows and search.
+description: 'Settings for Chrome, Safari, Firefox and Edge: updates, extensions, blocking trackers and third-party cookies, private windows and search.'
 summary: Your browser sees nearly everything you do online. A few settings cut down who else does.
 audience: everyone
 group: habits

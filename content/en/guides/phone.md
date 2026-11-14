@@ -1,6 +1,6 @@
 ---
 title: Lock down your phone
-description: A step-by-step checklist for iPhone and Android: a strong screen lock, automatic updates, finding a lost phone, app permissions, SIM PIN and theft protection.
+description: 'A step-by-step checklist for iPhone and Android: a strong screen lock, automatic updates, finding a lost phone, app permissions, SIM PIN and theft protection.'
 summary: Protect what is on your phone if it is lost, stolen or picked up by someone else.
 audience: everyone
 group: start

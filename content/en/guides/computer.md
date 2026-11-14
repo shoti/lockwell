@@ -1,6 +1,6 @@
 ---
 title: Secure your computer
-description: A checklist for Windows and Mac: automatic updates, a screen lock, disk encryption and its recovery key, built-in protection, safe software and the firewall.
+description: 'A checklist for Windows and Mac: automatic updates, a screen lock, disk encryption and its recovery key, built-in protection, safe software and the firewall.'
 summary: Keep your Windows PC or Mac updated, locked and encrypted, without risking a lock-out.
 audience: everyone
 group: devices

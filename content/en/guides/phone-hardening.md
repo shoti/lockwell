@@ -1,6 +1,6 @@
 ---
 title: Harden your phone against targeted attacks
-description: Lockdown Mode, Android Advanced Protection, quick biometric lock, restarts, USB and 2G settings: what each one blocks, what it breaks and what it can't stop.
+description: "Lockdown Mode, Android Advanced Protection, quick biometric lock, restarts, USB and 2G settings: what each one blocks, what it breaks and what it can't stop."
 summary: Settings that make a phone harder to break into for someone who targets you personally, with what each one costs and what it doesn't stop.
 audience: high-risk
 group: basics

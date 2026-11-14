@@ -1,6 +1,6 @@
 ---
 title: Protect your phone and others at a protest
-description: What to do with your phone before, during and after a protest: what to carry, how to lock it, what it reveals, photographing others safely, and if it is taken.
+description: 'What to do with your phone before, during and after a protest: what to carry, how to lock it, what it reveals, photographing others safely, and if it is taken.'
 summary: Your phone can show where you were, who you know and who was beside you. Prepare it before you go, protect the people in your photos, and know what to do if it is taken.
 audience: high-risk
 group: situations

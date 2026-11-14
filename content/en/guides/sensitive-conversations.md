@@ -1,6 +1,6 @@
 ---
 title: Keep sensitive conversations private
-description: Signal in depth: checking you're talking to the right person, hiding your number, disappearing messages, groups, and what Signal and your phone still reveal.
+description: "Signal in depth: checking you're talking to the right person, hiding your number, disappearing messages, groups, and what Signal and your phone still reveal."
 summary: Signal protects what you write, not who you are or what is on the other person's phone. Check who you are talking to, hide your number and know the limits.
 audience: high-risk
 group: basics

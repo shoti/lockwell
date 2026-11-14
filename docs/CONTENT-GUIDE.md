@@ -65,6 +65,19 @@ status: draft
 
 The build warns when `reviewed` is more than a year old.
 
+**Quote values that contain a colon.** GitHub reads front matter as YAML when it
+shows a file, and prints an error above the page if a line isn't valid YAML. So a
+value with `: ` in it (or ` #`, or one that starts with a quote or a bracket) goes
+in quotes, and the build stops if it doesn't:
+
+```md
+description: 'A guide for iPhone and Android: screen lock, updates, lost-phone features.'
+summary: "It's quoted with double quotes when the text has an apostrophe: like this."
+```
+
+Use single quotes; use double quotes when the text has an apostrophe. A value that
+needs both a double quote and an apostrophe inside has to be reworded.
+
 ### The two tracks
 
 The guides index lists two sections: "For everyone" first, then "For people

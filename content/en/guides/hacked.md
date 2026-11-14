@@ -1,6 +1,6 @@
 ---
 title: If your account was hacked
-description: What to do when someone gets into your email, social media or WhatsApp: get back in, lock them out, close what they left open and warn your contacts.
+description: 'What to do when someone gets into your email, social media or WhatsApp: get back in, lock them out, close what they left open and warn your contacts.'
 summary: Someone got into your account. Get back in through the official route, sign them out, check what they changed and warn the people they could reach.
 audience: everyone
 group: recovery

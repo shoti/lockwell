@@ -32,6 +32,23 @@ describe('front matter', () => {
     assert.equal(bodyLine, 5);
   });
 
+  it('rejects values that are not valid YAML, so GitHub can show the file (it reads front matter as YAML)', () => {
+    /** @param {string} line */
+    const parse = (line) => parseFrontMatter(`---\n${line}\n---\n`, 'x.md').data;
+    assert.throws(() => parse('title: Lock your phone: the basics'), /x\.md:2 — "title" has ": " in it.*Put the whole value in quotes/s);
+    assert.throws(() => parse('title: Ends with a colon:'), /x\.md:2 — "title"/);
+    assert.throws(() => parse('title: Tools #1'), /x\.md:2 — "title" has " #" in it/);
+    assert.throws(() => parse('title: "Hacked" accounts'), /x\.md:2 — "title" starts with/);
+    assert.throws(() => parse('title: [draft] Phones'), /x\.md:2 — "title" starts with/);
+    assert.throws(() => parse('title: "He said "no": fine"'), /x\.md:2 — "title" is in double quotes/);
+    assert.throws(() => parse("title: 'It's here: now'"), /x\.md:2 — "title" is in single quotes/);
+    assert.deepEqual(parse("title: 'Lock your phone: the basics'"), { title: 'Lock your phone: the basics' });
+    assert.deepEqual(parse('title: "It\'s here: now"'), { title: "It's here: now" });
+    assert.deepEqual(parse('title: Many accounts are never "hacked", and it\'s common'), { title: 'Many accounts are never "hacked", and it\'s common' });
+    assert.deepEqual(parse('order: 2'), { order: '2' });
+    assert.deepEqual(parse('title: Time 10:30 and a-b'), { title: 'Time 10:30 and a-b' });
+  });
+
   it('rejects missing or unclosed front matter and duplicate keys', () => {
     assert.throws(() => parseFrontMatter('title: x', 'x.md'), /Missing front matter/);
     assert.throws(() => parseFrontMatter('---\ntitle: x\n', 'x.md'), /not closed/);
