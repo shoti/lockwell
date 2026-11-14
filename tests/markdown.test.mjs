@@ -72,7 +72,7 @@ describe('renderInline', () => {
   it('renders bold, italic, code and links', () => {
     assert.equal(
       renderInline('**Settings → Account** and *this* `code` [site](https://signal.org)', ctx, 1),
-      '<strong>Settings → Account</strong> and <em>this</em> <code>code</code> <a href="https://signal.org" rel="external noreferrer">site</a>',
+      '<strong>Settings → Account</strong> and <em>this</em> <code>code</code> <a href="https://signal.org" target="_blank" rel="external noopener noreferrer">site</a>',
     );
   });
 
@@ -83,7 +83,7 @@ describe('renderInline', () => {
   it('escapes HTML everywhere, including inside code and link text', () => {
     assert.equal(renderInline('<script>alert(1)</script>', ctx, 1), '&lt;script&gt;alert(1)&lt;/script&gt;');
     assert.equal(renderInline('`<b>`', ctx, 1), '<code>&lt;b&gt;</code>');
-    assert.equal(renderInline('[<img onerror=x>](https://a.b/?q="x")', ctx, 1), '<a href="https://a.b/?q=&quot;x&quot;" rel="external noreferrer">&lt;img onerror=x&gt;</a>');
+    assert.equal(renderInline('[<img onerror=x>](https://a.b/?q="x")', ctx, 1), '<a href="https://a.b/?q=&quot;x&quot;" target="_blank" rel="external noopener noreferrer">&lt;img onerror=x&gt;</a>');
   });
 
   it('lets the link resolver reject dangerous URLs', () => {
@@ -100,7 +100,7 @@ describe('review fixes', () => {
   it('L1: links may contain balanced parentheses', () => {
     assert.equal(
       renderInline('[Signal](https://en.wikipedia.org/wiki/Signal_(software))', ctx, 1),
-      '<a href="https://en.wikipedia.org/wiki/Signal_(software)" rel="external noreferrer">Signal</a>',
+      '<a href="https://en.wikipedia.org/wiki/Signal_(software)" target="_blank" rel="external noopener noreferrer">Signal</a>',
     );
   });
 

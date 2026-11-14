@@ -197,7 +197,7 @@ export function contentFooter(ctx, entry, next) {
   if (!site.repo && !next) return null;
   return html`<footer class="content-footer">
   ${site.repo
-    ? html`<a class="content-footer__edit" href="${site.repo}/blob/main/${entry.file}" rel="external noreferrer">${icons.edit}<span>${t('content.suggestEdit')}</span></a>`
+    ? html`<a class="content-footer__edit" href="${site.repo}/blob/main/${entry.file}" target="_blank" rel="external noopener noreferrer">${icons.edit}<span>${t('content.suggestEdit')}</span></a>`
     : null}
   ${next
     ? html`<a class="next-link" href="${url(next.route)}">

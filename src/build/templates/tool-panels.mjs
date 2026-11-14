@@ -646,7 +646,7 @@ function browserPanel(ctx) {
           </dl>
         </section>`,
         )}
-        <p class="facts__why report__sources">${s('ratingsNote')} ${RATING_SOURCES.map(({ label, url }, i) => html`${i ? '; ' : ''}<a href="${url}" rel="noopener noreferrer">${label}</a>`)}.</p>
+        <p class="facts__why report__sources">${s('ratingsNote')} ${RATING_SOURCES.map(({ label, url }, i) => html`${i ? '; ' : ''}<a href="${url}" target="_blank" rel="external noopener noreferrer">${label}</a>`)}.</p>
       </div>
       <section class="steps" aria-labelledby="browser__steps">
         <h2 class="report__title" id="browser__steps">${s('steps.heading')}</h2>

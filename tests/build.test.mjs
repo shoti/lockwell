@@ -82,7 +82,7 @@ describe('site build', () => {
   it('links the GitHub repository from site.json with an icon right after the theme toggle', async () => {
     for (const [path, label] of [['index.html', 'წყაროს კოდი GitHub-ზე'], ['en/index.html', 'Source code on GitHub']]) {
       const actions = /<div class="site-header__actions">([\s\S]*?)<\/div>/.exec(await read(path))?.[1] ?? '';
-      const link = /<\/button>\s*(<a class="icon-button site-header__repo" href="https:\/\/github\.com\/shoti\/lockwell" rel="external noreferrer"><svg [^>]*aria-hidden="true"[^>]*><path d="M8 0c[^"]+"\/><\/svg><span class="visually-hidden">([^<]+)<\/span><\/a>)\s*$/.exec(actions);
+      const link = /<\/button>\s*(<a class="icon-button site-header__repo" href="https:\/\/github\.com\/shoti\/lockwell" target="_blank" rel="external noopener noreferrer"><svg [^>]*aria-hidden="true"[^>]*><path d="M8 0c[^"]+"\/><\/svg><span class="visually-hidden">([^<]+)<\/span><\/a>)\s*$/.exec(actions);
       assert.ok(link, `${path}: GitHub link is the last header action, after the theme toggle`);
       assert.equal(link[2], label, `${path}: accessible name`);
     }
@@ -223,7 +223,7 @@ describe('site build', () => {
     const shown = join(workDir, 'author-in-footer');
     await build({ outDir: shown, contentDir, siteUrl: 'https://example.org/' });
     const legal = /<p class="site-footer__legal">([\s\S]*?)<\/p>/.exec(await readFile(join(shown, 'en/index.html'), 'utf8'))?.[1].trim();
-    assert.equal(legal?.replace(/\s+/g, ' '), '<span>© 2026 <a href="https://github.com/shoti" rel="author external noreferrer">Shota Mtvarelishvili</a></span> <a class="site-footer__about" href="/en/about/">About</a>');
+    assert.equal(legal?.replace(/\s+/g, ' '), '<span>© 2026 <a href="https://github.com/shoti" target="_blank" rel="author external noopener noreferrer">Shota Mtvarelishvili</a></span> <a class="site-footer__about" href="/en/about/">About</a>');
 
     config.author.inFooter = 'no';
     await writeFile(file, JSON.stringify(config));
@@ -298,6 +298,23 @@ describe('site build', () => {
     for (const rule of outside.matchAll(/\.(?:hog-walk|logo__spines|brand:hover)[^{}]*\{([^{}]*)\}/g)) assert.doesNotMatch(rule[1], /animation|transition/, rule[0]);
     assert.match(await read('assets/js/main.mjs'), /hello\.mjs/);
     assert.match(await read('assets/js/hello.mjs'), /Lockwell: nothing to hide here/);
+  });
+
+  it('every link to another site opens in a new tab without handing over the opener or the referrer; links inside the site stay in the tab', async () => {
+    let external = 0;
+    for (const [path, page] of await allPages()) {
+      for (const [tag, href] of page.matchAll(/<a\b[^>]*\shref="([^"]*)"[^>]*>/g)) {
+        if (/^https?:\/\//.test(href) && !href.startsWith('https://example.org/')) {
+          external += 1;
+          assert.match(tag, / target="_blank"/, `${path}: ${tag}`);
+          const rel = / rel="([^"]*)"/.exec(tag)?.[1].split(' ') ?? [];
+          assert.ok(rel.includes('noopener') && rel.includes('noreferrer'), `${path}: ${tag}`);
+        } else {
+          assert.doesNotMatch(tag, / target=/, `${path}: ${tag}`);
+        }
+      }
+    }
+    assert.ok(external > 100, `the check saw the guides' links (${external})`);
   });
 
   it('writes robots.txt, _headers, 404 and .nojekyll', async () => {

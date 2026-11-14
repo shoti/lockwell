@@ -256,7 +256,8 @@ function inlineToString(text, ctx, line) {
     } else if (linkText !== undefined) {
       const href = ctx.resolveLink(linkTarget, line);
       const external = /^https?:\/\//.test(href);
-      const rel = external ? ' rel="external noreferrer"' : '';
+      // Links to other sites open in a new tab, so the reader keeps their place in the guide.
+      const rel = external ? ' target="_blank" rel="external noopener noreferrer"' : '';
       out += `<a href="${escapeHtml(href)}"${rel}>${inlineToString(linkText, ctx, line)}</a>`;
     } else if (strong !== undefined) {
       out += `<strong>${inlineToString(strong, ctx, line)}</strong>`;
