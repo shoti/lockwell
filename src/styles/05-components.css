@@ -2201,22 +2201,51 @@
     color: var(--color-text-muted);
   }
 
-  /* How identifying a detail is (from published studies), shown next to its name. */
+  /* The browser report's names carry a rating line; the column is wide enough for the Georgian ones. */
+  @media (min-width: 40rem) {
+    .report .facts__row {
+      grid-template-columns: 13rem minmax(0, 1fr);
+    }
+  }
+
+  /* How identifying a detail is (from published studies): a line of its own under the
+     name, with a three-step meter. The words carry the meaning; the meter repeats it. */
   .rating {
-    display: inline-block;
-    margin-inline-start: var(--space-1);
-    padding: 0 var(--space-2);
-    border: 1px solid var(--color-border-strong);
-    border-radius: var(--radius);
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2);
+    margin-block-start: var(--space-1);
+    color: var(--color-text-muted);
     font-size: var(--step--1);
-    font-weight: 600;
+    font-weight: 400;
     /* Georgian labels are longer than the name column: wrap inside it rather than run over the value. */
     max-inline-size: 100%;
+    --rating-on: var(--color-text-muted);
+    --rating-off: var(--color-border-strong);
+    --rating-1: var(--rating-on);
+    --rating-2: var(--rating-off);
+    --rating-3: var(--rating-off);
+  }
+
+  .rating::before {
+    content: "";
+    flex: none;
+    inline-size: 1.25rem;
+    block-size: 0.5rem;
+    border-radius: 1px;
+    background: linear-gradient(to right, var(--rating-1) 0 28%, transparent 28% 36%, var(--rating-2) 36% 64%, transparent 64% 72%, var(--rating-3) 72% 100%);
+  }
+
+  .rating--some {
+    --rating-2: var(--rating-on);
   }
 
   .rating--strong {
-    border-color: var(--color-warning);
-    background: var(--color-warning-soft);
+    color: var(--color-warning);
+    font-weight: 600;
+    --rating-on: var(--color-warning);
+    --rating-2: var(--rating-on);
+    --rating-3: var(--rating-on);
   }
 
   /* The browser protects this value; or it changed since the visitor remembered the values. */
