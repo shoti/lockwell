@@ -4,7 +4,7 @@ description: Who can read your messages in Signal, WhatsApp, Viber, Messenger an
 summary: Who can actually read your messages, what a company can hand over when it is ordered to, and the five places where the encryption stops.
 icon: lock
 published: 2026-11-14
-status: draft
+status: published
 ---
 
 In June 2022, police in the US state of Nebraska sent Meta a search warrant for the Facebook accounts of a mother and her teenage daughter. Meta complied, and what it handed over included their private messages. Those messages became the main basis for a second warrant, and both women were later sentenced.

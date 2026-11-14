@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 387">
   <title>ვის შეუძლია თქვენი შეტყობინებების წაკითხვა</title>
-  <desc>ბოლომდე დაშიფრული: კომპანია ხედავს, ვინ ვის და როდის სწერს, მაგრამ არა იმას, რას სწერს. ბოლომდე დაშიფრული არ არის: კომპანიას შეტყობინების წაკითხვაც შეუძლია. არცერთი არ იცავს შეტყობინებას ტელეფონზე, რომელსაც სხვაც განბლოკავს.</desc>
-  <text x="0" y="14.4" class="t-b t-good">ბოლომდე დაშიფრული</text>
+  <desc>End-to-end დაშიფრული: კომპანია ხედავს, ვინ ვის და როდის სწერს, მაგრამ ვერ ხედავს მიმოწერის შინაარსს. End-to-end დაშიფრული არ არის: კომპანიას შეტყობინების წაკითხვაც შეუძლია. არცერთი არ იცავს შეტყობინებას ტელეფონზე, რომელსაც უცხო პირი განბლოკავს.</desc>
+  <text x="0" y="14.4" class="t-b t-good">End-to-end დაშიფრული</text>
   <rect x="0" y="25.8" width="84" height="84.3" rx="8" class="box"/>
   <text x="42" y="48.3" class="t-sm t-b" text-anchor="middle">თქვენ</text>
   <rect x="7" y="76.1" width="70" height="24" rx="12" class="box-soft"/>
@@ -23,7 +23,7 @@
   <text x="170" y="128.6" class="t-sm" text-anchor="middle">კომპანია ხედავს, ვინ ვის და</text>
   <text x="170" y="145.8" class="t-sm" text-anchor="middle">როდის სწერს, მაგრამ არა იმას,</text>
   <text x="170" y="162.9" class="t-sm" text-anchor="middle">რას სწერს.</text>
-  <text x="0" y="198" class="t-b t-bad">ბოლომდე დაშიფრული არ არის</text>
+  <text x="0" y="198" class="t-b t-bad">End-to-end დაშიფრული არ არის</text>
   <rect x="0" y="209.4" width="84" height="84.3" rx="8" class="box"/>
   <text x="42" y="231.9" class="t-sm t-b" text-anchor="middle">თქვენ</text>
   <rect x="7" y="259.7" width="70" height="24" rx="12" class="box-soft"/>

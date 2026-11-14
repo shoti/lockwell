@@ -4,7 +4,7 @@ description: An AI chatbot keeps what you type. People may read it, it may train
 summary: A chatbot feels like a private conversation. It is a company's service, and what you type is kept, read, reused and sometimes exposed. Here is what the companies themselves say.
 icon: robot
 published: 2026-11-14
-status: draft
+status: published
 ---
 
 In July 2025, people searching Google started to find other people's conversations with ChatGPT among the results. Nobody had broken in. ChatGPT's share button had an option that made a shared chat discoverable by search engines, and some people had turned it on without realising what it meant. OpenAI removed the option on 31 July and said it had "introduced too many opportunities for folks to accidentally share things they didn't intend to".

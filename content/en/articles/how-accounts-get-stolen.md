@@ -4,7 +4,7 @@ description: Many stolen accounts are never hacked. Someone signs in with a leak
 summary: Many stolen accounts are never "hacked". Someone simply signs in as you. Here is how they get what they need, and what the evidence says about stopping them.
 icon: logIn
 published: 2026-11-14
-status: draft
+status: published
 ---
 
 In 2023, attackers got into about 14,000 accounts at 23andMe, a company that sells DNA tests. They didn't break into the company's systems. They signed in, one account after another, with email addresses and passwords that had leaked earlier from other websites. The owners of those accounts had used the same password in both places.
