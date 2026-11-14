@@ -1,6 +1,6 @@
 ---
 title: Keep a small team secure
-description: Security for newsrooms, NGOs and activist groups: shared accounts, required two-step verification, joining and leaving, group chats and an incident plan.
+description: 'Security for newsrooms, NGOs and activist groups: shared accounts, required two-step verification, joining and leaving, group chats and an incident plan.'
 summary: Give each person their own access, require two-step verification, have more than one admin, remove access the day someone leaves, and agree in advance what to do in an emergency.
 audience: high-risk
 group: teams
@@ -8,7 +8,7 @@ icon: users
 order: 13
 time: 45
 progress: session
-reviewed: 2026-11-12
+reviewed: 2026-11-14
 status: published
 ---
 

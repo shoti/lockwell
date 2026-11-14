@@ -65,6 +65,19 @@ status: draft
 
 The build warns when `reviewed` is more than a year old.
 
+**Quote values that contain a colon.** GitHub reads front matter as YAML when it
+shows a file, and prints an error above the page if a line isn't valid YAML. So a
+value with `: ` in it (or ` #`, or one that starts with a quote or a bracket) goes
+in quotes, and the build stops if it doesn't:
+
+```md
+description: 'A guide for iPhone and Android: screen lock, updates, lost-phone features.'
+summary: "It's quoted with double quotes when the text has an apostrophe: like this."
+```
+
+Use single quotes; use double quotes when the text has an apostrophe. A value that
+needs both a double quote and an apostrophe inside has to be reworded.
+
 ### The two tracks
 
 The guides index lists two sections: "For everyone" first, then "For people
@@ -123,6 +136,7 @@ What to do and why it matters.
 title: What end-to-end encryption means, and what it doesn't
 description: One or two sentences for search results (about 150 characters).
 summary: One line shown under the title and on article cards.
+icon: lock
 published: 2026-11-11
 status: draft
 ---
@@ -138,6 +152,7 @@ Text, lists and callouts. Link to the guide that has the steps:
 | Key | Meaning |
 |---|---|
 | `title`, `description`, `summary` | As for guides. |
+| `icon` | The subject icon on the article's card and above its title, the same in both languages. One of the names in `ARTICLE_ICONS` (`src/build/frontmatter.mjs`), each drawn in `src/build/templates/icons.mjs`. Give every article its own; for a new subject, draw a new icon in the same style (24×24, 1.75 stroke, round ends) and add its name to both. |
 | `published` | Date the article first went live. Articles are listed newest first. |
 | `updated` | Optional. Date of the last change in substance (not typo fixes). Shown next to the published date. |
 | `status` | `draft`, as for guides. |

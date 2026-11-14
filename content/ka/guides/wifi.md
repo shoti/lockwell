@@ -7,7 +7,7 @@ group: devices
 icon: wifi
 order: 11
 time: 40
-reviewed: 2026-11-11
+reviewed: 2026-11-14
 status: published
 ---
 

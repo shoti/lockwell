@@ -1,6 +1,6 @@
 ---
 title: გააძლიერეთ ტელეფონის დაცვა მიზანმიმართული თავდასხმისგან
-description: Lockdown Mode, Android-ის Advanced Protection, ბიომეტრიის სწრაფი გამორთვა, გადატვირთვა, USB და 2G: რას ბლოკავს თითოეული, რას ზღუდავს და რას ვერ აჩერებს.
+description: 'Lockdown Mode, Android-ის Advanced Protection, ბიომეტრიის სწრაფი გამორთვა, გადატვირთვა, USB და 2G: რას ბლოკავს თითოეული, რას ზღუდავს და რას ვერ აჩერებს.'
 summary: პარამეტრები, რომლებიც ტელეფონში შეღწევას ართულებს მიზანმიმართული თავდასხმისას. გაიგეთ, რა შეზღუდვა ახლავს თითოეულს და რისგან ვერ დაგიცავთ ისინი.
 audience: high-risk
 group: basics
@@ -8,7 +8,7 @@ icon: phoneShield
 order: 2
 time: 40
 progress: session
-reviewed: 2026-11-12
+reviewed: 2026-11-14
 status: published
 ---
 

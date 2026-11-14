@@ -1,13 +1,13 @@
 ---
 title: დაიცავით მიმოწერა მესენჯერებში
-description: Messenger-ის, Viber-ის, WhatsApp-ის, Telegram-ისა და Signal-ის პარამეტრები: PIN კოდი, დაკავშირებული მოწყობილობები, სარეზერვო ასლები და დაშიფვრის საზღვრები.
+description: 'Messenger-ის, Viber-ის, WhatsApp-ის, Telegram-ისა და Signal-ის პარამეტრები: PIN კოდი, დაკავშირებული მოწყობილობები, სარეზერვო ასლები და დაშიფვრის საზღვრები.'
 summary: დაიცავით თქვენი მიმოწერის კონფიდენციალურობა და დაიზღვიეთ თავი ანგარიშის მიტაცებისგან იმ აპლიკაციებში, რომლებსაც ყოველდღიურად იყენებთ.
 audience: everyone
 group: start
 icon: chat
 order: 3
 time: 40
-reviewed: 2026-11-11
+reviewed: 2026-11-14
 status: published
 ---
 

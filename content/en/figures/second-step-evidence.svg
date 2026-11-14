@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 414">
+  <title>How many account takeover attempts each second step stopped</title>
+  <desc>Google, New York University and UC San Diego, 2019: the share of takeover attempts on Google accounts that each second step stopped. Automated attacks by software: all three stopped 100%. Bulk phishing: security key 100%, prompt on the phone 99%, code by SMS 96%. Targeted attacks: security key 100%, prompt on the phone 90%, code by SMS 76%.</desc>
+  <text x="0" y="13" class="t-sm t-b t-muted">Share of takeover attempts stopped</text>
+  <text x="0" y="40" class="t-b">Automated attacks by software</text>
+  <text x="0" y="63" class="t-sm">All three stopped 100%.</text>
+  <text x="0" y="92" class="t-b">Bulk phishing</text>
+  <text x="0" y="115" class="t-sm">Security key</text>
+  <text x="340" y="115" class="t-sm t-b t-good" text-anchor="end">100%</text>
+  <rect x="0" y="122" width="340" height="8" rx="4" class="box-soft"/>
+  <rect x="0" y="122" width="340" height="8" rx="4" class="fill-good"/>
+  <text x="0" y="153" class="t-sm">Prompt on the phone</text>
+  <text x="340" y="153" class="t-sm t-b t-info" text-anchor="end">99%</text>
+  <rect x="0" y="160" width="340" height="8" rx="4" class="box-soft"/>
+  <rect x="0" y="160" width="336.6" height="8" rx="4" class="fill-info"/>
+  <text x="0" y="191" class="t-sm">Code by SMS</text>
+  <text x="340" y="191" class="t-sm t-b t-warn" text-anchor="end">96%</text>
+  <rect x="0" y="198" width="340" height="8" rx="4" class="box-soft"/>
+  <rect x="0" y="198" width="326.4" height="8" rx="4" class="fill-warn"/>
+  <text x="0" y="238" class="t-b">Targeted attacks</text>
+  <text x="0" y="261" class="t-sm">Security key</text>
+  <text x="340" y="261" class="t-sm t-b t-good" text-anchor="end">100%</text>
+  <rect x="0" y="268" width="340" height="8" rx="4" class="box-soft"/>
+  <rect x="0" y="268" width="340" height="8" rx="4" class="fill-good"/>
+  <text x="0" y="299" class="t-sm">Prompt on the phone</text>
+  <text x="340" y="299" class="t-sm t-b t-info" text-anchor="end">90%</text>
+  <rect x="0" y="306" width="340" height="8" rx="4" class="box-soft"/>
+  <rect x="0" y="306" width="306" height="8" rx="4" class="fill-info"/>
+  <text x="0" y="337" class="t-sm">Code by SMS</text>
+  <text x="340" y="337" class="t-sm t-b t-warn" text-anchor="end">76%</text>
+  <rect x="0" y="344" width="340" height="8" rx="4" class="box-soft"/>
+  <rect x="0" y="344" width="258.4" height="8" rx="4" class="fill-warn"/>
+  <line x1="0" y1="369" x2="340" y2="369" class="line line-thin"/>
+  <text x="0" y="389" class="t-sm t-muted">Google, New York University and UC San Diego, 2019.</text>
+  <text x="0" y="406.2" class="t-sm t-muted">Suspicious sign-ins to Google accounts.</text>
+</svg>

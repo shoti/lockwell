@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 493">
+  <title>Which chats are end-to-end encrypted without you doing anything</title>
+  <desc>State in November 2026. Signal: yes, every message and call, always. WhatsApp: yes, personal chats and calls; backups only if you turn it on. Viber: yes, one-to-one and group chats; not Communities, Channels or group calls. Messenger: check each chat; it is on by default for personal chats and calls, but Meta says the rollout is still in progress. Telegram: only Secret Chats, which you start yourself; ordinary chats and groups are not. Instagram and SMS: no.</desc>
+  <text x="0" y="13" class="t-sm t-b t-muted">End-to-end encrypted without you doing anything?</text>
+  <text x="0" y="30.2" class="t-sm t-b t-muted">(November 2026)</text>
+  <rect x="0" y="40.2" width="340" height="57" rx="8" class="box"/>
+  <circle cx="22" cy="68.7" r="10" class="box-good"/>
+  <path d="M17.5 68.7 L21 72.2 L27 65.2" class="line-good"/>
+  <text x="44" y="63.2" class="t-b">Signal</text>
+  <text x="328" y="63.2" class="t-sm t-b t-good" text-anchor="end">Yes</text>
+  <text x="44" y="82" class="t-sm">Every message and call, always.</text>
+  <rect x="0" y="105.2" width="340" height="74.2" rx="8" class="box"/>
+  <circle cx="22" cy="142.3" r="10" class="box-good"/>
+  <path d="M17.5 142.3 L21 145.8 L27 138.8" class="line-good"/>
+  <text x="44" y="128.2" class="t-b">WhatsApp</text>
+  <text x="328" y="128.2" class="t-sm t-b t-good" text-anchor="end">Yes</text>
+  <text x="44" y="147" class="t-sm">Personal chats and calls. Backups only if you</text>
+  <text x="44" y="164.2" class="t-sm">turn it on.</text>
+  <rect x="0" y="187.4" width="340" height="74.2" rx="8" class="box"/>
+  <circle cx="22" cy="224.5" r="10" class="box-good"/>
+  <path d="M17.5 224.49999999999997 L21 227.99999999999997 L27 220.99999999999997" class="line-good"/>
+  <text x="44" y="210.4" class="t-b">Viber</text>
+  <text x="328" y="210.4" class="t-sm t-b t-good" text-anchor="end">Yes</text>
+  <text x="44" y="229.2" class="t-sm">One-to-one and group chats. Not Communities,</text>
+  <text x="44" y="246.4" class="t-sm">Channels or group calls.</text>
+  <rect x="0" y="269.6" width="340" height="74.2" rx="8" class="box"/>
+  <circle cx="22" cy="306.7" r="10" class="box-warn"/>
+  <path d="M17.5 306.69999999999993 H26.5" class="line-warn"/>
+  <text x="44" y="292.6" class="t-b">Messenger</text>
+  <text x="328" y="292.6" class="t-sm t-b t-warn" text-anchor="end">Check each chat</text>
+  <text x="44" y="311.4" class="t-sm">On by default for personal chats and calls, but</text>
+  <text x="44" y="328.6" class="t-sm">Meta says the rollout is still in progress.</text>
+  <rect x="0" y="351.8" width="340" height="74.2" rx="8" class="box"/>
+  <circle cx="22" cy="388.9" r="10" class="box-warn"/>
+  <path d="M17.5 388.9 H26.5" class="line-warn"/>
+  <text x="44" y="374.8" class="t-b">Telegram</text>
+  <text x="328" y="374.8" class="t-sm t-b t-warn" text-anchor="end">Only Secret Chats</text>
+  <text x="44" y="393.6" class="t-sm">You start them yourself. Ordinary chats and</text>
+  <text x="44" y="410.8" class="t-sm">groups are not.</text>
+  <rect x="0" y="434" width="340" height="57" rx="8" class="box"/>
+  <circle cx="22" cy="462.5" r="10" class="box-bad"/>
+  <path d="M18.2 458.69999999999993 L25.8 466.29999999999995 M25.8 458.69999999999993 L18.2 466.29999999999995" class="line-bad"/>
+  <text x="44" y="457" class="t-b">Instagram, SMS</text>
+  <text x="328" y="457" class="t-sm t-b t-bad" text-anchor="end">No</text>
+  <text x="44" y="475.8" class="t-sm">Messages are not end-to-end encrypted.</text>
+</svg>

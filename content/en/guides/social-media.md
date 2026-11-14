@@ -1,13 +1,13 @@
 ---
 title: Control who sees you on social media
-description: Settings for Facebook, Instagram and TikTok: who sees your posts and profile, who can find you by phone number, tags, location, old posts and ads.
+description: 'Settings for Facebook, Instagram and TikTok: who sees your posts and profile, who can find you by phone number, tags, location, old posts and ads.'
 summary: Decide who can see your posts, your profile and where you are, in the apps you already use.
 audience: everyone
 group: habits
 icon: at
 order: 5
 time: 40
-reviewed: 2026-11-11
+reviewed: 2026-11-14
 status: published
 ---
 

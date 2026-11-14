@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 317">
+  <title>What three chatbot privacy settings do, and what they don’t</title>
+  <desc>Training off: chats are not used to improve the model, but they are still stored and staff may still access them. Temporary chat: not in your history and not used for training, but a copy may be kept for up to 30 days in ChatGPT, or is kept for 72 hours in Gemini. Deleting a chat: it is removed from your account, but removal from the company’s systems can take up to 30 days and some copies are kept longer.</desc>
+  <rect x="0" y="0" width="340" height="99.6" rx="8" class="box"/>
+  <text x="14" y="23" class="t-b">Training off</text>
+  <path d="M14 40 L18 44 L25 35" class="line-good"/>
+  <text x="36" y="44" class="t-sm">Chats are not used to improve the model.</text>
+  <path d="M15 58.2 L24 67.2 M24 58.2 L15 67.2" class="line-bad"/>
+  <text x="36" y="67.2" class="t-sm">They are still stored, and staff may still access</text>
+  <text x="36" y="84.4" class="t-sm">them.</text>
+  <rect x="0" y="107.6" width="340" height="99.6" rx="8" class="box"/>
+  <text x="14" y="130.6" class="t-b">Temporary chat</text>
+  <path d="M14 147.6 L18 151.6 L25 142.6" class="line-good"/>
+  <text x="36" y="151.6" class="t-sm">Not in your history, not used for training.</text>
+  <path d="M15 165.8 L24 174.8 M24 165.8 L15 174.8" class="line-bad"/>
+  <text x="36" y="174.8" class="t-sm">A copy may be kept for up to 30 days (ChatGPT),</text>
+  <text x="36" y="192" class="t-sm">or is kept for 72 hours (Gemini).</text>
+  <rect x="0" y="215.2" width="340" height="99.6" rx="8" class="box"/>
+  <text x="14" y="238.2" class="t-b">Deleting a chat</text>
+  <path d="M14 255.2 L18 259.2 L25 250.2" class="line-good"/>
+  <text x="36" y="259.2" class="t-sm">It is removed from your account.</text>
+  <path d="M15 273.4 L24 282.4 M24 273.4 L15 282.4" class="line-bad"/>
+  <text x="36" y="282.4" class="t-sm">Removal from the company’s systems can take</text>
+  <text x="36" y="299.6" class="t-sm">up to 30 days, and some copies are kept longer.</text>
+</svg>

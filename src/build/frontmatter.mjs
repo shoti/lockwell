@@ -15,6 +15,8 @@ import { ContentError } from './errors.mjs';
 /**
  * Parses a minimal front matter block: `---`, then `key: value` lines, then `---`.
  * Values are plain strings; surrounding quotes are optional. No nesting, no lists.
+ * Every line must also be valid YAML, because GitHub reads front matter as YAML
+ * when it shows the file and prints an error above the page otherwise.
  * @param {string} source
  * @param {string} file
  * @returns {FrontMatterResult}
@@ -47,6 +49,10 @@ export function parseFrontMatter(source, file) {
     if (Object.hasOwn(data, key)) {
       throw new ContentError(file, lineNo, `Duplicate front matter key "${key}". Keep only one.`);
     }
+    const problem = yamlProblem(value.trim());
+    if (problem) {
+      throw new ContentError(file, lineNo, `"${key}" ${problem} GitHub reads front matter as YAML and can't show the file otherwise.`);
+    }
     data[key] = unquote(value.trim());
     lines[key] = lineNo;
   });
@@ -58,6 +64,24 @@ export function parseFrontMatter(source, file) {
     body: text.slice(bodyStart),
     bodyLine: text.slice(0, bodyStart).split('\n').length,
   };
+}
+
+/**
+ * Why a value would not be valid YAML, with what to do about it; '' if it is fine.
+ * @param {string} value
+ */
+function yamlProblem(value) {
+  const quote = value[0] === '"' || value[0] === "'" ? value[0] : '';
+  if (quote && value.length >= 2 && value.endsWith(quote)) {
+    const inner = value.slice(1, -1);
+    if (quote === '"' && /["\\]/.test(inner)) return 'is in double quotes but has a double quote or a backslash inside. Use single quotes around it, or reword.';
+    if (quote === "'" && inner.includes("'")) return 'is in single quotes but has an apostrophe inside. Use double quotes around it, or reword.';
+    return '';
+  }
+  if (/^["'[\]{}>|*&!%@`#,]|^[-?] /.test(value)) return `starts with ${value[0]}, which has a special meaning. Put the whole value in quotes.`;
+  if (/: |:$/.test(value)) return 'has ": " in it (or ends with ":"). Put the whole value in quotes: single quotes, or double quotes if the text has an apostrophe.';
+  if (value.includes(' #')) return 'has " #" in it, which starts a comment. Put the whole value in quotes.';
+  return '';
 }
 
 /** @param {string} value */
@@ -77,7 +101,7 @@ function isCalendarDate(value) {
 }
 
 /**
- * @typedef {'text' | 'text?' | 'int' | 'date' | 'date?' | 'status?' | 'progress?' | 'audience' | 'group' | 'icon'} FieldType
+ * @typedef {'text' | 'text?' | 'int' | 'date' | 'date?' | 'status?' | 'progress?' | 'audience' | 'group' | 'icon' | 'articleIcon'} FieldType
  */
 
 /** The guide tracks, in the order they are listed. */
@@ -103,6 +127,9 @@ export const GUIDE_ICONS = /** @type {const} */ ([
   'cloud', 'wifi', 'lifebuoy', 'map', 'userLock', 'mail', 'megaphone', 'suitcase', 'bug', 'idCard', 'incognito', 'folderLock', 'users',
 ]);
 
+/** Subject icons an article can show on its card and above its title; each is drawn in templates/icons.mjs. */
+export const ARTICLE_ICONS = /** @type {const} */ (['lock', 'robot', 'logIn']);
+
 /** Allowed values for enum fields. For optional fields the first value is the default. */
 const ENUMS = {
   'status?': ['published', 'draft'],
@@ -110,6 +137,7 @@ const ENUMS = {
   audience: AUDIENCES,
   group: Object.values(GROUPS).flat(),
   icon: GUIDE_ICONS,
+  articleIcon: ARTICLE_ICONS,
 };
 
 /**
@@ -157,7 +185,7 @@ function convertField(key, value, type, file, line) {
     if (!valid) throw new ContentError(file, line, `"${key}" must be a date in YYYY-MM-DD format, got "${value}".`);
     return value;
   }
-  if (type === 'status?' || type === 'progress?' || type === 'audience' || type === 'group' || type === 'icon') {
+  if (type === 'status?' || type === 'progress?' || type === 'audience' || type === 'group' || type === 'icon' || type === 'articleIcon') {
     /** @type {readonly string[]} */
     const allowed = ENUMS[type];
     if (!allowed.includes(value)) throw new ContentError(file, line, `"${key}" must be one of: ${allowed.join(', ')}. Got "${value}".`);

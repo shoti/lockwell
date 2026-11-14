@@ -34,6 +34,7 @@ export function articlePage(ctx, article) {
   <article class="article">
     <header class="page-header">
       ${article.draft ? draftNotice(ctx, 'article') : null}
+      <span class="card__icon article-icon article__icon">${icons[article.icon]}</span>
       <h1 class="page-header__title">${article.title}</h1>
       <p class="lead">${article.summary}</p>
       <ul class="meta" role="list">

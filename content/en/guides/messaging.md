@@ -1,13 +1,13 @@
 ---
 title: Make your messaging apps private
-description: Settings for Messenger, Viber, WhatsApp, Telegram and Signal: a PIN for your account, linked devices, backups, and what each app can and cannot read.
+description: 'Settings for Messenger, Viber, WhatsApp, Telegram and Signal: a PIN for your account, linked devices, backups, and what each app can and cannot read.'
 summary: Stop others from taking over your account or reading your chats, in the apps you already use.
 audience: everyone
 group: start
 icon: chat
 order: 3
 time: 40
-reviewed: 2026-11-11
+reviewed: 2026-11-14
 status: published
 ---
 
