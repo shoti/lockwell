@@ -23,6 +23,177 @@ const DOS_DATE_ZERO = 0x0021;
  * @property {Uint8Array} data  The entry's bytes as stored in the archive.
  */
 
+/* ---------- Reading ---------- */
+
+/** Bit 0 of the flags: the entry is encrypted (APPNOTE 4.4.4). */
+export const FLAG_ENCRYPTED = 1;
+
+/**
+ * An archive this reader can't use; `code` says why.
+ * "locked": encrypted entries. "zip64": the ZIP64 format, which this reader doesn't handle. "browser": the browser
+ * can't decompress.
+ */
+export class ZipError extends Error {
+  /** @param {'damaged' | 'locked' | 'zip64' | 'browser'} code @param {string} [detail] */
+  constructor(code, detail = '') {
+    super(`ZIP archive can't be read: ${code}${detail ? ` (${detail})` : ''}`);
+    this.name = 'ZipError';
+    this.code = code;
+  }
+}
+
+/**
+ * @typedef {'notZip' | 'damaged' | 'zip64' | 'encrypted' | 'duplicate' | 'nameMismatch' | 'traversal'} ZipProblem
+ *   duplicate: two entries of one name (in any case): a reader would see one, another program the other.
+ *   nameMismatch: an entry's name in its own header differs from the directory's, which tools disagree about.
+ *   traversal: a name that starts at the root, names a drive or climbs out with "..", writing outside the folder.
+ * @typedef {ZipEntry & { encrypted: boolean, localName: string }} ScannedEntry
+ */
+
+/**
+ * Lists a ZIP archive's entries without trusting it: problems are collected instead of thrown, and the listing stops
+ * only where the directory itself can't be followed. Encrypted entries are listed (their names are readable).
+ * @param {Uint8Array} bytes
+ * @returns {{ entries: ScannedEntry[], problems: Set<ZipProblem> }}
+ */
+export function scanZip(bytes) {
+  /** @type {ScannedEntry[]} */
+  const entries = [];
+  /** @type {Set<ZipProblem>} */
+  const problems = new Set();
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+
+  // The directory is at the end, after an optional comment of up to 65,535 bytes.
+  let end = -1;
+  for (let i = bytes.length - 22; i >= Math.max(0, bytes.length - 22 - 0xffff); i -= 1) {
+    if (view.getUint32(i, true) === SIG.end) {
+      end = i;
+      break;
+    }
+  }
+  if (end === -1) {
+    problems.add('notZip');
+    return { entries, problems };
+  }
+  const count = view.getUint16(end + 10, true);
+  let at = view.getUint32(end + 16, true);
+  // 0xFFFF / 0xFFFFFFFF mean "see the ZIP64 record".
+  if (count === 0xffff || at === 0xffffffff) {
+    problems.add('zip64');
+    return { entries, problems };
+  }
+
+  // Bytes in front of the archive (a self-extractor's program, a mail tool's header) move everything by the same
+  // amount; archive tools find the directory from the end record and shift every offset by the difference.
+  const directorySize = view.getUint32(end + 12, true);
+  const shift = end - directorySize - at;
+  if (shift > 0 && end - directorySize >= 0 && view.getUint32(end - directorySize, true) === SIG.central) at += shift;
+  const offset = shift > 0 && at === end - directorySize ? shift : 0;
+
+  const seen = new Set();
+  const decoder = new TextDecoder();
+  for (let n = 0; n < count; n += 1) {
+    if (at + 46 > bytes.length || view.getUint32(at, true) !== SIG.central) {
+      problems.add('damaged');
+      break;
+    }
+    const flags = view.getUint16(at + 8, true);
+    const method = view.getUint16(at + 10, true);
+    const crc = view.getUint32(at + 16, true);
+    const compressedSize = view.getUint32(at + 20, true);
+    const size = view.getUint32(at + 24, true);
+    const nameLength = view.getUint16(at + 28, true);
+    const local = view.getUint32(at + 42, true) + offset;
+    const next = at + 46 + nameLength + view.getUint16(at + 30, true) + view.getUint16(at + 32, true);
+    if (at + 46 + nameLength > bytes.length) {
+      problems.add('damaged');
+      break;
+    }
+    const rawName = bytes.subarray(at + 46, at + 46 + nameLength);
+    const name = decoder.decode(rawName);
+    at = next;
+    if (compressedSize === 0xffffffff || size === 0xffffffff || local - offset === 0xffffffff) {
+      problems.add('zip64');
+      continue;
+    }
+    if (local + 30 > bytes.length || view.getUint32(local, true) !== SIG.local) {
+      problems.add('damaged');
+      continue;
+    }
+    const localNameLength = view.getUint16(local + 26, true);
+    const dataStart = local + 30 + localNameLength + view.getUint16(local + 28, true);
+    if (dataStart + compressedSize > bytes.length) {
+      problems.add('damaged');
+      continue;
+    }
+    const localName = decoder.decode(bytes.subarray(local + 30, local + 30 + localNameLength));
+    if (localName !== name) problems.add('nameMismatch');
+    if (seen.has(name.toLowerCase())) problems.add('duplicate');
+    seen.add(name.toLowerCase());
+    if (/^[/\\]|^[a-z]:/i.test(name) || /(^|[/\\])\.\.([/\\]|$)/.test(name)) problems.add('traversal');
+    const encrypted = Boolean(flags & FLAG_ENCRYPTED);
+    if (encrypted) problems.add('encrypted');
+    entries.push({ name, rawName, flags, method, crc, size, data: bytes.subarray(dataStart, dataStart + compressedSize), encrypted, localName });
+  }
+  return { entries, problems };
+}
+
+/**
+ * Lists the entries of a ZIP archive that is to be read in full.
+ * @param {Uint8Array} bytes
+ * @returns {ZipEntry[]}
+ * @throws {ZipError} "damaged" for broken archives and archives with two entries of the same name (in any case),
+ *   "locked" for encrypted entries, "zip64" for the ZIP64 format.
+ */
+export function readZip(bytes) {
+  const { entries, problems } = scanZip(bytes);
+  if (problems.has('zip64')) throw new ZipError('zip64');
+  if (problems.has('encrypted')) throw new ZipError('locked');
+  for (const problem of ['notZip', 'damaged', 'duplicate']) if (problems.has(/** @type {ZipProblem} */ (problem))) throw new ZipError('damaged', problem);
+  return entries.map(({ name, rawName, flags, method, crc, size, data }) => ({ name, rawName, flags, method, crc, size, data }));
+}
+
+/**
+ * An entry's contents, decompressed. The size the archive declares is enforced while inflating: an entry that grows
+ * past it is not what it says, and may be built to exhaust memory.
+ * @param {ZipEntry} entry
+ * @param {number} maxBytes  Largest size accepted.
+ * @returns {Promise<Uint8Array>}
+ * @throws {ZipError}
+ */
+export async function unzip(entry, maxBytes) {
+  if (entry.flags & FLAG_ENCRYPTED) throw new ZipError('locked');
+  if (entry.method === 0) {
+    if (entry.data.length !== entry.size) throw new ZipError('damaged', 'stored size differs');
+    return entry.data;
+  }
+  if (entry.method !== 8) throw new ZipError('damaged', `compression method ${entry.method}`);
+  if (typeof DecompressionStream !== 'function') throw new ZipError('browser');
+  if (entry.size > maxBytes) throw new ZipError('damaged', 'too large');
+  /** @type {Uint8Array[]} */
+  const chunks = [];
+  let total = 0;
+  try {
+    const reader = new Blob([/** @type {Uint8Array<ArrayBuffer>} */ (entry.data)]).stream().pipeThrough(new DecompressionStream('deflate-raw')).getReader();
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.length;
+      if (total > entry.size) {
+        await reader.cancel();
+        break;
+      }
+      chunks.push(value);
+    }
+  } catch {
+    throw new ZipError('damaged', 'inflate failed');
+  }
+  if (total !== entry.size) throw new ZipError('damaged', 'size differs from the directory');
+  return concat(chunks);
+}
+
+/* ---------- Writing ---------- */
+
 /**
  * Writes a ZIP archive. Entries keep their bytes and names; dates are reset
  * and every optional field that could carry information is left out.
