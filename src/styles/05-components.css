@@ -323,13 +323,7 @@
     text-decoration: underline;
   }
 
-  /* "About" has no room in a phone's header, so it is here instead; from 50rem the header shows it. */
-  .site-footer__legal .site-footer__about {
-    color: var(--color-accent);
-    font-weight: 600;
-    text-decoration: underline;
-  }
-
+  /* "About" has no room in a phone's header, so it is here instead, styled like the other footer links; from 50rem the header shows it. */
   @media (min-width: 50rem) {
     .site-footer__about {
       display: none;
