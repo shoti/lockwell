@@ -1186,6 +1186,8 @@ describe('UX review 2026-11-12', () => {
     // Where the header drops "About", the footer carries it, so the page is reachable on a phone.
     assert.match(await readOut('index.html'), /<p class="site-footer__legal">[\s\S]*?<a class="site-footer__about" href="\/about\/">შესახებ<\/a>\s*<\/p>/);
     assert.match(css, /@media \(min-width: 50rem\) \{\s*\.site-footer__about \{\s*display: none;/);
+    // It looks like the other footer links (Privacy, Terms): no colour, weight or underline of its own (owner, 2026-11-15).
+    assert.doesNotMatch(css, /\.site-footer__legal \.site-footer__about \{/);
     assert.match(css, /@media \(min-width: 45rem\) \{\s*\.site-header__inner \{[^}]*grid-template-areas: "brand nav actions";/);
     // 40rem was too early: four Georgian links wrapped to a second row between 640 and 790px.
     assert.doesNotMatch(css, /@media \(min-width: 40rem\) \{\s*\.site-(header|nav)/);
