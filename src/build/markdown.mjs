@@ -46,6 +46,8 @@ const NESTED_LIST_ITEM = /^[ \t]+([-*]|\d{1,3}[.)])[ \t]+/;
 const BLOCKQUOTE = /^>[ \t]?/;
 const FENCE = /^ {0,3}(```|~~~)/;
 const HTML_TAG = /^[ \t]*<[a-zA-Z/!]/;
+/** An editor's note for the source only (e.g. a TODO): one line, never rendered. */
+const COMMENT = /^[ \t]*<!--(?:(?!-->).)*-->[ \t]*$/;
 const ATTRS = /\{([^{}]*)\}$/;
 const FIGURE = /^!\[(.*\S)\]\(figure:([a-z0-9][a-z0-9-]*)\)[ \t]*$/;
 const IMAGE = /^!\[/;
@@ -71,6 +73,10 @@ export function parseBlocks(source, file, firstLine = 1) {
   while (i < lines.length) {
     const line = lines[i];
     if (line.trim() === '') {
+      i += 1;
+      continue;
+    }
+    if (COMMENT.test(line)) {
       i += 1;
       continue;
     }

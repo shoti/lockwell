@@ -38,6 +38,7 @@ import { ROOT } from './site.mjs';
  * @property {string} reviewed  YYYY-MM-DD
  * @property {boolean} draft  Drafts show a notice and are hidden from search engines.
  * @property {'local' | 'session'} progress  Where checklist progress is kept: until cleared, or only until the tab closes.
+ * @property {boolean} legal  Steps that may carry legal risk: the page shows a fixed "not legal advice" notice.
  * @property {string} storageKey  Short id for saved progress, so storage keys don't spell out the topic (not secret; see storageKeyFor).
  * @property {BlockNode[]} intro
  * @property {GuideItem[]} items
@@ -108,6 +109,7 @@ const GUIDE_FIELDS = {
   reviewed: 'date',
   status: 'status?',
   progress: 'progress?',
+  legal: 'legal?',
 };
 
 /** @type {Record<string, import('./frontmatter.mjs').FieldType>} */
@@ -241,6 +243,7 @@ async function loadGuides(contentDir, lang, site) {
       reviewed: String(meta.reviewed),
       draft: meta.status === 'draft',
       progress: /** @type {'local' | 'session'} */ (meta.progress ?? 'local'),
+      legal: meta.legal === 'true',
       storageKey: storageKeyFor(slug),
       intro,
       items,

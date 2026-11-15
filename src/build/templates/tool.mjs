@@ -39,7 +39,7 @@ export function toolPage(ctx, tool) {
     <p class="draft-notice no-js-only" data-js="tool-fallback">${icons.alert}<span>${t('tools.needsJs')}</span></p>
     <section class="tool js-only" data-js="tool" data-tool="${tool.key}" aria-label="${name}">
       ${PANELS[tool.key](ctx)}
-      <p class="tool__local">${icons.eyeOff}<span>${t(tool.requests ? `tools.items.${tool.key}.local` : 'tools.local')}</span></p>
+      <p class="tool__local">${icons.eyeOff}<span>${t(tool.requests ? `tools.items.${tool.key}.local` : 'tools.local')} <a href="${ctx.url('/privacy/#requests')}">${t('footer.privacyDetails')}</a></span></p>
     </section>
     ${guides.length
       ? html`<section class="tool-guides" aria-labelledby="tool__guides">

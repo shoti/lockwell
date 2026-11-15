@@ -7,7 +7,7 @@ group: devices
 icon: cloud
 order: 10
 time: 45
-reviewed: 2026-11-14
+reviewed: 2026-11-11
 status: published
 ---
 

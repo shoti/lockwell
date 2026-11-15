@@ -19,7 +19,7 @@ import { breadcrumbs, continueLink, guideCard, guideTracks } from './components.
  */
 function startLink(ctx, guide) {
   const { t, url } = ctx;
-  return html`<a class="continue continue--start" href="${url(guide.route)}"><span>${t('guides.startWith')}</span><span class="continue__title">${guide.title}</span><span class="continue__count">${t('guide.minutes', { n: guide.time })}</span>${icons.arrowRight}</a>`;
+  return html`<a class="continue continue--start" href="${url(guide.route)}"><span>${t('guides.startWith')}</span> <span class="continue__title">${guide.title}</span> <span class="continue__count">${t('guide.minutes', { n: guide.time })}</span>${icons.arrowRight}</a>`;
 }
 
 /**
@@ -44,7 +44,7 @@ export function guidesIndexPage(ctx) {
       ? html`<nav class="track-nav" aria-label="${t('guides.tracksLabel')}">
       <ul role="list">
         ${tracks.map(
-          (track) => html`<li><a class="track-nav__link" href="#${track.audience}">${track.title}<span class="track-nav__count">${track.guides.length}</span></a></li>`,
+          (track) => html`<li><a class="track-nav__link" href="#${track.audience}">${track.title} <span class="track-nav__count" aria-hidden="true">${track.guides.length}</span><span class="visually-hidden">${t('guides.trackCount', { n: track.guides.length })}</span></a></li>`,
         )}
       </ul>
     </nav>`

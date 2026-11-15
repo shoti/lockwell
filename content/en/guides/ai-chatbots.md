@@ -7,7 +7,7 @@ group: habits
 icon: sparkle
 order: 8
 time: 30
-reviewed: 2026-11-14
+reviewed: 2026-11-12
 status: published
 ---
 
@@ -26,20 +26,20 @@ The safest information is the information you never type. The companies themselv
 
 ## Know who can read your chats {#what-is-stored .essential}
 
-Each company keeps your chats and has its own rules about who may read them.
+Each company keeps your chats and has its own rules about who may read them. The periods below are what the companies said as of November 2026, and they may change.
 
 ### ChatGPT
 
-1. Chats stay in your account until you delete them. Deleted chats are removed from OpenAI's systems within 30 days, unless OpenAI must keep them for security or legal reasons, or has already removed your details from them.
+1. Chats stay in your account until you delete them. [OpenAI says](https://help.openai.com/en/articles/8983778) deleted chats are removed from OpenAI's systems within 30 days, unless OpenAI must keep them for security or legal reasons, or has already removed your details from them.
 
 ### Gemini
 
-1. Some chats are read by human reviewers, including outside companies, after they are disconnected from your account. Reviewed chats are kept for up to three years, even if you delete your activity.
+1. [Google says](https://support.google.com/gemini/answer/13594961?hl=en) some chats are read by human reviewers, including outside companies, after they are disconnected from your account. Reviewed chats are kept for up to three years, even if you delete your activity.
 2. Your activity is deleted automatically after 18 months unless you change it.
 
 ### Claude
 
-1. Deleted chats are removed from Anthropic's systems within 30 days. If you allow training, chats may be kept, without your name, for up to five years. Chats flagged for breaking the rules are kept for up to two years.
+1. [Anthropic says](https://privacy.claude.com/en/articles/10023548-how-long-do-you-store-my-data) deleted chats are removed from its systems within 30 days. If you allow training, chats may be kept, without your name, for up to five years. Chats flagged for breaking the rules are kept for up to two years.
 
 ### Copilot
 
@@ -47,7 +47,7 @@ Each company keeps your chats and has its own rules about who may read them.
 
 ### Meta AI
 
-1. Meta may review your conversations, automatically or by people, and uses them to improve its AI and, depending on where you live, to personalise ads. When Meta AI can't answer, it may send your messages to partner companies.
+1. [Meta's AI terms](https://www.facebook.com/policies/other-policies/ais-terms) say Meta may review your conversations, automatically or by people, and uses them to improve its AI and to personalise content and ads. Meta said it would start using them for ads in most regions on 16 December 2025. Meta may also share some information with partners, such as search engines, to answer you.
 
 > [!warning]
 > Rating an answer with thumbs up or thumbs down can send the whole conversation for training or human review, even if you have turned training off. On Gemini it can include all your chats from the last 24 hours, and Anthropic keeps feedback for five years. Don't rate answers in chats that contain anything personal.
@@ -73,12 +73,12 @@ By default, most of these services may use your chats to train their AI. You can
 
 ### Copilot
 
-1. In the current Copilot app, Microsoft says your prompts, responses and files aren't used to train its AI models, and there is no switch.
+1. In the current Copilot app, [Microsoft says](https://support.microsoft.com/en-us/privacy/microsoft-copilot/activity-history) your prompts, responses and file contents aren't used to train foundation models (the base AI models). Its privacy controls page for this app lists no training switch.
 2. In the older app, select your profile icon, then your name, then **Privacy**, and turn off **Training on conversation activity** and **Training on voice conversations**.
 
 ### Meta AI
 
-1. Meta's help pages describe no switch to stop training on Meta AI chats. Treat everything you type there as used by Meta.
+1. As of November 2026, Meta's AI terms and help pages describe no switch to stop training on Meta AI chats. Treat everything you type there as used by Meta.
 
 ## Delete old chats and memories {#history-and-memory .recommended}
 
@@ -98,7 +98,7 @@ Several chatbots now remember facts about you across chats. Deleting a chat does
 ### Claude
 
 1. To delete a chat, click **⋮** next to it, then **Delete**.
-2. Open **Settings → Your Claude** and select **Manage** next to **Your memory** to read and delete what Claude remembers. Deleting a chat doesn't remove memories made from it.
+2. Open **Settings → Your Claude** (in the older layout, **Settings → Memory**) and select **Manage** next to **Your memory** to read and delete what Claude remembers. Deleting a chat doesn't remove memories made from it.
 
 ### Copilot
 
@@ -134,11 +134,11 @@ Some AI services say they keep less about you. They still run on someone else's 
 
 1. Duck.ai, from DuckDuckGo, passes your questions to models from other companies, such as OpenAI and Anthropic. DuckDuckGo says it removes your IP address and other identifying details first.
 2. DuckDuckGo says those companies have agreed not to use your chats to train their models and to delete them within 30 days at most, with limited exceptions for safety and legal reasons. Protection differs between models: the privacy notice in each chat says which applies.
-3. Recent chats are saved only on your device, unless you turn saving off or choose encrypted storage on DuckDuckGo's servers. Delete them with the delete icon next to a chat, or all at once with the **Fire Button**.
+3. DuckDuckGo says recent chats are saved only on your device, unless you turn saving off or choose encrypted storage on DuckDuckGo's servers. Delete them with the delete icon next to a chat, or all at once with the **Fire Button**.
 
 ### Lumo
 
-1. Lumo, from Proton, runs open-source models on servers Proton controls. Proton says it keeps no logs of your chats and doesn't use them for training, unless you choose to send feedback on an answer.
+1. Lumo is from Proton. Proton says Lumo runs open-source models on servers Proton controls, keeps no logs of your chats and doesn't use them for training, unless you choose to send feedback on an answer.
 2. With a Proton account, your chat history is stored encrypted so that only you can read it, Proton says. As a guest, without an account, the chat is erased when the session ends.
 3. Your question is still decrypted on Proton's servers to produce the answer. The encryption protects the stored history, not the moment the answer is made.
 

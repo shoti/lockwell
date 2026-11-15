@@ -1,0 +1,83 @@
+[
+  {
+    "id": "windows-10-esu-end",
+    "pages": ["guides/computer"],
+    "match": { "en": "12 October 2027", "ka": "2027 წლის 12 ოქტომბრამდე" },
+    "source_url": "https://www.microsoft.com/en-us/windows/extended-security-updates",
+    "checked_on": "2026-11-15",
+    "method": "read Microsoft's consumer ESU page: program ends 12 October 2027",
+    "expires_in_days": 90
+  },
+  {
+    "id": "signal-linked-device-unlink",
+    "pages": ["guides/messaging"],
+    "match": { "en": "45 days of inactivity", "ka": "45-დღიანი უმოქმედობის" },
+    "source_url": "https://support.signal.org/hc/en-us/articles/360007320551",
+    "checked_on": "2026-11-15",
+    "method": "read Signal support page (45-day linked-device and 30-day primary-device rules)",
+    "expires_in_days": 90
+  },
+  {
+    "id": "access-now-helpline-email",
+    "pages": ["guides/threat-modelling", "guides/hacked", "guides/harassment-doxxing", "guides/team-security"],
+    "match": { "en": "help@accessnow.org", "ka": "help@accessnow.org" },
+    "source_url": "https://www.accessnow.org/help/",
+    "checked_on": "2026-11-15",
+    "method": "read Access Now's helpline page; address decoded from the page's own mailto link (Cloudflare obfuscates it)",
+    "expires_in_days": 60
+  },
+  {
+    "id": "front-line-defenders-emergency-line",
+    "pages": ["guides/threat-modelling"],
+    "match": { "en": "+353-1-210-0489", "ka": "+353-1-210-0489" },
+    "source_url": "https://www.frontlinedefenders.org/en/programme/emergency-contact",
+    "checked_on": "2026-11-15",
+    "method": "read Front Line Defenders' emergency contact page",
+    "expires_in_days": 60
+  },
+  {
+    "id": "cpj-emergencies-email",
+    "pages": ["guides/threat-modelling", "guides/harassment-doxxing"],
+    "match": { "en": "emergencies@cpj.org", "ka": "emergencies@cpj.org" },
+    "source_url": "https://cpj.org/journalist-safety-and-emergencies/",
+    "checked_on": "2026-11-15",
+    "method": "read CPJ's emergencies page; its visible address differs from its mailto (report_violations@cpj.org): owner to confirm with CPJ",
+    "expires_in_days": 30
+  },
+  {
+    "id": "lockdown-mode-apple-statement",
+    "pages": ["guides/spyware", "guides/phone-hardening"],
+    "match": { "en": "TechCrunch reported", "ka": "TechCrunch-ის ცნობით" },
+    "source_url": "https://techcrunch.com/2026/03/27/apple-says-no-one-using-lockdown-mode-has-been-hacked-with-spyware/",
+    "checked_on": "2026-11-15",
+    "method": "press report of an Apple spokesperson statement (no Apple page states it)",
+    "expires_in_days": 60
+  },
+  {
+    "id": "lockdown-mode-calif-report",
+    "pages": ["guides/spyware", "guides/phone-hardening"],
+    "match": { "en": "Calif", "ka": "Calif" },
+    "source_url": "https://www.privacyguides.org/news/2026/11/06/lockdown-mode-bypassed-in-new-iphone-exploit/",
+    "checked_on": "2026-11-15",
+    "method": "secondary report of a video posted on X by Calif; recheck for a write-up or Apple fix",
+    "expires_in_days": 30
+  },
+  {
+    "id": "instagram-e2e-ended",
+    "pages": ["articles/end-to-end-encryption"],
+    "match": { "en": "8 May 2026", "ka": "2026 წლის 8 მაის" },
+    "source_url": "https://www.helpnetsecurity.com/2026/05/11/instagram-messaging-end-to-end-encryption-removed/",
+    "checked_on": "2026-11-15",
+    "method": "press report; Instagram's help page didn't load: replace with Meta's own page when readable",
+    "expires_in_days": 60
+  },
+  {
+    "id": "messenger-default-e2e-start",
+    "pages": ["guides/messaging", "articles/end-to-end-encryption"],
+    "match": { "en": "December 2023", "ka": "2023 წლის დეკემბ" },
+    "source_url": "https://about.fb.com/news/2023/12/default-end-to-end-encryption-on-messenger/",
+    "checked_on": "2026-11-15",
+    "method": "read Meta's announcement and Messenger Help Center status",
+    "expires_in_days": 90
+  }
+]

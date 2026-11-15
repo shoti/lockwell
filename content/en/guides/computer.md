@@ -7,7 +7,7 @@ group: devices
 icon: laptop
 order: 9
 time: 45
-reviewed: 2026-11-14
+reviewed: 2026-11-11
 status: published
 ---
 
@@ -21,7 +21,7 @@ Updates fix security holes that attackers already know about. Windows and macOS 
 
 1. Select **Start → Settings → Windows Update**. If updates are waiting, select **Download & install**, then restart when asked.
 2. Windows installs updates automatically. You can pause them for up to 35 days at a time, and extend the pause. Don't pause security updates without a reason, and resume them as soon as you can.
-3. **Windows 10** stopped getting security updates on 14 October 2025. If your PC can run Windows 11, upgrade. If it can't, enrol in Extended Security Updates in **Settings → Update & Security → Windows Update → Enroll now**: it keeps security updates coming until 12 October 2027. You need Windows 10 version 22H2 and a Microsoft account to enrol.
+3. **Windows 10** stopped getting security updates on 14 October 2025. If your PC can run Windows 11, upgrade. If it can't, enrol in [Extended Security Updates](https://www.microsoft.com/en-us/windows/extended-security-updates) in **Settings → Update & Security → Windows Update → Enroll now**: it keeps security updates coming until 12 October 2027. You need Windows 10 version 22H2 and a Microsoft account to enrol.
 4. Another option for a PC that can't run Windows 11 is Linux, a free operating system. Privacy Guides recommends Fedora for people new to Linux. Each Fedora version gets updates for about a year, so upgrade when a new one is offered. It says Linux avoids the data collection that often comes with Windows and macOS, but lacks some of their security features, such as strong app sandboxing. Back up your files before you install it: see [Back up your computer](/guides/backups/#computer-backup).
 
 ### Mac

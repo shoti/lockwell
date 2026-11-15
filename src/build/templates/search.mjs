@@ -27,7 +27,7 @@ export function searchPage(ctx) {
   <div class="search js-only" role="search">
     <label class="search__label" for="search__input">${t('search.label')}</label>
     <input class="search__input" id="search__input" type="search" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" data-js="search-input">
-    <p class="search__hint">${t('search.hint')}</p>
+    <p class="search__hint">${t('search.hint')} <a href="${ctx.url('/privacy/#requests')}">${t('footer.privacyDetails')}</a></p>
   </div>
   <p class="search__status js-only" role="status" data-js="search-status" data-template="${t('search.results')}"></p>
   <h2 class="visually-hidden">${t('search.all')}</h2>

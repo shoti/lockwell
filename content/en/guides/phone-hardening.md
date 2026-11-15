@@ -8,7 +8,7 @@ icon: phoneShield
 order: 2
 time: 40
 progress: session
-reviewed: 2026-11-14
+reviewed: 2026-11-12
 status: published
 ---
 
@@ -27,8 +27,8 @@ Most attacks use flaws that updates fix. NCSC calls installing them promptly one
 ### Android {.android}
 
 1. Check that automatic updates are on: see [Install updates automatically](/guides/phone/#updates). Also check by hand once a week; on a Pixel, in **Settings → System → Software updates**. Updates can take a few weeks to reach every phone.
-2. Google gives Pixel 8 and later 7 years of updates from the date they first went on sale in its US store, and Pixel 6 and 7 models 5 years. Pixel 6 and 6 Pro stopped getting updates in October 2026. Samsung promises up to 7 years for some models.
-3. When you buy a phone, CISA advises one that gets security updates at least monthly and is promised them for at least five more years.
+2. As of November 2026, Google's [Pixel update page](https://support.google.com/pixelphone/answer/4457705?hl=en) gives Pixel 8 and later 7 years of updates from the date they first went on sale in its US store, and Pixel 6 and 7 models 5 years. Pixel 6 and 6 Pro went on sale there in October 2021, so their 5 years ended in October 2026. Samsung [promises up to 7 years of security updates](https://security.samsungmobile.com/workScope.smsb) for some models.
+3. When you buy a phone, [CISA's mobile guidance](https://www.cisa.gov/sites/default/files/2025-12/guidance-mobile-communications-best-practices_508c.pdf) advises one that gets security updates at least monthly and is promised them for at least five more years.
 4. If your phone no longer gets updates, replace it.
 
 Updates fix only flaws that are already known. An attack that uses an unknown flaw works until the fix arrives: the next items are for that.
@@ -40,28 +40,28 @@ Someone can hold your phone up to your face or press your finger on it. A passco
 ### iPhone {.ios}
 
 1. Open **Settings → Face ID & Passcode** (or **Touch ID & Passcode**). When you set a new passcode, tap **Passcode Options** and choose **Custom Alphanumeric Code**.
-2. To switch Face ID off at once, press and hold the side button and either volume button for 2 seconds, then let go as soon as the sliders appear. The phone now needs your passcode.
+2. To switch Face ID off at once, press and hold the side button and either volume button together for 2 seconds, until the sliders appear, then let go. Apple says [the phone then needs your passcode](https://support.apple.com/en-us/102381).
 3. To stop face or fingerprint unlock altogether, turn off **iPhone Unlock** in the same settings.
 4. Apple describes no button shortcut for Touch ID. Restart the phone instead: after a restart it always asks for the passcode.
 5. If you have an Apple Watch, turn off your watch under **Unlock with Nearby Devices** in the same settings (on iOS 26 and earlier: **Unlock with Apple Watch**), so the watch can't unlock the phone for someone else.
 
 ### Android {.android}
 
-1. Use a PIN longer than 6 digits, or a password. Google says a strong password is the most secure option. The steps are in [Set a strong screen lock](/guides/phone/#screen-lock).
+1. Use a PIN longer than 6 digits, or a password. [Google says a strong password is the most secure option](https://support.google.com/android/answer/9079129?hl=en). The steps are in [Set a strong screen lock](/guides/phone/#screen-lock).
 2. On a Pixel, press the power and volume up buttons together and tap **Lockdown**. It turns off fingerprint and face unlock and lock-screen notifications.
-3. On a Samsung phone with One UI 8.5 or later, press and hold volume down and power, then tap **Lockdown mode** (on One UI 9.0 it turns on by itself when the menu opens). On One UI 8.0 or earlier, first turn on **Settings → Lock screen and AOD → Secure lock settings → Show Lockdown mode option**.
+3. On a Samsung phone with One UI 8.5 or later, press and hold volume down and power. On One UI 8.5, then tap **Lockdown mode**; on One UI 9.0 or later, [Samsung says](https://www.samsung.com/us/support/answer/ANS10013057/) Lockdown mode turns on automatically. On One UI 8.0 or earlier, first turn on **Settings → Lock screen and AOD → Secure lock settings → Show Lockdown mode option**.
 4. On other phones, the option may need turning on first: Google gives **Display → Advanced → Lock screen display → Show lockdown option**.
 5. Lockdown lasts only until you next unlock the phone. Turn it on again each time.
-6. On a Pixel, turn off Extend Unlock: **Settings → Security & privacy → More security & privacy → Extend Unlock**, then turn off **On-body detection** and remove **Trusted places**. Google warns that location signals can be faked to unlock the phone.
+6. On a Pixel, turn off Extend Unlock: **Settings → Security & privacy → More security & privacy → Extend Unlock**, then turn off **On-body detection** and **Trusted places**, and remove trusted devices. [Google warns](https://support.google.com/pixelphone/answer/6093922?hl=en) that location signals can be faked to unlock the phone.
 
 > [!warning]
-> On iPhone, don't keep holding the side and volume buttons. If you hold them until the Emergency SOS countdown ends, the phone calls emergency services and then texts your emergency contacts your location.
+> On iPhone, don't keep holding the side and volume buttons after the sliders appear. If you hold them until the [Emergency SOS](https://support.apple.com/guide/iphone/contact-emergency-services-iph3c99374c/ios) countdown ends, the phone calls emergency services and then, unless you cancel, texts your emergency contacts your location.
 
 A passcode doesn't help if someone sees you type it or makes you tell it. The shortcuts protect the phone only until it is unlocked again.
 
 ## Turn on Lockdown Mode on iPhone, iPad and Mac {#lockdown-mode .essential}
 
-Apple calls Lockdown Mode "an optional, extreme protection" for the very few people who may be targeted by the most sophisticated digital attacks. Amnesty, Access Now, CISA and NCSC recommend it to people at risk. In 2023 Apple confirmed to Citizen Lab that it blocked a known Pegasus spyware attack that needed no tap. In November 2026 security researchers reported an attack that got past Lockdown Mode, so it lowers the risk but doesn't remove it.
+Apple calls [Lockdown Mode](https://support.apple.com/en-us/105120) "an optional, extreme protection" for the very few people who may be targeted by the most sophisticated digital attacks. Amnesty, Access Now, CISA and NCSC recommend it to people at risk. In 2023 Citizen Lab wrote that [Lockdown Mode blocks one zero-click exploit used to install Pegasus spyware](https://citizenlab.ca/2023/09/blastpass-nso-group-iphone-zero-click-zero-day-exploit-captured-in-the-wild/), and that Apple's security team had confirmed this. In March 2026 [TechCrunch reported](https://techcrunch.com/2026/03/27/apple-says-no-one-using-lockdown-mode-has-been-hacked-with-spyware/) that Apple said it was not aware of any successful mercenary spyware attack on a device with Lockdown Mode on. That covers only the attacks Apple knows of: Lockdown Mode lowers the risk but doesn't remove it.
 
 ### iPhone {.ios}
 
@@ -79,11 +79,11 @@ Apple calls Lockdown Mode "an optional, extreme protection" for the very few peo
 > [!note]
 > Apple sends threat notifications to people it believes were targeted by spyware, and recommends Lockdown Mode in them. A real notification never asks you to click a link, open a file, install anything, or give your Apple Account password or a verification code. Check for it by signing in at [account.apple.com](https://account.apple.com/).
 
-Lockdown Mode reduces the ways in. It doesn't remove spyware that is already there, doesn't protect your accounts on other devices, and doesn't help if someone unlocks the phone. Safari shows a banner that says it is on, so anyone using the phone can see it.
+Lockdown Mode reduces the ways in. It doesn't remove spyware that is already there, doesn't protect your accounts on other devices, and doesn't help if someone unlocks the phone. In November 2026 the security company Calif [was reported](https://www.privacyguides.org/news/2026/11/06/lockdown-mode-bypassed-in-new-iphone-exploit/) to have shown a video of an iPhone with Lockdown Mode on being taken over through a PDF sent by AirDrop; it has published no details, and no such attack has been confirmed in real use. Safari shows a banner that says it is on, so anyone using the phone can see it.
 
 ## Turn on Advanced Protection on Android {#advanced-protection .essential}
 
-Android's Advanced Protection (Android 16 or later) turns on a set of protections at once, for people such as journalists and activists. Amnesty and Access Now describe it as available on Pixel phones; Google says "supported devices".
+Android's Advanced Protection (Android 16 or later) turns on a set of protections at once, for people such as journalists and activists. Amnesty and Access Now describe it as available on Pixel phones; [Google's help page](https://support.google.com/android/answer/16339980?hl=en) says "supported devices".
 
 ### Pixel {.android}
 
@@ -92,7 +92,7 @@ Android's Advanced Protection (Android 16 or later) turns on a set of protection
 3. What changes: apps can't be installed from outside the Play Store, and apps installed that way get no updates. Play Protect stays on. Only verified accessibility tools work. The phone restarts after 72 hours locked, and blocks USB data while locked (Pixel 6 and later). 2G is blocked and Chrome turns off some web features.
 4. You can't switch single protections off. To install something once, choose **Pause temporarily**: protection comes back after 3 hours.
 5. Optional: tap **Expert features** and turn on **Use expert features**. The phone then stops joining open Wi-Fi by itself, and you can turn on **Intrusion Logging** when asked. It keeps encrypted logs that experts can later use to look for an attack; Amnesty says it has to be on before the attack.
-6. Weigh Intrusion Logging first. Google says the logs stay in your Google Account for 12 months and can't be deleted, even if you turn the feature off. They show which websites you visited, Incognito included, and Google warns you may be required to give access to them.
+6. Weigh Intrusion Logging first. As of November 2026, [Google says](https://support.google.com/android/answer/16927813?hl=en) the logs stay in your Google Account for 12 months and can't be deleted before then, even if you turn the feature off. They show which websites you visited, Incognito included, and Google warns you may be required to give access to them.
 
 ### Samsung
 
@@ -163,20 +163,20 @@ A connection you allowed while the phone was unlocked stays open after you lock 
 
 ### iPhone {.ios}
 
-1. iPhone has no separate switch. Lockdown Mode turns off 2G and 3G.
+1. iPhone has no separate switch. [Apple says Lockdown Mode turns off 2G and 3G](https://support.apple.com/en-us/105120).
 
 Emergency calls can still use 2G. Turning 2G off protects against some fake masts, not all. Where only 2G works, you lose calls, texts and mobile data. With Lockdown Mode on iPhone, the same may happen where only 2G or 3G works.
 
 ## Know when GrapheneOS is worth it {#grapheneos .advanced}
 
-GrapheneOS is a free version of Android that you install in place of the phone's own system. Privacy Guides calls it the best choice for privacy and security on Android. It runs only on Google Pixel phones.
+GrapheneOS is a free version of Android that you install in place of the phone's own system. [Privacy Guides calls it the best choice](https://www.privacyguides.org/en/android/distributions/) for privacy and security on Android. As of November 2026, [GrapheneOS officially supports](https://grapheneos.org/faq#supported-devices) only Google Pixel phones.
 
 ### Android {.android}
 
 1. It makes attacks harder, GrapheneOS says: it adds defences against memory bugs, the most common kind of security flaw, including its own hardened memory allocator, and it fixes flaws not yet fixed in Android. On Pixel 8 and later it uses the hardware's memory tagging by default for the system and for installed apps known to work with it, GrapheneOS says.
 2. It gives you more control: a **Network** permission keeps an app off the internet, and a **Sensors** permission blocks sensors not covered by other permissions. Google Play can be installed as an ordinary app with no special access, so most apps still work.
-3. It helps if the phone is taken: by default the phone restarts if it stays locked for 18 hours, which locks your data again. See [Know why switching off matters](/guides/device-seizure/#before-first-unlock).
-4. Before you switch: GrapheneOS strongly recommends a Pixel 8 or later, and one that isn't locked to a mobile operator. Install it only with one of the official methods at grapheneos.org/install; the web installer is the one for most people. Installing erases everything on the phone, so back it up first.
+3. It helps if the phone is taken: [by default the phone restarts](https://grapheneos.org/features#auto-reboot) if it stays locked for 18 hours, which locks your data again. See [Know why switching off matters](/guides/device-seizure/#before-first-unlock).
+4. Before you switch: GrapheneOS strongly recommends a Pixel 8 or later from [its list of supported devices](https://grapheneos.org/faq#recommended-devices) (as of November 2026, Pixel 8 to Pixel 10a; newer Pixels aren't on it), and one that isn't locked to a mobile operator. Install it only with one of the official methods at grapheneos.org/install; the web installer is the one for most people. Installing erases everything on the phone, so back it up first.
 5. Some banking apps check whether Google has certified the system and refuse to run. GrapheneOS isn't certified, so check your bank's app before you rely on it.
 
 GrapheneOS makes attacks harder; it doesn't stop phishing, an app you give permissions to, or someone who knows your PIN. If you can't switch, [Advanced Protection](/guides/phone-hardening/#advanced-protection) is the built-in option on Android.

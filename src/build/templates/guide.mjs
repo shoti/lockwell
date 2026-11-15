@@ -66,6 +66,7 @@ export function guidePage(ctx, guide) {
     <h1 class="page-header__title">${guide.title}</h1>
     <p class="lead">${guide.summary}</p>
     ${guide.audience === 'high-risk' ? highRiskNotice(ctx, guide) : null}
+    ${guide.legal ? html`<p class="notice">${icons.alert}<span>${t('guide.legalNotice')} <a href="${ctx.url('/terms/#not-advice')}">${t('guide.legalTerms')}</a></span></p>` : null}
     <ul class="meta" role="list">
       ${guideMeta(ctx, guide)}
       <li>${icons.calendar}<span>${t('guide.reviewed')} <time datetime="${guide.reviewed}">${reviewed}</time></span></li>

@@ -8,23 +8,24 @@ icon: megaphone
 order: 6
 time: 45
 progress: session
-reviewed: 2026-11-14
+legal: true
+reviewed: 2026-11-12
 status: published
 ---
 
-A phone at a protest can show where you were, who you talk to and who stood beside you. This guide covers your phone and the photos you take. It doesn't cover your physical safety or your legal rights: for those, ask a lawyer or a human rights organisation before you go. Do the steps in the first three items at home, the day before.
+A phone at a protest can show where you were, who you talk to and who stood beside you. This guide covers your phone and the photos you take. It doesn't cover your physical safety or your legal rights: for those, ask a lawyer or a human rights organisation before you go. Do the first three steps of this guide at home, the day before.
 
 ## Decide which phone to take, if any {#phone-or-not .essential}
 
-Leaving the phone at home, or keeping it switched off, protects your data best, EFF says, but then you can't call for help or find your friends. Choose from [your plan](/guides/threat-modelling/).
+[EFF's protest guide](https://ssd.eff.org/module/attending-protest) says leaving the phone at home, or keeping it switched off, can be the simplest way to protect your data, but then you can't call for help or find your friends. Choose from [your plan](/guides/threat-modelling/).
 
 ### All phones
 
 1. **Your usual phone:** easiest, but everything on it goes with you. Prepare it with the next items.
 2. **A second phone:** an old or cheap phone with little personal data on it, as long as it still gets security updates. Don't sign in to your personal email or social media on it. Write your friends' numbers down on paper too.
-3. **No phone, or a phone that stays off** until you need it: the strongest option for your data, and the weakest for staying in touch.
+3. **No phone, or a phone that stays off** until you need it: the hardest for others to track, and a phone that is off is harder to break into. It doesn't protect what is already in your accounts or the cloud, and it is the weakest for staying in touch.
 
-A second phone leaves its own trail. In most countries a SIM card is registered to an ID, and mobile masts record where a phone has been. If you carry both phones, their locations can be matched. Switch the second phone off before you go home.
+A second phone leaves its own trail. EFF notes that most countries require an ID to buy a prepaid SIM card, and mobile masts record where a phone has been. If you carry both phones, their locations can be matched. Switch the second phone off before you go home.
 
 ## Prepare the phone before you go {#before-you-go .essential}
 
@@ -46,7 +47,7 @@ Deleted content can sometimes be recovered with specialist tools. A memory card 
 
 ## Switch off face and fingerprint unlock {#biometrics-off .essential}
 
-Someone can hold the phone up to your face or press your finger on it. A passcode has to be typed. On iPhone 12 and later, Face ID can work even with a mask. The trade-off: cameras around you may film you typing the passcode.
+Someone can hold the phone up to your face or press your finger on it. A passcode has to be typed. On iPhone 12 and later, Face ID can also work while you wear a mask if **Face ID with a Mask** is turned on: see [Apple's Face ID guide](https://support.apple.com/guide/iphone/set-up-face-id-iph6d162927a/ios). The trade-off: cameras around you may film you typing the passcode.
 
 ### iPhone {.ios}
 
@@ -57,8 +58,8 @@ Someone can hold the phone up to your face or press your finger on it. A passcod
 ### Android {.android}
 
 1. Before you go, turn off fingerprint and face unlock. On a Pixel: **Settings → Security & privacy → Device unlock**, then **Face** and **Fingerprint** (on some versions **Face & Fingerprint Unlock**), and turn off unlocking the phone. On Samsung: **Settings → Security and privacy → Screen lock and biometrics**, then turn off **Fingerprint unlock** and **Face unlock**.
-2. On a Pixel, turn off Extend Unlock: **Settings → Security & privacy → More security & privacy → Extend Unlock**, then turn off **On-body detection**, remove **Trusted places** and remove all trusted devices. On Samsung, turn off everything in **Settings → Lock screen and AOD → Extend Unlock**. Google warns that location signals can be faked to unlock the phone.
-3. If you keep biometrics, use Lockdown: on a Pixel, press power and volume up and tap **Lockdown**. On Samsung, press and hold volume down and the side button; on One UI 8.5, then tap **Lockdown mode**; on One UI 8.0 or earlier, first turn on the option in **Settings → Lock screen and AOD → Secure lock settings**. Lockdown lasts until the next unlock.
+2. On a Pixel, turn off Extend Unlock: **Settings → Security & privacy → More security & privacy → Extend Unlock**, then turn off **On-body detection**, remove **Trusted places** and remove all trusted devices. On Samsung, turn off everything in **Settings → Lock screen and AOD → Extend Unlock**. [Google warns](https://support.google.com/pixelphone/answer/6093922?hl=en) that location signals can be faked to unlock the phone.
+3. If you keep biometrics, use Lockdown: on a Pixel, press power and volume up and tap **Lockdown**. On Samsung, press and hold volume down and the side button: on One UI 9.0 and later, Lockdown mode turns on by itself; on One UI 8.5, tap **Lockdown mode**; on One UI 8.0 or earlier, first turn on **Show Lockdown mode** in **Settings → Lock screen and AOD → Secure lock settings**, then tap **Lockdown mode**. See [Samsung's Lockdown mode page](https://www.samsung.com/us/support/answer/ANS10013057/) (Samsung US, as of November 2026). Lockdown lasts until the next unlock.
 
 > [!warning]
 > On iPhone, don't keep holding the side and volume buttons. If you hold them until the Emergency SOS countdown ends, the phone calls emergency services and then texts your emergency contacts your location. The countdown also plays a loud alarm. If it calls by mistake, don't hang up: tell the operator you don't need help.
@@ -67,11 +68,11 @@ None of this helps if the phone is taken from your hand while unlocked, for exam
 
 ## Know what your phone reveals by being there {#location-and-network .recommended}
 
-A phone that is on connects to nearby mobile masts and Wi-Fi networks, and the records can show it was there. Calls and SMS can be intercepted, for example with a fake mobile mast.
+A phone that is on connects to nearby mobile masts and Wi-Fi networks, and the records can show it was there. [EFF warns](https://ssd.eff.org/module/problem-mobile-phones) that ordinary calls and SMS can be intercepted, for example by someone nearby with a fake mobile mast (an IMSI catcher).
 
 ### iPhone {.ios}
 
-1. To turn Wi-Fi and Bluetooth fully off, use **Settings → Wi-Fi** and **Settings → Bluetooth**. The buttons in Control Center only disconnect, and airplane mode leaves Bluetooth on.
+1. To turn Wi-Fi and Bluetooth fully off, use **Settings → Wi-Fi** and **Settings → Bluetooth**. [Apple says](https://support.apple.com/en-us/102412) the buttons in Control Center only disconnect, and that [airplane mode may leave Bluetooth on](https://support.apple.com/en-us/HT204234): it remembers what you turned on or off in airplane mode last time.
 2. Turn off **Settings → Privacy & Security → Location Services**. For your location history, see [Clear your location history](/guides/location-photos/#location-history).
 
 ### Android {.android}
@@ -85,7 +86,7 @@ A phone that is on connects to nearby mobile masts and Wi-Fi networks, and the r
 2. A live stream shows where you are, and the faces of the people around you.
 3. Cards and travel passes linked to you can also show where you were; cash leaves less trace.
 
-EFF warns that even in airplane mode with everything off, apps can store your location and send it later. Only switching the phone off stops that. With the connections off, you also can't call for help, so agree on a meeting point with your friends.
+EFF warns that even with airplane mode on and Location Services, Wi-Fi and Bluetooth turned off, apps may store your location and send it later. EFF says only switching the phone off makes sure that doesn't happen. With the connections off, you also can't call for help, so agree on a meeting point with your friends.
 
 ## Protect the people in your photos {#photos-and-faces .essential}
 
@@ -98,7 +99,7 @@ A photo you post can be used to find and harass people who were at the protest. 
 3. Remove the location and other hidden details from the file: use the [photo metadata tool](/tools/photo-metadata/) for photos and the [video metadata tool](/tools/video-metadata/) for videos, or see [Remove location from your photos](/guides/location-photos/#photo-metadata).
 4. Check the background too: reflections, street signs and other people.
 
-If you are documenting events, the hidden details can help prove when and where a photo was taken: keep the original safe and post a cleaned copy. Face detection in apps misses faces, so check every photo yourself.
+If you are documenting events, the hidden details can help prove when and where a photo was taken: keep the original safe and post a cleaned copy. Face detection in apps can miss faces ([Signal says its blur tool doesn't find every face](https://signal.org/blog/blur-tools/)), so check every photo yourself.
 
 ## Agree how your group will communicate {#group-comms .recommended}
 
@@ -123,15 +124,15 @@ This item covers only your phone. For your rights, talk to a lawyer.
 
 ### All phones
 
-1. Switch the phone off completely, not just to sleep. Freedom of the Press Foundation explains that a phone that hasn't been unlocked since it was switched on is harder for forensic tools to break into.
+1. Switch the phone off completely, not just to sleep. [Freedom of the Press Foundation explains](https://freedom.press/digisec/blog/police-forensic-tools-may-bypass-key-phone-security-feature/) that a phone that hasn't been unlocked since it was switched on is harder for forensic tools to break into.
 2. On iPhone: press and hold the side button and either volume button until the sliders appear, then drag the power-off slider. Don't keep holding past the sliders.
 3. If you must make a call, switch the phone on, call, then switch it off again without unlocking more than you need.
-4. Don't wipe the phone remotely or use a wipe code without talking to a lawyer first. CPJ notes that wiping can make you look more suspicious, and a remote wipe works only if the phone is online.
+4. Don't wipe the phone remotely or use a wipe code without talking to a lawyer first. [CPJ notes](https://cpj.org/2021/02/physical-and-digital-safety-arrest-and-detention/) that wiping can make you look more suspicious and works only if the phone is online, and [CPJ's safety kit](https://cpj.org/2019/07/digital-safety-kit-journalists/) warns that a remote wipe can have legal consequences.
 
 > [!note]
 > If you or your group expect to be targeted, contact a helpline before the protest: see [Know where to get expert help](/guides/threat-modelling/#get-help).
 
-Switching off doesn't help if the phone was taken while unlocked. Freedom of the Press Foundation reports that an iPhone restarts itself after 72 hours locked, and that one forensic vendor claims its tools can get past this. Don't rely on it: switch the phone off yourself.
+Switching off doesn't help if the phone was taken while unlocked. Freedom of the Press Foundation reports that since iOS 18.1 an iPhone restarts itself after 72 hours locked, and that in a leaked training video a forensic vendor, Magnet Forensics (maker of Graykey), claims its tools can get past this. Don't rely on it: switch the phone off yourself.
 
 ## Afterwards {#afterwards .recommended}
 

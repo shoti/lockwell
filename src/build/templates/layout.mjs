@@ -178,7 +178,8 @@ function header(ctx, page) {
 /** @param {Ctx} ctx */
 function footer(ctx) {
   const { site, t, url } = ctx;
-  // The legal row is the copyright line, plus the About link on screens too narrow for it in the header (below 50rem).
+  // The legal row is the copyright line, the Privacy and Terms links, plus the About link on screens too narrow for it in the header (below 50rem).
+  // TODO(next-iteration: hosting logs): "footer.promise" ("No tracking…") is out of scope this iteration; don't reword it.
   return html`<footer class="site-footer">
   <div class="container site-footer__inner">
     <div class="site-footer__brand">
@@ -191,12 +192,15 @@ function footer(ctx) {
         <span>${t('footer.storageNote')}</span>
         <button class="link-button" type="button" data-js="clear-data" data-done="${t('footer.cleared')}">${t('footer.clearData')}</button>
         <span class="visually-hidden" role="status" data-js="clear-data-status"></span>
+        <a href="${url('/privacy/#storage')}">${t('footer.storageDetails')}</a>
       </p>
     </div>
     <p class="site-footer__legal">
       ${site.author?.inFooter
         ? html`<span>${t('footer.copyright', { year: site.copyrightYear ?? '' })} <a href="${site.author.url}" target="_blank" rel="author external noopener noreferrer">${site.author.name}</a></span>`
         : html`<span>${t('footer.copyright', { year: site.copyrightYear ?? '' })} ${t('siteName')}</span>`}
+      <a href="${url('/privacy/')}">${t('footer.privacy')}</a>
+      <a href="${url('/terms/')}">${t('footer.terms')}</a>
       <a class="site-footer__about" href="${url('/about/')}">${t('nav.about')}</a>
     </p>
   </div>

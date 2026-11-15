@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 321">
   <title>რას მალავს End-to-end დაშიფრული ელფოსტა და რას — ვერა</title>
-  <desc>კონვერტი: მას სერვისები End-to-end დაშიფვრის დროსაც ხედავენ. ვისგან: you@example.org; ვის: editor@example.net; გაიგზავნა: 12 ნოემბერი 2026, 09:14; თემა: პარასკევის დოკუმენტები; გამგზავნის IP-მისამართი: ზოგ სერვისთან. თავად წერილი: End-to-end დაშიფვრას მისი დამალვა შეუძლია.</desc>
+  <desc>კონვერტი: მას სერვისები End-to-end დაშიფვრის დროსაც ხედავენ. ვისგან: you@example.org; ვის: editor@example.net; გაიგზავნა: 12 ნოემბერი 2026, 09:14; თემა: სერვისების უმეტესობასთან; გამგზავნის IP-მისამართი: ზოგ სერვისთან. თავად წერილი: End-to-end დაშიფვრას მისი დამალვა შეუძლია.</desc>
   <text x="0" y="12.5" class="t-sm t-b t-bad">კონვერტი: მას სერვისები End-to-end</text>
   <text x="0" y="29.6" class="t-sm t-b t-bad">დაშიფვრის დროსაც ხედავენ</text>
   <rect x="0" y="40.3" width="340" height="159.8" rx="6" class="box-bad"/>
@@ -12,7 +12,7 @@
   <text x="14" y="139.7" class="t-sm t-b">გაიგზავნა:</text>
   <text x="87" y="139.7" class="t-sm">12 ნოემბერი 2026, 09:14</text>
   <text x="14" y="160.9" class="t-sm t-b">თემა:</text>
-  <text x="53.7" y="160.9" class="t-sm">პარასკევის დოკუმენტები</text>
+  <text x="53.7" y="160.9" class="t-sm">სერვისების უმეტესობასთან</text>
   <text x="14" y="182" class="t-sm t-b">გამგზავნის IP მისამართი:</text>
   <text x="185.3" y="182" class="t-sm">ზოგ სერვისთან</text>
   <text x="0" y="228.6" class="t-sm t-b t-good">თავად წერილი: End-to-end დაშიფვრას მისი</text>

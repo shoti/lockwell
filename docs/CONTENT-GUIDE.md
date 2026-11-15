@@ -61,7 +61,8 @@ status: draft
 | `time` | Rough minutes to finish everything. |
 | `reviewed` | Date someone last checked every step on a real device. |
 | `status` | `draft` shows a warning and hides the page from search engines. Remove it (or set `published`) once a native speaker and a second person have reviewed the guide. |
-| `progress` | Optional. `session` forgets checklist progress when the tab is closed. Use it for sensitive topics (protests, journalism, leaving an abusive relationship), so a shared or seized phone doesn't reveal what was read. Required for `audience: high-risk`. Must match in both languages. Default: `local` (kept until cleared). |
+| `progress` | Optional. `session` keeps checklist progress only in the tab (normally gone when it is closed; a browser that reopens closed tabs may restore it). Use it for sensitive topics (protests, journalism, leaving an abusive relationship), so a shared or seized phone doesn't reveal what was read. Required for `audience: high-risk`. Must match in both languages. Default: `local` (kept until cleared). |
+| `legal` | Optional. `true` shows a fixed notice that the guide is not legal advice, that laws differ and to ask a lawyer, with a link to the terms. Use it where a step can carry legal risk (protests, borders, seizure, anonymity, sources, harassment, spyware). Must match in both languages. Default: `false`. |
 
 The build warns when `reviewed` is more than a year old.
 
@@ -192,6 +193,9 @@ raw HTML, other images, tables or code blocks; the build rejects them.
 - **Phone codes and other asterisks:** write codes in backticks
   (`` `*#21#` ``) and a literal asterisk as `\*`. `*italic*` must start with a
   letter. A stray `*` fails the build, so a code can never turn into italics.
+- **Editor's notes:** a line that is only `<!-- … -->` is dropped from the
+  page (use it for `TODO(author)` markers). It must sit on its own line and
+  close on the same line; anything else is still rejected as raw HTML.
 
 **Links**
 - External: full `https://` URL. They open with `rel="noreferrer"`, so the

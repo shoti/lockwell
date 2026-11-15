@@ -174,7 +174,10 @@ describe('site build', () => {
       const page = await read(path);
       assert.match(page, /<meta name="author" content="Shota Mtvarelishvili">/);
       const legal = /<p class="site-footer__legal">([\s\S]*?)<\/p>/.exec(page)?.[1].trim() ?? '';
-      const about = path === 'index.html' ? '<a class="site-footer__about" href="/sub/about/">შესახებ</a>' : '<a class="site-footer__about" href="/sub/en/about/">About</a>';
+      const about =
+        path === 'index.html'
+          ? '<a href="/sub/privacy/">კონფიდენციალურობა</a> <a href="/sub/terms/">გამოყენების პირობები</a> <a class="site-footer__about" href="/sub/about/">შესახებ</a>'
+          : '<a href="/sub/en/privacy/">Privacy</a> <a href="/sub/en/terms/">Terms of use</a> <a class="site-footer__about" href="/sub/en/about/">About</a>';
       assert.equal(legal.replace(/\s+/g, ' '), `<span>© 2026 Lockwell</span> ${about}`, `${path}: "author.inFooter" is false, so the footer credits the site`);
       assert.doesNotMatch(/<footer class="site-footer">[\s\S]*?<\/footer>/.exec(page)?.[0] ?? '', /Mtvarelishvili|mailto:|@proton/, `${path}: no name or email address in the footer`);
       assert.match(page, /"copyrightHolder":\{"@type":"Person","name":"Shota Mtvarelishvili"/);
@@ -223,7 +226,7 @@ describe('site build', () => {
     const shown = join(workDir, 'author-in-footer');
     await build({ outDir: shown, contentDir, siteUrl: 'https://example.org/' });
     const legal = /<p class="site-footer__legal">([\s\S]*?)<\/p>/.exec(await readFile(join(shown, 'en/index.html'), 'utf8'))?.[1].trim();
-    assert.equal(legal?.replace(/\s+/g, ' '), '<span>© 2026 <a href="https://github.com/shoti" target="_blank" rel="author external noopener noreferrer">Shota Mtvarelishvili</a></span> <a class="site-footer__about" href="/en/about/">About</a>');
+    assert.equal(legal?.replace(/\s+/g, ' '), '<span>© 2026 <a href="https://github.com/shoti" target="_blank" rel="author external noopener noreferrer">Shota Mtvarelishvili</a></span> <a href="/en/privacy/">Privacy</a> <a href="/en/terms/">Terms of use</a> <a class="site-footer__about" href="/en/about/">About</a>');
 
     config.author.inFooter = 'no';
     await writeFile(file, JSON.stringify(config));
@@ -324,6 +327,28 @@ describe('site build', () => {
     assert.doesNotMatch(await read('404.html'), /og:url/, 'BUG-13: no og:url for a page that has no URL of its own');
     assert.equal(await read('.nojekyll'), '');
   });
+
+  it('pre-launch audit: guides with "legal: true" say they are not legal advice and link the terms; others do not', async () => {
+    const en = await read('en/guides/device-seizure/index.html');
+    assert.match(en, /This is not legal advice\./);
+    assert.match(en, /href="\/sub\/en\/terms\/#not-advice"/);
+    assert.match(await read('guides/device-seizure/index.html'), /ეს არ არის იურიდიული რჩევა\./);
+    assert.doesNotMatch(await read('en/guides/accounts/index.html'), /not legal advice/);
+  });
+
+  it('pre-launch audit: the privacy page names every storage key the scripts use, and security.txt is published', async () => {
+    const keys = ['progress:'];
+    for (const name of await readdir(PATHS.client)) {
+      const source = await readFile(join(PATHS.client, name), 'utf8');
+      for (const [, key] of source.matchAll(/const (?:STORAGE_KEY|COMPARE_KEY) = '([^']+)'/g)) keys.push(key);
+    }
+    assert.ok(keys.length >= 4, `found the keys in the scripts (${keys.join(', ')})`);
+    for (const path of ['privacy/index.html', 'en/privacy/index.html']) {
+      const page = await read(path);
+      for (const key of keys) assert.ok(page.includes(`lockwell:${key}`), `${path} lists lockwell:${key}`);
+    }
+    assert.match(await read('.well-known/security.txt'), /^Contact: mailto:/m);
+  });
 });
 
 describe('build safety and options', () => {
@@ -356,7 +381,7 @@ describe('build safety and options', () => {
     await build({ outDir, contentDir, siteUrl: 'https://example.org/' });
     const guide = await read('en/guides/messaging/index.html');
     assert.match(guide, /data-js="checklist" data-guide="g[0-9a-f]{10}" data-storage="session"/);
-    assert.match(guide, /forgotten when you close this tab/);
+    assert.match(guide, /kept only in this tab and is normally deleted when you close it\. A browser that reopens closed tabs may restore it\./);
     assert.match(await read('en/index.html'), /data-js="card-progress" data-guide="g[0-9a-f]{10}" data-storage="session"/);
   });
 
@@ -886,7 +911,7 @@ describe('guides list rows', () => {
     const line = /<p class="page-header__continue page-header__continue--start">([\s\S]*?)<\/p>/.exec(page)?.[1] ?? '';
     assert.ok(line, 'shown without JS too (no js-only)');
     assert.ok(line.indexOf('data-js="continue"') < line.indexOf('continue--start'), 'the start link comes after "Continue", so CSS can hide it while "Continue" shows');
-    assert.match(line, /<a class="continue continue--start" href="\/en\/guides\/accounts\/"><span>New here\? Start with:<\/span><span class="continue__title">Secure your accounts and passwords<\/span><span class="continue__count">60 min<\/span><svg/);
+    assert.match(line, /<a class="continue continue--start" href="\/en\/guides\/accounts\/"><span>New here\? Start with:<\/span> <span class="continue__title">Secure your accounts and passwords<\/span> <span class="continue__count">60 min<\/span><svg/);
     assert.match(await read('guides/index.html'), /<span>პირველად ხართ\? დაიწყეთ:<\/span>/);
     const css = await read('assets/site.css');
     assert.match(css, /\.page-header__continue--start \{\s*display: grid;\s*grid-template-columns: minmax\(0, 1fr\);/, 'one cell for both; a long line must not widen a phone');
@@ -902,8 +927,8 @@ describe('guides list rows', () => {
       return page.slice(start, end).split('<article class="card">').length - 1;
     };
     const nav = /<nav class="track-nav" aria-label="Guide groups">([\s\S]*?)<\/nav>/.exec(page)?.[1] ?? '';
-    assert.match(nav, new RegExp(`href="#everyone">For everyone<span class="track-nav__count">${count('everyone')}</span>`));
-    assert.match(nav, new RegExp(`href="#high-risk">For people at higher risk<span class="track-nav__count">${count('high-risk')}</span>`));
+    assert.match(nav, new RegExp(`href="#everyone">For everyone <span class="track-nav__count" aria-hidden="true">${count('everyone')}</span><span class="visually-hidden">\\(${count('everyone')} guides\\)</span>`));
+    assert.match(nav, new RegExp(`href="#high-risk">For people at higher risk <span class="track-nav__count" aria-hidden="true">${count('high-risk')}</span><span class="visually-hidden">\\(${count('high-risk')} guides\\)</span>`));
     assert.match(await read('guides/index.html'), /aria-label="გზამკვლევების ჯგუფები"/);
   });
 });
