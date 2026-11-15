@@ -13,6 +13,11 @@
     "build": "node src/build/build.mjs",
     "dev": "node src/build/dev.mjs",
     "test": "node --test tests/*.test.mjs",
-    "check": "npm test && npm run build"
+    "check": "npm test && npm run build",
+    "audit": "node scripts/audit/run.mjs",
+    "audit:static": "node scripts/audit/run.mjs static",
+    "audit:claims": "node scripts/audit/run.mjs claims",
+    "audit:runtime": "node scripts/audit/run.mjs runtime",
+    "audit:links": "node scripts/audit/links.mjs"
   }
 }

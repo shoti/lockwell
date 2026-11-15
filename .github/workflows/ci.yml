@@ -31,3 +31,7 @@ jobs:
           npx tsc -p jsconfig.json
       - name: Build (fails on any content error)
         run: npm run build
+      # Links, page structure, unicode, ka/en parity, the claims registry, and a headless-Chrome privacy run
+      # (no outside requests, no cookies, no storage on load). Chrome comes preinstalled on the runner.
+      - name: Pre-launch audit
+        run: npm run audit -- --quiet
