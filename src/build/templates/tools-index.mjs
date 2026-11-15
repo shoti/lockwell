@@ -22,7 +22,7 @@ export function toolsIndexPage(ctx) {
   ${breadcrumbs(ctx, [{ name: t('nav.home'), route: '/' }, { name: title }])}
   <header class="page-header">
     <h1 class="page-header__title">${title}</h1>
-    <p class="lead">${t('tools.lead')}</p>
+    <p class="lead">${t('tools.lead')} <a href="${ctx.url('/privacy/#requests')}">${t('footer.privacyDetails')}</a></p>
   </header>
   ${TOOL_GROUPS.map(
     (group) => html`<section class="tool-group" aria-labelledby="tools__${group.key}">

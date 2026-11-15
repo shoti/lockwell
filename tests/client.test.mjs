@@ -60,6 +60,13 @@ describe('asset pipeline', () => {
     assert.match(headers, /X-Frame-Options: DENY/);
   });
 
+  it('pre-launch audit: _headers keeps browsers on HTTPS and stops other sites embedding our files', () => {
+    const headers = headersFile(contentSecurityPolicy());
+    // No includeSubDomains or preload until every subdomain is known to serve HTTPS.
+    assert.match(headers, /^  Strict-Transport-Security: max-age=31536000$/m);
+    assert.match(headers, /^  Cross-Origin-Resource-Policy: same-origin$/m);
+  });
+
   it('SEC-4: CSP enforces Trusted Types, so a future innerHTML fails loudly', () => {
     assert.match(contentSecurityPolicy(), /require-trusted-types-for 'script'/);
   });

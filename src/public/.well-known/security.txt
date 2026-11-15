@@ -1,0 +1,7 @@
+# Security contact for lockwell.org (RFC 9116). Renew "Expires" before it passes; a test fails 30 days ahead.
+Contact: mailto:mtvarelishvili@proton.me
+Contact: https://github.com/shoti/lockwell/security/advisories/new
+Expires: 2027-05-15T00:00:00.000Z
+Preferred-Languages: en, ka
+Canonical: https://lockwell.org/.well-known/security.txt
+Policy: https://github.com/shoti/lockwell/blob/main/SECURITY.md

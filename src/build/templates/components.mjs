@@ -143,7 +143,7 @@ export function guideTracks(ctx) {
  */
 export function continueLink(ctx) {
   const { t, url, lang, content } = ctx;
-  return html`<a class="continue" data-js="continue"><span>${t('home.continue')}</span><span class="continue__title" data-js="continue-title"></span><span class="continue__count" data-js="continue-count"></span>${icons.arrowRight}${content.guides[lang].map(
+  return html`<a class="continue" data-js="continue"><span>${t('home.continue')}</span> <span class="continue__title" data-js="continue-title"></span> <span class="continue__count" data-js="continue-count"></span>${icons.arrowRight}${content.guides[lang].map(
     (guide) => html`<span hidden data-js="continue-guide" ${progressAttrs(guide)} data-track="${guide.audience}" data-href="${url(guide.route)}" data-title="${guide.title}" data-items="${guide.items.map((item) => item.id).join(' ')}"></span>`,
   )}</a>`;
 }

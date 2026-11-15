@@ -157,6 +157,9 @@ export function headersFile(csp, pages = []) {
     '  Referrer-Policy: no-referrer',
     '  Cross-Origin-Opener-Policy: same-origin',
     '  Permissions-Policy: camera=(), microphone=(), geolocation=(), browsing-topics=()',
+    // One year, this host only: add includeSubDomains and preload only once every subdomain serves HTTPS.
+    '  Strict-Transport-Security: max-age=31536000',
+    '  Cross-Origin-Resource-Policy: same-origin',
     // CSS and JS URLs carry ?v=<content hash>, so they never change in place.
     '/assets/*',
     '  Cache-Control: public, max-age=31536000, immutable',

@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Report a security vulnerability (privately)
+    url: https://github.com/shoti/lockwell/security/advisories/new
+    about: Please don't open a public issue for a vulnerability or for advice that could put someone at risk. See SECURITY.md.

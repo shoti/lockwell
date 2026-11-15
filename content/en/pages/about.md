@@ -12,15 +12,21 @@ There are few privacy resources in Georgian. Most advice online is written in En
 
 ## How this site respects your privacy
 
+<!-- TODO(next-iteration: hosting logs): the last two bullets ("Nothing is saved", Cloudflare's records, "keep no logs of our own") are out of scope this iteration; don't reword them here. -->
+
 - No tracking scripts, no cookies and no ads.
 - No requests to other companies: fonts, scripts and images are all served from this site.
 - Your checklist progress is saved only in your own browser, and you can clear it at any time.
 - The tools run in your browser. The one that connects anywhere is the browser check, and only when you press its IP address button: your browser then asks Cloudflare, our host, for your address. Nothing is saved.
 - There is one kind of tracking, and it is minimal: our host's. The site runs on Cloudflare Pages, and Cloudflare records each visit, including your IP address, your browser and the page you open. From these records, Cloudflare shows us overall traffic statistics. We don't add analytics of our own and keep no logs of our own.
 
+The [privacy page](/privacy/) lists every value the site saves in your browser and how to delete it. See also the [terms of use](/terms/).
+
 ## Get involved
+
+<!-- TODO(author): the repository is private as of 2026-11-15; make it public before launch or remove "open-source" and the GitHub links. Add a maintainer statement once the beta name hiding ends, and a PGP key if wanted. -->
 
 The code is published under the MIT license and the guides under CC BY-SA 4.0, so anyone can reuse and adapt them. Corrections, translations and new guides are welcome on [GitHub](https://github.com/shoti/lockwell). You can also write by email: mtvarelishvili (at) proton.me.
 
 > [!note]
-> Privacy advice goes out of date as apps change. Each guide shows the date it was last reviewed.
+> Privacy advice goes out of date as apps change. Each guide shows the date its sources were last checked.
