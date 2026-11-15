@@ -81,7 +81,15 @@ async function startBrowser() {
       });
       child.on('exit', (code) => reject(new Error(`Chrome (${chrome}) exited with ${code}. Its output:\n${log}`)));
     });
-    return { name: `Chrome (${chrome})`, ws: /** @type {string} */ (ws), stop: async () => { child.kill(); await rm(profile, { recursive: true, force: true }); } };
+    return { name: `Chrome (${chrome})`, ws: /** @type {string} */ (ws), stop: async () => {
+      // Chrome keeps writing to its profile while it shuts down: wait for it, then delete with retries.
+      const exited = child.exitCode !== null ? Promise.resolve() : new Promise((resolve) => child.once('exit', resolve));
+      child.kill();
+      await exited;
+      await rm(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }).catch((error) => {
+        console.warn(`Couldn't delete the temporary browser profile ${profile}: ${error.message}`);
+      });
+    } };
   }
   const lightpanda = onPath('lightpanda');
   if (lightpanda) {

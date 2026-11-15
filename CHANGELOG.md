@@ -27,4 +27,5 @@ date its sources were last checked.
 - HTTP Strict Transport Security and Cross-Origin-Resource-Policy headers.
 - Screen readers hear "For everyone (12 guides)" instead of "For everyone12".
 - `npm run audit` (links, structure, unicode, parity, claims, headless privacy
-  run) in CI; weekly link and claims check; `data/claims.json`.
+  run); CI runs all but the headless run; weekly link and claims check;
+  `data/claims.json`.
