@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 304">
   <title>What end-to-end encrypted email hides, and what it doesn’t</title>
-  <desc>The envelope: providers can see it, even with end-to-end encryption From: you@example.org; To: editor@example.net; Sent: 12 November 2026, 09:14; Subject: Documents from Friday; Sender’s IP address: with some providers. The message itself: end-to-end encryption can hide it</desc>
+  <desc>The envelope: providers can see it, even with end-to-end encryption From: you@example.org; To: editor@example.net; Sent: 12 November 2026, 09:14; Subject: with most providers; Sender’s IP address: with some providers. The message itself: end-to-end encryption can hide it</desc>
   <text x="0" y="12.5" class="t-sm t-b t-bad">The envelope: providers can see it, even with end-to-end</text>
   <text x="0" y="29.6" class="t-sm t-b t-bad">encryption</text>
   <rect x="0" y="40.3" width="340" height="159.8" rx="6" class="box-bad"/>
@@ -12,7 +12,7 @@
   <text x="14" y="139.7" class="t-sm t-b">Sent:</text>
   <text x="48.1" y="139.7" class="t-sm">12 November 2026, 09:14</text>
   <text x="14" y="160.9" class="t-sm t-b">Subject:</text>
-  <text x="65.5" y="160.9" class="t-sm">Documents from Friday</text>
+  <text x="65.5" y="160.9" class="t-sm">with most providers</text>
   <text x="14" y="182" class="t-sm t-b">Sender’s IP address:</text>
   <text x="137.7" y="182" class="t-sm">with some providers</text>
   <text x="0" y="228.6" class="t-sm t-b t-good">The message itself: end-to-end encryption can hide it</text>

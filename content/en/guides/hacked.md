@@ -7,14 +7,14 @@ group: recovery
 icon: lifebuoy
 order: 12
 time: 40
-reviewed: 2026-11-14
+reviewed: 2026-11-12
 status: published
 ---
 
 If someone got into one of your accounts, work through the items in order. The seven **Essential** items are the ones to do today. Do them from a device you trust: if you think your phone or computer itself has something installed on it, read [Check the phone or computer](/guides/hacked/#check-device) first, or use another device. Not every account can be recovered. Some companies can't help if every recovery method is gone, so act quickly.
 
 > [!warning]
-> Use only the official recovery pages below. Google says it doesn't help with sign-in by phone and doesn't work with any service that offers to recover accounts. Anyone who offers to get your account back for a fee, or asks for your codes, is trying to scam you.
+> Use only the official recovery pages below. Google's [account recovery help](https://support.google.com/accounts/answer/7682439?hl=en) says it doesn't help with sign-in by phone and doesn't work with any service that offers to recover accounts. Treat anyone who offers to get your account back for a fee, or asks for your codes, as a scammer.
 
 ## Know the signs of a hacked account {#signs .essential}
 
@@ -192,7 +192,7 @@ If something was installed on your device, it may see your new passwords. Check 
 4. Google says you can also reset the computer to factory settings and reinstall the operating system.
 
 > [!note]
-> If you are a journalist, activist or human rights defender and think you were targeted, contact the [Access Now Digital Security Helpline](https://www.accessnow.org/help/) at help@accessnow.org. It is free and answers around the clock in English, Russian and eight other languages, but not Georgian.
+> If you are a journalist, activist or human rights defender and think you were targeted, contact the [Access Now Digital Security Helpline](https://www.accessnow.org/help/) at help@accessnow.org. As of November 2026, Access Now says it is free and answers around the clock in English, Russian and eight other languages, but not Georgian.
 
 ## Report it {#report .recommended}
 
@@ -202,4 +202,4 @@ Reporting can help the company stop the account being used against others. Take 
 
 1. Report through the recovery pages in [Get back in through the official route](/guides/hacked/#regain-access).
 2. On WhatsApp, recover the account before you report it. WhatsApp says that if you report the account you are trying to recover, it may ban it, and you could lose the account and its data.
-3. If you lost money, someone is using your name, or you are threatened, report it to the police. The Ministry of Internal Affairs lists its contacts on [police.ge](https://police.ge/). In an emergency, call 112.
+3. If you lost money, someone is using your name, or you are threatened, report it to the police. The Ministry of Internal Affairs lists its contacts on [its police.ge contacts page](https://police.ge/contacts). In an emergency, call 112, [Georgia's single emergency number](https://112.gov.ge/?page_id=274).

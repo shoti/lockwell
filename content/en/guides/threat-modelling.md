@@ -8,11 +8,11 @@ icon: map
 order: 1
 time: 30
 progress: session
-reviewed: 2026-11-14
+reviewed: 2026-11-12
 status: published
 ---
 
-Before you change any settings, take half an hour to work out what you need to protect, and from whom. The answers decide which guides matter for you, and which steps could make your situation worse. This guide follows the method used by the Electronic Frontier Foundation (EFF) and other digital security organisations. Write your answers on paper or somewhere only you can reach.
+Before you change any settings, take half an hour to work out what you need to protect, and from whom. The answers decide which guides matter for you, and which steps could make your situation worse. This guide follows the method in [Your Security Plan](https://ssd.eff.org/module/your-security-plan), a guide by the Electronic Frontier Foundation (EFF). Write your answers on paper or somewhere only you can reach.
 
 ## List what you want to protect {#what-to-protect .essential}
 
@@ -56,13 +56,13 @@ Every protection costs something: time, money, convenience or features. Some ste
 1. Note your limits: money, technical skill, time, and people who would notice if you changed things.
 2. The strongest settings switch features off. Lockdown Mode on iPhone limits some apps, websites and features. Some services fall back to SMS when you recover an account, so SMS can't always be avoided.
 3. Some tools, such as those that hide what you do online, are illegal in some countries, or can be seen as a sign that you are doing something wrong. Ask whether another way reaches the same goal.
-4. Back up your files before you erase or reset a device, or you will lose them. If you think it has spyware, get expert help first: a reset deletes the evidence, and restoring a full backup can bring the problem back.
+4. Back up your files before you erase or reset a device, or you will lose them. If you think it has spyware, ask experts before you erase it, back it up or restore anything to it: see [If you think your phone is infected](/guides/spyware/#if-you-suspect). Erasing destroys the traces an expert needs, and a backup of an infected device can carry the infection: Apple warns that [restoring from a backup may reinstall the malicious software](https://support.apple.com/guide/personal-safety/ips4603248a8/web).
 5. Before you report or delete abusive messages, take screenshots: reporting can remove them.
 
 > [!warning]
-> If the person you worry about is close to you, such as a partner, a family member or someone who has had your phone, they may notice sudden changes. Apple warns that changes to sharing "may be noticed by others". Abuse support services warn that a person who feels they have lost control may become more dangerous. Before you remove a tracker, change passwords or stop sharing your location, think through how they may respond, and plan for your safety. Some people use a safer device, such as a friend's phone or a library computer, for some things, and keep using the watched one as before. If you change a password on the safer device, don't sign in to that account on the watched one again, or they may see the new password.
+> If the person you worry about is close to you, such as a partner, a family member or someone who has had your phone, they may notice sudden changes. Apple's [personal safety guide](https://support.apple.com/guide/personal-safety/safety-considerations-ips84b821dd3/web) warns that changes to sharing "may be noticed by others". The US National Network to End Domestic Violence, in its [technology safety plan](https://www.techsafety.org/resources-survivors/technology-safety-plan), warns that some abusers may become more dangerous if they feel they have lost access to you. Before you remove a tracker, change passwords or stop sharing your location, think through how they may respond, and plan for your safety. Some people use a safer device, such as a friend's phone or a library computer, for some things, and keep using the watched one as before. If you change a password on the safer device, don't sign in to that account on the watched one again, or they may see the new password.
 
-Acting slowly and quietly lowers the risk of a reaction, but leaves their access in place for longer. Against an attacker far away who can't see your phone, changing things quickly costs nothing.
+Acting slowly and quietly lowers the risk of a reaction, but leaves their access in place for longer. Against an attacker far away who can't see your phone, there is usually no reason to wait.
 
 ## Choose the guides that match your risks {#choose-guides .essential}
 
@@ -86,15 +86,15 @@ If you are being attacked, think your phone has spyware on it, or a mistake coul
 
 ### Access Now
 
-1. The [Digital Security Helpline](https://www.accessnow.org/help/) gives free help around the clock to activists, journalists, researchers, bloggers, human rights defenders and civil society organisations.
-2. Email help@accessnow.org. They reply within two hours to set up a secure way to talk.
-3. They answer in English, Russian and eight other languages, but not Georgian.
-4. They check every new request and may refuse people outside civil society. They help only with digital security, remotely: not with legal matters, physical safety or relocation.
+1. Access Now says its [Digital Security Helpline](https://www.accessnow.org/help/) gives free help around the clock to activists, journalists, researchers, bloggers, human rights defenders and civil society organisations.
+2. Email help@accessnow.org. As of November 2026, Access Now's [Helpline FAQ](https://www.accessnow.org/help/helpline-faq/) says it replies within two hours to set up a secure way to talk.
+3. As of November 2026, Access Now lists English, Russian and eight other languages, but not Georgian.
+4. They check every new request and, under their [Helpline mandate](https://www.accessnow.org/helpline-mandate/), may refuse people outside civil society. They help only with digital security, remotely: not with legal matters, physical safety or relocation.
 
 ### Front Line Defenders
 
 1. For human rights defenders at immediate risk, the [emergency line](https://www.frontlinedefenders.org/en/programme/emergency-contact) +353-1-210-0489 answers around the clock and can put you through to someone who speaks Arabic, English, French, Russian or Spanish.
-2. You can also write through their secure contact form. Replies come mostly by email, so the safety of your email account matters.
+2. You can also write through the form on their [secure contact page](https://www.frontlinedefenders.org/en/secure-contact-human-rights-defenders). They say follow-up comes mostly by email, so the safety of your email account matters.
 
 ### Amnesty Security Lab
 
@@ -103,7 +103,7 @@ If you are being attacked, think your phone has spyware on it, or a mistake coul
 
 ### CPJ
 
-1. Journalists can ask the Committee to Protect Journalists for emergency help or safety advice at emergencies@cpj.org.
+1. Journalists can ask the Committee to Protect Journalists for emergency help or safety advice at emergencies@cpj.org, the address shown on CPJ's [How to get help](https://cpj.org/emergency-response/how-to-get-help/) page.
 2. CPJ says it can't answer everyone and gives priority to crises.
 
 These organisations work for civil society. If the danger comes from a partner or family member, a local service for people facing abuse is usually a better first contact; this site doesn't list one yet. No service can promise a result. Access Now says it may share what you tell it with partners or tech companies when strictly necessary.
@@ -116,7 +116,7 @@ Your security overlaps with other people's. A threat to you can reach them, and 
 2. In a group, check that everyone knows the risks of the most at-risk member and accepts them.
 3. Look up what can be found online about your family. Ask family and friends to remove your details from their posts, and help them protect their accounts: see [social media](/guides/social-media/).
 4. Contacts on your phone sync to messaging apps and cloud accounts. A number you delete in one place may stay in another.
-5. Decide who should see your plan. CPJ advises journalists to share theirs with an editor or someone they trust; a plan that names people is also a risk if it leaks.
+5. Decide who should see your plan. CPJ's [digital security risk assessment template](https://cpj.org/2023/06/digital-security-risk-assessment-template/) advises journalists to share theirs with an editor or someone they trust; a plan that names people is also a risk if it leaks.
 
 An agreement only works if everyone keeps it. Someone you trust can still make a mistake.
 

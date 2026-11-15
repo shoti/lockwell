@@ -7,11 +7,11 @@ group: start
 icon: chat
 order: 3
 time: 40
-reviewed: 2026-11-14
+reviewed: 2026-11-11
 status: published
 ---
 
-Messaging accounts are a popular target. Whoever takes over your WhatsApp, Viber or Telegram can write to your friends in your name, usually to ask for money. This guide covers five apps widely used in Georgia. Do the three **Essential** items in the apps you use and skip the rest.
+Messaging accounts are a popular target. Whoever takes over your WhatsApp, Viber or Telegram can write to your friends in your name, usually to ask for money. This guide covers five apps widely used in Georgia. Start with the three **Essential** items in the apps you use; the rest are optional.
 
 ## Protect your account with a PIN or password {#account-pin .essential}
 
@@ -53,7 +53,7 @@ Save the PIN or password in your password manager and add a recovery email. If y
 
 ## Check which devices are linked {#linked-devices .essential}
 
-All five apps can run on a computer or a second phone next to your own. Someone who held your unlocked phone for a minute, or talked you into scanning a QR code or typing in a code, may have linked their device and be reading along. WhatsApp removes a linked device after 30 days without use, Signal after 45. A device that is in use stays linked, as long as you keep using your phone too.
+All five apps can run on a computer or a second phone next to your own. Someone who held your unlocked phone for a minute, or talked you into scanning a QR code or typing in a code, may have linked their device and be reading along. As of November 2026, [WhatsApp's Help Center](https://faq.whatsapp.com/378279804439436/?cms_platform=android) says it disconnects a linked device after 30 days of inactivity, and logs linked devices out if you haven't used your main phone for 14 days. [Signal](https://support.signal.org/hc/en-us/articles/360007320551-Linked-Devices) unlinks a device after 45 days of inactivity, and unlinks all of them if your phone doesn't come online at least once every 30 days. These periods may change. A device that someone keeps using stays linked, as long as you keep using your phone too.
 
 ### WhatsApp
 
@@ -68,8 +68,8 @@ All five apps can run on a computer or a second phone next to your own. Someone 
 ### Messenger
 
 1. Tap **Menu → Settings → Privacy & safety → End-to-end encrypted chats → Security alerts → View logins**.
-2. Tap a device you don't recognise, then **Log out**.
-3. Check the logins of your Facebook account as well: see [Sign out of devices you don't recognise](/guides/accounts/#devices).
+2. Tap a device you don't recognise, then **Log out**. [Meta says](https://www.facebook.com/help/messenger-app/150250458734475) you can remove a device only from a mobile device.
+3. Check the logins of your Facebook account as well, under **Accounts Center → Password and security → Where you're logged in**: see [Sign out of devices you don't recognise](/guides/accounts/#devices).
 
 ### Telegram
 
@@ -79,7 +79,7 @@ All five apps can run on a computer or a second phone next to your own. Someone 
 ### Signal
 
 1. Open Signal's settings and tap **Linked devices**.
-2. Remove every device you don't recognise.
+2. Remove every device you don't recognise or no longer have, such as a lost computer: tap the three dots next to it (on iPhone, **Edit**), then **Unlink**. Signal [describes these steps](https://support.signal.org/hc/en-us/articles/360007321111-Unlinking-devices).
 
 > [!note]
 > If someone has already taken over your WhatsApp, these settings won't remove them. Register your number in the app again with the code sent by SMS: that signs every other device out. If the intruder has set their own two-step PIN or password, WhatsApp makes you wait 7 days before you can get back in. Warn your contacts in the meantime, and see [If your account was hacked](/guides/hacked/).
@@ -94,29 +94,30 @@ End-to-end encryption means only you and the person you write to can read a mess
 
 - Personal chats, groups and calls are end-to-end encrypted by default.
 - Channels are public. What you send to Meta AI can be read by Meta, and a business you write to may pass your messages to other companies.
-- WhatsApp shares some information with other Meta companies, for example for safety and for features that connect to Facebook or Instagram. It can't read your personal messages.
+- WhatsApp shares some information with other Meta companies, for example for safety and for features that connect to Facebook or Instagram. WhatsApp says it can't read your personal messages.
 
 ### Viber
 
-- One-to-one chats, group chats and one-to-one calls are end-to-end encrypted.
-- Communities, Channels, chats with bots and group calls are not.
+- One-to-one chats, group chats and one-to-one voice and video calls are end-to-end encrypted.
+- Communities, Channels, chats with bots, group calls and paid Viber Out calls are not, according to [Viber's Help Center](https://help.viber.com/hc/en-us/articles/8909167863453-Understanding-end-to-end-encryption).
 - To check a chat, open its info screen and look for the lock under the picture.
 
 ### Messenger
 
-- Meta is still moving personal chats to end-to-end encryption by default, so check each chat that matters: open the chat settings and look for **End-to-end encrypted**.
-- Chats with businesses and Pages, Marketplace chats and messages to Meta AI are not end-to-end encrypted.
+- Meta [began turning on end-to-end encryption by default](https://about.fb.com/news/2023/12/default-end-to-end-encryption-on-messenger/) for personal chats and calls in December 2023. As of November 2026, [Meta's Help Center](https://www.facebook.com/help/messenger-app/786613221989782) still says it is "in the process" of doing this for personal messages, which include one-to-one and group chats between personal accounts. Check each chat that matters: open the chat settings and look for **End-to-end encrypted**.
+- Chats with businesses and Pages, Marketplace chats and messages shared with Meta AI are not end-to-end encrypted. Nicknames, chat themes and reactions aren't either, even in an encrypted chat.
 
 ### Telegram
 
 - Ordinary chats, all groups and all channels are kept on Telegram's servers in a form Telegram can read.
-- Among chats, only Secret Chats are end-to-end encrypted. They work between two people and stay on the one device where you started them. Voice and video calls, including group calls, are end-to-end encrypted too.
+- Among chats, only Secret Chats are end-to-end encrypted. They work between two people and stay on the one device where you started them.
+- [Telegram says](https://telegram.org/faq#q-can-i-make-calls-via-telegram) one-to-one voice and video calls are end-to-end encrypted, and so are group calls that you start from a call (**Add Person**), from the **Calls** tab or with a call link. Telegram doesn't describe [video chats](https://telegram.org/faq#q-what-is-a-video-chat) and [live streams](https://telegram.org/faq#q-what-is-a-live-stream) in groups and channels as end-to-end encrypted.
 - To start one, open the person's profile, tap **…**, then **Start Secret Chat**.
 
 ### Signal
 
-- Everything is end-to-end encrypted: chats, groups and calls.
-- Signal keeps almost nothing about you: the date your account was created and the date it last connected.
+- Signal says everything is end-to-end encrypted: chats, groups and calls.
+- Signal keeps very little about you. [Its published replies to government requests](https://signal.org/bigbrother/) say the only account data it can hand over is when the account was created and the date it last connected.
 
 ## Protect your chat backups {#backups .recommended}
 
@@ -136,7 +137,7 @@ A backup in Google Drive or iCloud is a second copy of your chats. Unless the ba
 ### Viber
 
 1. Tap **More → Settings → Account → Viber Backup** to see whether a backup is on and where it goes.
-2. Viber saves backups to your Google Drive or iCloud and does not say that they are end-to-end encrypted. If your chats are sensitive, consider leaving the backup off. The price: when the phone is lost, so is the history.
+2. Viber saves backups to your Google Drive or iCloud, and its [backup instructions](https://help.viber.com/hc/en-us/articles/9173576528413-Back-up-and-restore-your-chat-history) don't say that they are end-to-end encrypted. If your chats are sensitive, consider leaving the backup off. The price: when the phone is lost, so is the history.
 
 ### Signal
 
@@ -168,7 +169,7 @@ By default, strangers can see more than they need: your photo, when you were las
 
 1. Open **Settings → Privacy and Security → Phone Number**.
 2. Set who can see your phone number to **Nobody**.
-3. In the option that then appears below, set who can find you by your number to **My Contacts**. People who already have your number saved will still see it.
+3. In the option that then appears below, set who can find you by your number to **My Contacts**. [Telegram notes](https://telegram.org/faq#q-who-can-see-my-phone-number) that people who already have your number saved will still see it.
 
 ### Signal
 
@@ -229,7 +230,7 @@ A message that deletes itself can't be read later on a lost, borrowed or seized 
 
 ## Lock the app {#app-lock .advanced}
 
-An app lock asks for your fingerprint, face or code each time the app is opened. It helps when you hand someone your unlocked phone. Notifications can still show message text on the lock screen unless you [hide previews](/guides/phone/#lock-screen). Viber has no such lock on phones, so there the phone's own [screen lock](/guides/phone/#screen-lock) is what protects you.
+An app lock asks for your fingerprint, face or code each time the app is opened. It helps when you hand someone your unlocked phone. Notifications can still show message text on the lock screen unless you [hide previews](/guides/phone/#lock-screen). [Viber's Help Center](https://help.viber.com/hc/en-us/articles/9046626798237-Protecting-your-privacy-on-Viber) describes a screen lock only for Viber on a computer; on phones it offers a PIN for hidden chats, not a lock for the whole app. There, the phone's own [screen lock](/guides/phone/#screen-lock) is what protects you.
 
 ### WhatsApp
 

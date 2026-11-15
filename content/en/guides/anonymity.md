@@ -8,15 +8,16 @@ icon: incognito
 order: 11
 time: 40
 progress: session
-reviewed: 2026-11-14
+legal: true
+reviewed: 2026-11-12
 status: published
 ---
 
-Privacy keeps what you do from others; anonymity keeps who you are from them. This guide is about the second: reading, searching and publishing without the site, or anyone watching your connection, learning who and where you are. Tor Project says perfect anonymity is generally impossible, even with Tor. Using Tor is also visible to your internet provider by default, and can draw attention. Weigh that before you start: see [Weigh what protection costs](/guides/threat-modelling/#costs).
+Privacy keeps what you do from others; anonymity keeps who you are from them. This guide is about the second: reading, searching and publishing without the site, or anyone watching your connection, learning who and where you are. [Tor Project's best practices for Tor Browser](https://support.torproject.org/faq/staying-anonymous/) say perfect anonymity is generally impossible, even with Tor. Using Tor is also visible to your internet provider by default, and can draw attention. Weigh that before you start: see [Weigh what protection costs](/guides/threat-modelling/#costs).
 
 ## Know what Tor hides and what it doesn't {#what-anonymity-means .essential}
 
-Tor sends your connection through at least three servers, called relays, so that no single point knows both who you are and what you are doing.
+Tor sends your connection through at least three servers, called relays. [Tor Project's page on what Tor protects](https://support.torproject.org/about-tor/introduction/protections/) says this is so that no single point can reveal both who you are and what you are doing. It has limits, described below.
 
 1. Without Tor, your internet provider can see every site you visit, and every site sees your IP address, which shows roughly where you are.
 2. With Tor, your internet provider sees only that you connect to Tor, and the site sees only that someone connects from Tor.
@@ -26,7 +27,7 @@ Tor sends your connection through at least three servers, called relays, so that
 
 ![A VPN moves your trust from your internet provider to the VPN company. Tor splits it between three relays.](figure:who-sees-what)
 
-Tor Project says Tor doesn't protect you from someone who can watch both your connection and the site you visit at the same time and match the timing. Sites can tell you use Tor, because the list of Tor relays is public.
+[Tor Project's page on attacks that remain against Tor](https://support.torproject.org/about-tor/security/attacks-on-onion-routing/) says Tor doesn't protect you from someone who can watch both your connection and the site you visit, or its last relay, at the same time and match the timing. Sites can tell you use Tor, because the list of Tor relays is public.
 
 ## Use Tor Browser safely {#tor-browser .essential}
 
@@ -47,8 +48,8 @@ Tor Browser protects only what you do inside it. Other browsers and apps on the 
 ### All devices
 
 1. **Safer** turns off JavaScript on sites without HTTPS. **Safest** turns it off on all sites and blocks some fonts, icons and images. EFF says **Standard** is fine for everyday privacy and **Safest** is an option if you are worried. Some sites will break.
-2. Don't install extensions, even ad blockers. Tor Project says they can make your browser unique and give you away.
-3. Don't choose which countries your connection exits from. Tor Project says changing how Tor builds connections can weaken your anonymity.
+2. Don't install extensions, even ad blockers. [Tor Project's page on add-ons](https://support.torproject.org/tor-browser/features/plugins/) says they can make your browser unique and give you away.
+3. Don't choose which countries your connection exits from. [Tor Project's page on managing identities](https://support.torproject.org/tor-browser/features/managing-identities/) says changing how Tor builds connections can weaken your anonymity.
 4. If you see **Secure Connection Not Available**, choose **Go Back** unless you are sure. On a site without HTTPS, the last relay can read and change what you send, Tails warns.
 
 Many sites show CAPTCHAs to Tor users or block them. That is normal, not a sign that something is wrong.
@@ -57,9 +58,9 @@ Many sites show CAPTCHAs to Tor users or block them. That is normal, not a sign 
 
 Tor hides your IP address. It can't hide what you tell a site yourself.
 
-1. If you sign in to a personal account or enter your name, email, phone number or address, that site knows who you are. Banks and email providers may also lock the account, Tor Project warns.
+1. If you sign in to a personal account or enter your name, email, phone number or address, that site knows who you are. Banks and email providers may also lock the account, [Tor Project's page on account lockouts](https://support.torproject.org/tor-browser/encountering-issues/website-lockout/) warns.
 2. Don't use two identities in the same session: sites can link accounts that use the same Tor connection. Use **New Identity** in between, or restart Tails.
-3. Use a separate username, email address and phone number for an anonymous identity, and don't reuse them elsewhere. Privacy Guides notes that writing style and what you know can also link a pseudonym to you, and Security in a Box suggests posting from different identities at different times of day.
+3. Use a separate username, email address and phone number for an anonymous identity, and don't reuse them elsewhere. [Privacy Guides' page on common misconceptions](https://www.privacyguides.org/en/basics/common-misconceptions/) notes that writing style and what you know can also link a pseudonym to you, and suggests keeping pseudonyms short-lived and changing them regularly. [Security in a Box's guide to multiple identities](https://securityinabox.org/en/assess-plan/multiple-identities/) says it can be a good idea to post from different identities at different times of day.
 4. When Tor Browser warns you before opening a downloaded file in another app, take the warning seriously. Tor Project says Word and PDF files can load content from the internet outside Tor and reveal your real IP address. Tor Browser's own PDF viewer is the exception. Open other files on a computer that is offline, or convert them first with a tool such as Dangerzone.
 5. Remove metadata before you upload photos or documents: see [Remove hidden data from files](/guides/sources-documents/#metadata-in-files).
 6. Don't use torrent apps over Tor. Tor Project says most of them reveal your real IP address.
@@ -69,11 +70,11 @@ None of these steps hide you from someone who already has access to your device.
 
 ## Know what a VPN can't do {#vpn-limits .recommended}
 
-A VPN hides your IP address from sites, but the VPN company sees your traffic. EFF says a VPN "is not a tool for anonymity" and that Tor is the better choice for it. See [Know what a VPN does and doesn't do](/guides/wifi/#vpn-what-it-does).
+A VPN hides your IP address from sites, but the VPN company sees your traffic. [EFF's guide to choosing a VPN](https://ssd.eff.org/module/choosing-vpn-thats-right-you) says a VPN "is not a tool for anonymity" and that Tor is the better choice for it. See [Know what a VPN does and doesn't do](/guides/wifi/#vpn-what-it-does).
 
 1. A VPN doesn't stop tracking by cookies, fingerprinting, GPS or accounts you sign in to.
-2. Tor Project doesn't recommend combining a VPN with Tor unless you are an advanced user, because a wrong set-up can weaken Tor's protection. Privacy Guides disagrees and says connecting to a trusted VPN first is worth it for many people. It strongly warns against connecting through Tor first and then a VPN.
-3. Tor Project's new Tor VPN app for Android is a beta. Tor Project says to use it only for testing, because it may leak information.
+2. [Tor Project's page on using a VPN with Tor](https://support.torproject.org/tor-browser/general/vpn-with-tor/) doesn't recommend combining a VPN with Tor unless you are an advanced user, because a wrong set-up can weaken Tor's protection. [Privacy Guides' Tor overview](https://www.privacyguides.org/en/advanced/tor-overview/) disagrees and says connecting to a trusted VPN first is worth it for many people. It strongly warns against connecting through Tor first and then a VPN.
+3. As of November 2026, Tor Project's new Tor VPN app for Android is a beta. [Tor Project's page about Tor VPN](https://support.torproject.org/tor-vpn/getting-started/about-tor-vpn/) says to use it only for testing, because it may leak information.
 
 A VPN company's promise not to keep logs is not a guarantee, EFF says.
 
@@ -92,7 +93,7 @@ Bridges are Tor relays that aren't on the public list. They help you connect whe
 1. If connecting fails, tap **Try a bridge**.
 2. To add a bridge you were given: **Settings** → **Connection** → **Config Bridge**, turn on **Use a Bridge**, choose **Provide a Bridge I know** and paste it.
 
-Sources disagree on how well bridges hide that you use Tor. Tails says they hide it; Tor Project says they reduce the risk; Privacy Guides says the common types can be detected, and that a bridge whose address later becomes public can show you used Tor in the past. Assume someone watching your connection may still notice.
+Sources disagree on how well bridges hide that you use Tor. [Tails' Tor documentation](https://tails.net/doc/anonymous_internet/tor/index.en.html) says they hide it; [Tor Project's best practices](https://support.torproject.org/tor-browser/security/using-tb-safely/) say they reduce the risk; [Privacy Guides' Tor overview](https://www.privacyguides.org/en/advanced/tor-overview/) says the common types can be detected, and that a bridge whose address later becomes public can show you used Tor in the past. Assume someone watching your connection may still notice.
 
 ## Know the limits on phones {#phones .recommended}
 
@@ -101,7 +102,7 @@ Phones are harder to keep anonymous. The mobile network sees your SIM card and y
 ### iPhone {.ios}
 
 1. There is no Tor Browser for iPhone. Tor Project recommends Onion Browser, but says Apple's rules prevent it from having the same protections as Tor Browser.
-2. In August 2026 researchers disclosed flaws in Apple's WebKit that can expose your real IP address in Onion Browser, and Apple's fix doesn't cover Onion Browser. Onion Browser 3.4.1 fixed one of them and says its **Silver** and **Gold** security levels reduce the others; the researchers say using it with Orbot avoids them. EFF advises against Onion Browser for highly sensitive browsing until this is resolved.
+2. In August 2026 [researchers disclosed flaws in Apple's WebKit](https://mysk.blog/2026/08/04/webkit-proxy-icloud-private-relay-ip-leak/) that can expose your real IP address in iPhone browsers that use a proxy, including Onion Browser. [Onion Browser 3.4.1](https://github.com/OnionBrowser/OnionBrowser/releases) fixed one of them and says its **Silver** and **Gold** security levels reduce the others. The researchers say VPNs, which carry all of the phone's traffic, aren't affected; EFF says Orbot works this way. As of November 2026, [EFF's guide to Tor on Android and iPhone](https://ssd.eff.org/module/how-to-use-tor-on-android-and-iphone) advises against Onion Browser for highly sensitive browsing until Apple fixes the issue.
 
 ### Android {.android}
 
@@ -111,7 +112,7 @@ Phones are harder to keep anonymous. The mobile network sees your SIM card and y
 ### All phones
 
 1. An app signed in with your real name, or set up without Tor, knows who you are, whatever connection you use.
-2. EFF says moving a SIM card to another phone protects little, because the network sees both. As long as the phone is on, the network knows roughly where it is.
+2. [EFF's page on the problem with mobile phones](https://ssd.eff.org/module/problem-mobile-phones) says moving a SIM card to another phone protects little, because the network sees both. As long as the phone is on, the network knows roughly where it is. EFF also notes that in some countries there may be legal or practical obstacles to getting phone service that isn't registered to your name.
 
 If where you are matters more than what you read, a phone in your pocket can give you away: see [Decide which phone to take, if any](/guides/protest/#phone-or-not).
 

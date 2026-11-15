@@ -8,7 +8,8 @@ icon: idCard
 order: 10
 time: 40
 progress: session
-reviewed: 2026-11-14
+legal: true
+reviewed: 2026-11-12
 status: published
 ---
 
@@ -16,16 +17,16 @@ Online harassment can be a pile-on in your comments, threats in your messages, o
 
 ## Search yourself the way an attacker would {#audit-yourself .essential}
 
-PEN America suggests looking for yourself the way an attacker would, before an attack if you can.
+[PEN America's advice on protecting yourself from doxing](https://onlineharassmentfieldmanual.pen.org/protecting-information-from-doxing/) suggests looking for yourself the way an attacker would, before an attack if you can.
 
 1. Search for your name and its variations, phone numbers, current and past addresses, email addresses and usernames. Use more than one search engine, and search while signed out.
 2. Look at image results, and at old CVs and PDFs that list your address or phone number.
-3. CPJ suggests looking up close family members too, including anything that shows their link to you.
-4. EFF suggests username search sites, such as What's My Name or Namechk, to find accounts in your name, including fake ones.
+3. [CPJ's guide to removing personal data from the internet](https://cpj.org/2019/09/digital-safety-remove-personal-data-internet/) suggests looking up close family members too, including anything that shows their link to you.
+4. [EFF's doxxing prevention guide](https://www.eff.org/deeplinks/2026/08/doxxing-safety-pt-i-prevention-and-footprint-management) suggests username search sites, such as What's My Name or Namechk, to find accounts in your name, including fake ones.
 5. Don't upload sensitive or private photos to reverse-image or face-search services. EFF notes these services scan and store the photos you give them, though it may be worth it if your pictures are being shared against your will.
-6. If it is available where you live, Google's **Results about you** can alert you when your phone number, address or email appears in Google Search. You give Google these details to look for; Google says it doesn't share them or use them to personalise its other products. It is offered to adults in some countries only.
+6. If it is available where you live, Google's **Results about you** ([Google's help page](https://support.google.com/websearch/answer/12719076?hl=en)) can alert you when your phone number, address or email appears in Google Search. You give Google these details to look for; Google says it doesn't share them or use them to personalise its other products. It is offered to adults in some countries only.
 
-Much of the advice about data brokers, sites that sell personal details, is about the United States. Set a reminder to repeat the search: new results appear over time.
+PEN America says data brokers, sites that sell personal details, are a particular problem in the United States, though not only there. Its opt-out advice and CPJ's are written for people in the US, so this guide doesn't cover them. Set a reminder to repeat the search: new results appear over time.
 
 ## Remove what you can {#remove-info .recommended}
 
@@ -34,9 +35,9 @@ Removing information takes time and is rarely complete. CPJ notes that someone m
 ### Google
 
 1. In **Results about you**, open **To review**, select a result and choose **Request to remove**. Or in Search, open **About this result** next to a result, then **Remove result**.
-2. Google also removes doxxing content: your personal details together with threats or calls to harass you, or a large collection of your details with no legitimate purpose. Use Google's removal request form and add the links and screenshots.
+2. You can also ask Google to remove doxxing content from its search results: your personal details together with threats or calls to harass you, or a large collection of your details with no legitimate purpose. Start from [Google's page on removing your private info from Search](https://support.google.com/websearch/answer/9673730?hl=en) and add the links and screenshots.
 3. Google says removal only hides the result in Google Search; the page itself stays online. Results from government, education, news and business sites have no **Remove result** option.
-4. If a 360 photo on Google Maps shows your face or home, open it and click **Report a problem**. Google blurs its own photos on request; for a photo someone else posted, you can report it. Google says a blur can't be undone.
+4. If a 360 photo on Google Maps shows your face or home, open it and click **Report a problem**. Google blurs its own photos on request; for a photo someone else posted, you can report it. [Google's help page on blurring 360 imagery](https://support.google.com/maps/answer/7011973?hl=en) says that once a blurred photo is published, the blur can't be removed.
 
 ### Your own accounts
 
@@ -52,7 +53,7 @@ These settings make an attack harder to join and to see. They don't remove posts
 
 ### Instagram
 
-1. **Limits**: tap **Profile**, then **Menu**, and under **How others can interact with you** tap **Limit interactions**. Choose what to limit and who, such as **Recent followers** or **Accounts that don't follow you**, then **Turn on**. It lasts up to four weeks at a time. Instagram says limited accounts aren't told. It isn't available on computers.
+1. **Limits**: tap **Profile**, then **Menu**, and under **How others can interact with you** tap **Limit interactions**. Choose what to limit and who, such as **Recent followers** or **Accounts that don't follow you**, then **Turn on**. As of November 2026, [Instagram's help page on Limits](https://help.instagram.com/4106887762741654) says it lasts up to four weeks at a time and can be extended. Instagram says limited accounts aren't told. It isn't available on computers.
 2. **Restrict** one person: in your chat with them, tap their name, then **Options** and **Restrict**. Or tap and hold one of their comments and choose **Restrict account**. Their new comments are visible only to them unless you approve them.
 3. **Hidden words**: in **Menu**, under **How others can interact with you**, tap **Hidden words** and add words to hide. Anyone can still open hidden comments with **View hidden comments**.
 
@@ -67,7 +68,7 @@ These settings make an attack harder to join and to see. They don't remove posts
 
 ### Facebook
 
-1. **Profile Lock** is offered only in some countries, and Meta doesn't say which. With it, only friends see your photos, posts and stories, and old public posts change to **Friends**. Without it, see [Choose who sees your posts](/guides/social-media/#audience) and [Review tags before they appear](/guides/social-media/#tagging).
+1. **Profile Lock** is offered only in some countries, and Meta doesn't say which ([Facebook's help page on Profile Lock](https://www.facebook.com/help/196419427651178)). With it, only friends see your photos, posts and stories, and old public posts change to **Friends**. Without it, see [Choose who sees your posts](/guides/social-media/#audience) and [Review tags before they appear](/guides/social-media/#tagging).
 
 ### All accounts
 
@@ -77,12 +78,12 @@ Hidden comments are hidden from you too, so you may miss a real threat. EFF and 
 
 ## Keep evidence before you report {#document .essential}
 
-Platforms or the attacker may delete posts, especially after you report them. PEN America says to save evidence first.
+Platforms or the attacker may delete posts, especially after you report them. [PEN America's advice on documenting harassment](https://onlineharassmentfieldmanual.pen.org/documenting-online-harassment/) says to save evidence first.
 
 1. Take screenshots that show the content, the account name, the date and the web address, and save the links, especially to the attacker's profile.
 2. Keep a log: date and time, platform, account, what happened, and whether you reported it.
 3. Keep the whole exchange, not only the parts that help your side, PEN America advises.
-4. Don't forward a threatening email: PEN America says you could lose details in its header, such as the address it came from. Keep the original and copy its text if you need to share it.
+4. Don't forward a threatening email: PEN America says forwarding could lose details in its header, such as the IP address it was sent from. Keep the original and copy its text if you need to share it.
 5. PEN America suggests keeping sensitive material, such as intimate images, on an external drive rather than in the cloud.
 6. Collecting evidence can be painful. PEN America suggests asking someone you trust to help.
 
@@ -90,7 +91,7 @@ Delete posts or close accounts only after you have saved what you need. If someo
 
 ## Report and block with care {#report-and-block .essential}
 
-Reporting creates a record and can get content removed, though PEN America says to be ready for no helpful result. Where you can add text, name the rule the content breaks.
+Reporting creates a record and can get content removed, though [PEN America's advice on reporting to platforms](https://onlineharassmentfieldmanual.pen.org/reporting-online-harassment-to-platforms/) says to be ready for no helpful result. Where you can add text, name the rule the content breaks.
 
 ### X
 
@@ -112,17 +113,17 @@ Reporting creates a record and can get content removed, though PEN America says 
 
 ### All platforms
 
-1. PEN America warns that blocking can make harassment worse when attackers notice it and show it off. Muting, hiding or restricting can be quieter.
+1. [PEN America's advice on blocking, muting and restricting](https://onlineharassmentfieldmanual.pen.org/blocking-muting-restricting/) warns that blocking can make harassment worse when attackers notice it and show it off. Muting, hiding or restricting can be quieter.
 2. Don't reply to attackers, especially if you feel physically threatened, and don't ask them to remove your details, even if a platform suggests it. PEN America says engaging can make the abuse worse.
 
 Blocking and muting don't stop posts about you from spreading, and you may stop seeing them.
 
 ## If your address is exposed {#protect-home .essential}
 
-The Online Violence Response Hub says the risk is greater if the attacker is nearby or can travel to you.
+[The Online Violence Response Hub's doxxing emergency steps](https://onlineviolenceresponsehub.org/doxxing-emergency-steps-to-take) say the risk is greater if the attacker is nearby or can travel to you.
 
 1. Look at the threat with someone you trust. PEN America suggests asking: does it name you, does it include details about you or your family, and is it getting worse?
-2. If you fear for your safety at home, stay somewhere else for a while, such as with friends or family or at a hotel. The Hub suggests leaving for 24 hours and then looking at the situation again.
+2. If you fear for your safety at home, stay somewhere else for a while, such as with friends or family or at a hotel. [The Hub's physical security advice](https://onlineviolenceresponsehub.org/physical-security-support) suggests leaving the area for 24 hours and then looking at the situation again.
 3. Tell someone when you leave, where you are going, and when you are back. Don't post about where you are.
 4. Before you go back, ask someone to check whether anyone is waiting near your home.
 5. Plan ahead where you would go and how you would leave your home. Vary your routes, for example to work.
@@ -136,8 +137,8 @@ Family, friends and colleagues can be targeted too, and they can also be where a
 
 1. Tell close family and friends what is happening. Ask them to be careful about what they post about you, and not to tag you.
 2. Help them check their own settings: see [Choose who sees your posts](/guides/social-media/#audience).
-3. If attackers may contact your employer, consider telling them first. PEN America suggests what you can ask for, such as a public statement or help from security or IT staff.
-4. EFF suggests sharing the work with people you trust: one watches the forums where attacks are organised, one keeps the log, one sets up alerts. Talk about it over Signal.
+3. If attackers may contact your employer, consider telling them first. [PEN America's guidelines for talking to employers](https://onlineharassmentfieldmanual.pen.org/guidelines-for-talking-to-employers-and-professional-contacts/) suggest what you can ask for, such as a public statement or help from security or IT staff.
+4. [EFF's doxxing incident response guide](https://www.eff.org/deeplinks/2026/08/doxxing-safety-part-ii-incident-response) suggests sharing the work with people you trust: one watches the forums where attacks are organised, one keeps the log, one sets up alerts. Talk about it over Signal.
 
 Not everyone will respond well. PEN America suggests choosing people who listen and support your work, and turning to organisations if they don't.
 
@@ -145,9 +146,9 @@ Not everyone will respond well. PEN America suggests choosing people who listen 
 
 Harassment is exhausting. EFF suggests taking breaks and letting friends help.
 
-1. Access Now's Digital Security Helpline helps civil society groups, activists, journalists and human rights defenders, free of charge and around the clock. Write to help@accessnow.org. It first checks that your case is within its mandate. It lists 10 languages; Georgian isn't one of them.
-2. The Online Violence Response Hub lists organisations that help journalists with digital security and psychological support. Several of them work only in English and Spanish.
-3. CPJ helps journalists in crisis at emergencies@cpj.org. It says it can't answer everyone, gives priority to emergencies, and may share your details with trusted partners to check your case.
+1. Access Now's Digital Security Helpline helps civil society groups, activists, journalists and human rights defenders, free of charge and around the clock. Write to help@accessnow.org, the address on [Access Now's Helpline page](https://www.accessnow.org/help/). It first checks that your case is within its mandate. As of November 2026 it lists 10 languages; Georgian isn't one of them.
+2. [The Online Violence Response Hub's emergency assistance page](https://onlineviolenceresponsehub.org/emergency-assistance) lists organisations that help journalists with digital security and psychological support. Several of them work only in English and Spanish.
+3. CPJ helps journalists in crisis at emergencies@cpj.org, the address shown on [CPJ's How to Get Help page](https://cpj.org/emergency-response/how-to-get-help/). [CPJ's journalist safety page](https://cpj.org/journalist-safety-and-emergencies/) says it can't answer everyone, gives priority to emergencies, and keeps information confidential but may share it with a small network of trusted partners to check your case.
 4. For more organisations, see [Know where to get expert help](/guides/threat-modelling/#get-help).
 
 None of these services can remove content on their own or promise an outcome. They can help you decide what to do next.

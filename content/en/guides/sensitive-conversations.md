@@ -8,7 +8,7 @@ icon: chatLock
 order: 4
 time: 40
 progress: session
-reviewed: 2026-11-14
+reviewed: 2026-11-12
 status: published
 ---
 
@@ -24,7 +24,7 @@ Each one-to-one Signal chat has a safety number. If yours matches your contact's
 2. Compare it in person by scanning each other's QR code. If you can't meet, compare the numbers through another channel, such as a video call where you recognise the person.
 3. If they match, tap **Mark as verified**. From then on, if the number changes, Signal asks you to approve it before you can send a message.
 4. A change usually means a new phone or reinstalling Signal. If it changes often or unexpectedly, check again through another channel before you continue sensitive talk.
-5. Newer versions can also show a green **Encryption verified** mark (**View Safety Number → Verify automatically**). It works only when Signal has your contact's phone number, so with usernames or hidden numbers, compare by hand.
+5. Newer versions can also show a green checkmark and **Encryption verified** (**View Safety Number → Verify automatically**). [Signal says](https://support.signal.org/hc/en-us/articles/10223569377562-Automatic-Key-Verification) it works only when Signal has your contact's phone number, so with usernames or hidden numbers, compare by hand.
 
 Verification proves the connection, not the person: someone with your contact's unlocked phone is still "verified".
 
@@ -48,9 +48,9 @@ Your Signal number is linked to your SIM and often to your name. With a username
 2. People who have your number saved in their contacts still see it, whatever you set.
 3. If you chatted with someone by number and then message them by username, the chats merge and they learn that both are you.
 4. To block someone without them seeing your number, hide your number first, then block.
-5. Keep your username. If you change or drop it, someone else can claim it after about a week and use it to pose as you.
+5. Keep your username. If you change or drop it, [Signal says](https://support.signal.org/hc/en-us/articles/6829998083994-Phone-Number-Privacy-and-Usernames-Deeper-Dive) someone else can claim it after about a week and use it to pose as you.
 
-Signal still needs a phone number to sign up, and the number is how your account is recovered. Signal is testing sign-up without a number in an Android beta: there is no way back if you lose its keys.
+The regular Signal app still needs a phone number to sign up, and the number is how your account is recovered. As of November 2026, sign-up without a number is offered only in Signal's [Android beta](https://support.signal.org/hc/en-us/articles/11197884108826-Phone-Numberless-Registration-for-Android-beta), for a small one-time fee. It has no phone-number fallback: if you lose both of its keys, Signal can't recover the account.
 
 ## Set disappearing messages as the default {#disappearing-default .essential}
 
@@ -66,11 +66,11 @@ A default timer makes every new chat disappear without you remembering to turn i
 
 ### Signal
 
-1. A timer affects only messages sent after you set it. Older messages, sent and received, stay on both phones: delete them by hand and ask your contact to do the same. Then set a timer in each existing chat under **chat settings → Disappearing messages**.
+1. A timer affects only messages sent after you set it. Older messages, sent and received, stay on both phones: delete them by hand and ask your contact to do the same. Then set a timer in each existing chat: tap the chat's name at the top to open its settings, then **Disappearing messages**.
 2. Anyone in a chat can change its timer, unless admins restrict it in a group.
-3. Signal backups leave out only messages due to disappear within 24 hours. A longer timer doesn't keep a message out of your backup or your contact's.
+3. As of November 2026, [Signal Secure Backups](https://support.signal.org/hc/en-us/articles/9708267671322-Signal-Secure-Backups) leave out only view-once messages and messages due to disappear within 24 hours. A longer timer doesn't keep a message out of your backup or your contact's.
 
-Signal itself warns that disappearing messages are "not for situations where your contact is your adversary": the other person can photograph the screen with another camera.
+[Signal itself warns](https://support.signal.org/hc/en-us/articles/360007320771-Set-and-manage-disappearing-messages) that disappearing messages are "not for situations where your contact is your adversary": the other person can photograph the screen with another camera.
 
 ## Lock your Signal number {#registration-lock .essential}
 
@@ -87,9 +87,9 @@ Registration Lock stops someone who takes over your phone number, for example wi
 ### Signal
 
 1. Use a long PIN with letters, not the short number Signal suggests: **Settings → Account → Change your PIN → Create alphanumeric PIN**. Signal sets no limit on its length.
-2. Keep the PIN in your password manager. If you forget it with the lock on, you can be locked out for up to 7 days, and after that you lose your profile and some settings.
+2. Keep the PIN in your password manager. If you forget it with the lock on, [Signal says](https://support.signal.org/hc/en-us/articles/360007059792-Signal-PIN) you can be locked out for up to 7 days, and after that you lose your profile and some settings.
 3. Keep the phone number paid and in your hands. Without it, Signal can't give you back the account.
-4. Signal support never messages you. The only official chat is the one named "Signal" and marked **Official Chat**: you can't reply to it, and it never asks for anything. Never share an SMS code, PIN or recovery key.
+4. Signal support never messages you. The only [official chat](https://support.signal.org/hc/en-us/articles/10933746286746-Signal-Official-Chat) is the one named "Signal" and marked **Official Chat**: you can't reply to it, and it never asks for anything. Never share an SMS code, PIN or recovery key.
 
 Registration Lock locks you out too if you lose the PIN. It doesn't help if someone has your unlocked phone.
 
@@ -107,7 +107,7 @@ A locked phone can still show who wrote and what, and the app switcher can show 
 
 1. In Signal, tap your profile icon, then **Notifications → Show**, and choose **No name or message**.
 2. In **Settings → Privacy**, turn on **Screen Security** and **Incognito Keyboard**.
-3. Remove keyboards you don't use: a keyboard app can read what you type, and Signal says the incognito setting is "a best effort, not a guarantee".
+3. Remove keyboards you don't use: a keyboard app can read what you type, and [Signal says](https://support.signal.org/hc/en-us/articles/360055276112-Incognito-Keyboard) the incognito setting is "a best effort, not a guarantee".
 
 Screen security stops screenshots on your own phone only. None of this helps once the phone is unlocked or infected: anything on it can then be read.
 
@@ -119,28 +119,28 @@ In a group, everyone shares the risk of its weakest member. Any member's phone c
 
 1. Keep sensitive groups small, and check the member list now and then. Admins can remove people who no longer need to be there: tap their name, then **Remove from group**.
 2. Make only people you have verified admins, and in the group's **Permissions** let only admins add members and change group details.
-3. If the group has a link, turn on **Approve New Members**, and reset the link if it reaches the wrong people: **group chat settings → Group Link → Reset Link**. Turn the link off when you no longer need it.
+3. If the group has a link, turn on **Approve New Members**, and reset the link if it reaches the wrong people: tap the group name to open its settings, then **Group Link → Reset Link**. Turn the link off when you no longer need it.
 4. If two members have the same name, Signal shows a warning banner. Check through another channel who is who.
 5. Set a disappearing timer for the group, and let only admins change it.
 
-Signal doesn't keep a record of your groups, but every member's phone does.
+[Signal says](https://support.signal.org/hc/en-us/articles/360007319331-Group-chats) its service has no record of your group memberships, but every member's phone does.
 
 ## Know what Signal and your phone still reveal {#metadata .recommended}
 
-Signal says it can produce only the date you registered and when you last connected. Your mobile operator and internet provider can see when you use Signal and where your phone is. Your contacts' phones show who you talk to and when.
+In its [published replies to government requests](https://signal.org/bigbrother/), Signal says the only account data it can produce is when you registered and the date you last connected. Your mobile operator and internet provider can see when you use Signal and where your phone is. Your contacts' phones show who you talk to and when.
 
 ### Signal
 
 1. Turn on **Always relay calls** (**Settings → Privacy → Advanced**). Otherwise, a contact you call, or who calls you, can see your internet address. Relayed calls may sound a little worse.
-2. Leave **Allow from anyone** (**Settings → Privacy → Advanced**, under sealed sender) off. Signal says it brings an "increased risk of abuse".
+2. Leave **Allow from anyone** (**Settings → Privacy → Advanced**, under sealed sender) off. Signal's [2018 announcement](https://signal.org/blog/sealed-sender/) says it comes at an "increased risk of abuse".
 3. Keep **Generate link previews** off in **Settings → Chats**: a preview tells the website you shared its link.
-4. Keep Signal on your phone only if you can. Freedom of the Press Foundation notes that malware has a harder time on an updated phone than on a computer, and Signal can copy all your chats to each linked device.
+4. Keep Signal on your phone only if you can. [Freedom of the Press Foundation](https://freedom.press/digisec/blog/locking-down-signal/) says it's safer to keep your messages only on your phone: phones keep apps apart, and malware has a harder time getting at your data on an updated phone. Signal can also [copy all your chats](https://support.signal.org/hc/en-us/articles/360007320551-Linked-Devices) to each linked device.
 
 End-to-end encryption protects what you say, not the fact that you said it. If you call from a mobile phone, your location is part of the record.
 
 ## Decide when not to write it down {#when-not-to-text .recommended}
 
-EFF says the most private way to talk is often in person, without phones. Some things are safer not written at all.
+[EFF says](https://ssd.eff.org/module/communicating-others) the most private way to talk is often in person, without phones. Some things are safer not written at all.
 
 ### All conversations
 
@@ -148,4 +148,4 @@ EFF says the most private way to talk is often in person, without phones. Some t
 2. Before you write something, ask what happens if the other person's phone is taken, or if they share it.
 3. Ask the people you talk to sensitively to protect their Signal too: a PIN, Registration Lock and disappearing messages.
 
-A meeting can be watched too. If you think you are being followed, CPJ advises calling the meeting off.
+A meeting can be watched too. If you think you are being followed, [CPJ advises](https://cpj.org/2021/11/digital-physical-safety-protecting-confidential-sources/) calling the meeting off.

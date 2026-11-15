@@ -8,7 +8,8 @@ icon: bug
 order: 9
 time: 30
 progress: session
-reviewed: 2026-11-14
+legal: true
+reviewed: 2026-11-12
 status: published
 ---
 
@@ -16,20 +17,20 @@ Targeted spyware can read everything on a phone, including encrypted chats, trac
 
 ## Know what targeted spyware is {#who-is-targeted .essential}
 
-Mercenary spyware is sold by companies such as NSO Group, Paragon and Cytrox, Access Now says, often only to governments. Apple says such attacks cost millions of dollars and are aimed at a few people because of who they are or what they do.
+Mercenary spyware is sold by companies such as NSO Group, Paragon and Cytrox, often only to governments, Access Now says in [its guide to threat notifications and spyware](https://www.accessnow.org/apple-threat-notifications-and-spyware/). [Apple's page on threat notifications](https://support.apple.com/en-us/102174) says such attacks cost millions of dollars and are aimed at a few people because of who they are or what they do.
 
 ### All phones
 
 1. **One-click** spyware needs you to tap a link sent by SMS, email, WhatsApp or social media.
 2. **Zero-click** spyware needs nothing from you: it comes in through a flaw in an app or the phone's system.
-3. Once installed, Amnesty says, it can read your messages, including in end-to-end encrypted apps such as Signal, because it reads them on the phone itself.
+3. Once installed, Amnesty says in [its explainer on spyware](https://securitylab.amnesty.org/latest/2023/12/what-is-spyware-and-what-can-you-do-to-stay-protected/), it can read your messages, including in end-to-end encrypted apps such as Signal, because it reads them on the phone itself.
 4. Stalkerware is different: cheap apps that someone close to you installs with access to your unlocked phone. See [If the person is close to you](/guides/spyware/#stalkerware).
 
-Most malware is criminal and aimed at money, EFF notes. Being a journalist or activist raises your risk of targeted spyware; it doesn't mean you have it.
+Most malware is criminal and aimed at money, EFF notes in [its guide to protecting yourself against malware](https://ssd.eff.org/module/how-do-i-protect-myself-against-malware). Being a journalist or activist raises your risk of targeted spyware; it doesn't mean you have it.
 
 ## Don't rely on warning signs {#warning-signs .recommended}
 
-Access Now warns that sophisticated spyware may show nothing suspicious, and that seeing no signs "does not mean you are safe". Amnesty says it "leaves little to no trace".
+In [its guide to threat notifications and spyware](https://www.accessnow.org/apple-threat-notifications-and-spyware/), Access Now warns that sophisticated spyware may show nothing suspicious, and that seeing no signs "does not mean you are safe". Amnesty's [explainer on spyware](https://securitylab.amnesty.org/latest/2023/12/what-is-spyware-and-what-can-you-do-to-stay-protected/) says it "leaves little to no trace".
 
 ### All phones
 
@@ -45,53 +46,53 @@ Apple, WhatsApp and Google warn some users about targeted attacks. Attackers als
 
 ### iPhone {.ios}
 
-1. Apple shows a threat notification on the lock screen and in **Settings**, sends an email from threat-notifications@email.apple.com, and shows a banner at the top of your page on account.apple.com.
+1. Apple shows a threat notification on the lock screen and in **Settings**, sends an email from threat-notifications@email.apple.com, and shows a banner at the top of your page on account.apple.com. Apple describes this on [its page about threat notifications](https://support.apple.com/en-us/102174).
 2. A real notification never asks you to tap a link, open a file, install an app or profile, or give a password or code.
 3. To check, type account.apple.com into your browser yourself and sign in. If Apple sent a notification, it is at the top of the page.
 4. Apple calls these "high-confidence alerts" and recommends turning on [Lockdown Mode](/guides/phone-hardening/#lockdown-mode) and getting expert help.
 
 ### WhatsApp
 
-1. WhatsApp may warn you in a chat from **WhatsApp Support**, with a system message at the top confirming it is the official account and a blue checkmark.
+1. According to [WhatsApp's page on protecting users from spyware](https://faq.whatsapp.com/641700318302674), WhatsApp may warn you in a chat from **WhatsApp Support**, with a system message at the top confirming it is the official account and a blue checkmark. Look for both: a name alone proves nothing.
 
 ### Google
 
-1. Gmail can show "Government-backed attackers may be trying to steal your password". Google means someone tried, within about the last month, to get into your account or computer, for example with fake emails, links or malicious downloads. It means someone tried, not that they succeeded.
+1. Gmail can show "Government-backed attackers may be trying to steal your password". In [its explanation of this warning](https://support.google.com/mail/answer/2591015?hl=en), Google says it means someone tried, within about the last month, to get into your account or computer, for example with fake emails, links or malicious downloads. It means someone tried, not that they succeeded.
 2. Run Google's Security Checkup and consider [Google's Advanced Protection Program](/guides/strong-accounts/#advanced-protection).
 
-Access Now compares a threat notification to a fire alarm: it says an attack was tried, often months earlier, not whether it worked. A missing notification doesn't mean you weren't targeted.
+In [its guide to threat notifications and spyware](https://www.accessnow.org/apple-threat-notifications-and-spyware/), Access Now compares a threat notification to a fire alarm: it says an attack was tried, not whether it worked. Its Helpline's [page on Apple threat notifications](https://www.accessnow.org/help/access-nows-digital-security-helpline-and-apple-threat-notifications/) adds that the attempt was often months earlier. A missing notification doesn't mean you weren't targeted.
 
 ## Be careful with unexpected links {#suspicious-links .essential}
 
-One-click spyware arrives as a link, often with an urgent or very personal message, sometimes from someone you know. EFF warns that well-targeted messages can fool trained people.
+One-click spyware arrives as a link, often with an urgent or very personal message, sometimes from someone you know. EFF warns in [its guide to protecting yourself against malware](https://ssd.eff.org/module/how-do-i-protect-myself-against-malware) that well-targeted messages can fool trained people.
 
 ### All phones
 
 1. Don't tap links you didn't expect, even from people you know. Check with the sender another way.
 2. Don't paste a suspicious link into an online scanner such as VirusTotal: it shares what you submit with its partners and users. The site's [link checker](/tools/link-checker/) works on your device and sends the link nowhere, but it only reads the address and can't tell what the page behind it does.
 3. Be just as careful with files you didn't expect: if you think you are a target, don't open them, and ask a helpline instead. The site's [attachment checker](/tools/attachment-checker/) reads a file on your device and says whether opening it can run something, but it can't tell whether the file is harmful, and it can't find spyware that is already on your phone.
-4. Instead of tapping the link, take a screenshot of the message and ask a helpline how they want to receive it: see [Know where to get expert help](/guides/threat-modelling/#get-help).
+4. Instead of tapping the link, take a screenshot of the message and ask a helpline, such as [Access Now's Digital Security Helpline](https://www.accessnow.org/help/) or [Amnesty's Security Lab](https://securitylab.amnesty.org/get-help/), how they want to receive it: see [Know where to get expert help](/guides/threat-modelling/#get-help).
 5. On WhatsApp, if you think you are a target, turn on **Strict account settings** on your main phone: **Settings → Privacy → Advanced** (on Android, tap **⋮** first). It blocks attachments and media from unknown senders, turns off link previews and silences calls from unknown numbers. People who aren't in your contacts, such as new sources, can then no longer send you files.
 
 Zero-click spyware needs no tap at all, so careful clicking doesn't protect you from it.
 
 ## If you think your phone is infected {#if-you-suspect .essential}
 
-Access Now advises against erasing the phone: it doesn't necessarily prevent new infections, and it destroys the traces an expert needs.
+Access Now's Helpline, on [its page about Apple threat notifications](https://www.accessnow.org/help/access-nows-digital-security-helpline-and-apple-threat-notifications/), advises against erasing the phone: it doesn't necessarily prevent new infections, and it destroys the traces an expert needs.
 
 ### All phones
 
 1. Don't reset, wipe or erase the phone, and keep it rather than throwing it away.
-2. Contact a helpline soon: Access Now notes that data is overwritten every minute the phone stays on. Do it from another device if you can.
+2. Contact a helpline soon, such as [Access Now's Digital Security Helpline](https://www.accessnow.org/help/) or [Amnesty's Security Lab](https://securitylab.amnesty.org/get-help/). Both help activists, journalists and civil society groups. Access Now [warns that data is overwritten every minute the phone stays on](https://www.accessnow.org/apple-threat-notifications-and-spyware/). Do it from another device if you can.
 3. Ask the helpline what to do first, for example whether to make a backup to keep evidence, and how. Access Now suggests a backup; the experts may want a specific kind.
 4. Don't discuss sensitive matters on the phone in the meantime.
-5. Before you report anything to the authorities, Access Now suggests talking to the helpline and a lawyer.
+5. Before you report anything to the authorities, talk to the helpline. Access Now strongly recommends asking a lawyer whether it is safe to do so.
 
 Access Now says investigators rarely promise that a phone is fully safe. Some people replace the phone after a check; ask the experts.
 
 ## Know what an expert check involves {#checks-by-experts .recommended}
 
-Experts look through system files and logs for traces of known spyware. Access Now says data should be collected in a way that exposes as little of your photos, contacts and messages as possible.
+Experts look through system files and logs for traces of known spyware. [Access Now's guide to threat notifications and spyware](https://www.accessnow.org/apple-threat-notifications-and-spyware/) says data should be collected in a way that exposes as little of your photos, contacts and messages as possible.
 
 ### iPhone {.ios}
 
@@ -99,33 +100,33 @@ Experts look through system files and logs for traces of known spyware. Access N
 
 ### Android {.android}
 
-1. On Android 16 or later (first on Pixel phones), **Intrusion Logging** keeps encrypted logs that experts can use: see [Turn on Advanced Protection on Android](/guides/phone-hardening/#advanced-protection). It has to be on before an attack; it can't find what happened earlier.
-2. The logs record which websites you visit, Incognito included. Google keeps them for 12 months, and they can't be deleted sooner, even if you turn the feature off or close the account. If someone can force you to unlock your accounts, that is a year of your browsing. Once you download them, anyone who gets the file can read them: share them only with experts, through an end-to-end encrypted channel.
+1. On Android 16 or later (first on Pixel phones, as Amnesty's Security Lab wrote in [its May 2026 article on Intrusion Logging](https://securitylab.amnesty.org/latest/2026/05/android-intrusion-logging-as-a-new-source-of-data-for-consensual-forensic-analysis/)), **Intrusion Logging** keeps encrypted logs that experts can use: see [Turn on Advanced Protection on Android](/guides/phone-hardening/#advanced-protection). It has to be on before an attack; it can't find what happened earlier.
+2. The logs record which websites you visit, Incognito included. As of November 2026, [Google's Intrusion Logging help page](https://support.google.com/android/answer/16927813?hl=en) says Google keeps them for 12 months, and they can't be deleted sooner, even if you turn the feature off or close the account. If someone can force you to unlock your accounts, that is a year of your browsing. Once you download them, anyone who gets the file can read them: share them only with experts, through an end-to-end encrypted channel.
 
 ### All phones
 
-1. Tools such as MVT are for experts, not self-checks: its makers say so, and that public lists of spyware traces can miss new attacks.
+1. Tools such as MVT are for experts, not self-checks: its makers say so in [MVT's README](https://github.com/mvt-project/mvt), and that public lists of spyware traces can miss new attacks.
 2. Be careful with security apps that promise to scan for spyware. Access Now notes that spyware makers test against popular detection tools, and that such an app sees a detailed picture of your life.
-3. Ask the organisation how it will handle your data. Amnesty's Security Lab, for example, says it shares it only with your permission, unless the law requires it or it is needed to support you.
+3. Ask the organisation how it will handle your data. Amnesty's Security Lab, for example, says on [its get-help page](https://securitylab.amnesty.org/get-help/) that it shares it only with your permission, unless the law requires it or it is needed to support you.
 
 A clean result means no known traces were found. It doesn't prove the phone is clean.
 
 ## Make an attack harder {#reduce-risk .essential}
 
-No setting makes you immune, but some close the most common ways in. The steps are in [Harden your phone against targeted attacks](/guides/phone-hardening/).
+No setting makes you immune, but some make the usual ways in harder. The steps are in [Harden your phone against targeted attacks](/guides/phone-hardening/).
 
 ### All phones
 
 1. Install updates as soon as they arrive: see [Install security updates as soon as they arrive](/guides/phone-hardening/#updates-first).
-2. Turn on [Lockdown Mode](/guides/phone-hardening/#lockdown-mode) on iPhone or [Advanced Protection](/guides/phone-hardening/#advanced-protection) on Android. In March 2026 Apple and Amnesty's Security Lab said they knew of no successful mercenary spyware attack on a device with Lockdown Mode on.
-3. Restart your phone regularly: see [Restart your phone regularly](/guides/phone-hardening/#restart).
+2. Turn on [Lockdown Mode](/guides/phone-hardening/#lockdown-mode) on iPhone or [Advanced Protection](/guides/phone-hardening/#advanced-protection) on Android. In March 2026 [TechCrunch reported](https://techcrunch.com/2026/03/27/apple-says-no-one-using-lockdown-mode-has-been-hacked-with-spyware/) that Apple said it was not aware of any successful mercenary spyware attack on a device with Lockdown Mode on, and that the head of Amnesty's Security Lab had seen no evidence of one.
+3. Restart your phone regularly. Privacy Guides says on [its device integrity page](https://www.privacyguides.org/en/device-integrity/) that most attacks on a phone's system, especially zero-click ones, don't survive a restart, though an attacker can infect the phone again. See [Restart your phone regularly](/guides/phone-hardening/#restart).
 4. Keep fewer apps and accounts on the phone, and if you can, separate work and personal phones: see [Keep fewer apps and connections](/guides/phone-hardening/#fewer-apps).
 
-Even these settings can be beaten: in November 2026, researchers said they had broken into an iPhone with Lockdown Mode on in a test, after getting the user to open a file. No such attack has been confirmed in real use. These settings raise the cost of an attack; they don't end the risk.
+Even these settings are not a guarantee: Apple and Amnesty can speak only for the attacks they know of. In November 2026 the security company Calif [was reported](https://www.privacyguides.org/news/2026/11/06/lockdown-mode-bypassed-in-new-iphone-exploit/) to have shown a video of an iPhone with Lockdown Mode on being taken over through a PDF sent by AirDrop; it has published no details, and no such attack has been confirmed in real use. These settings raise the cost of an attack; they don't end the risk.
 
 ## If the person is close to you {#stalkerware .recommended}
 
-Stalkerware is usually installed by someone who had your unlocked phone, such as a partner or family member. The Coalition Against Stalkerware says the most common sign is that the person knows too much about what you do on your phone.
+Stalkerware is usually installed by someone who had your unlocked phone, such as a partner or family member. The Coalition Against Stalkerware says in [its guide to detecting and removing stalkerware](https://stopstalkerware.org/stalkerware-detection-removal-and-prevention/) that the most common sign is the person's behaviour, for example knowing too much about what you do on your phone.
 
 > [!warning]
 > Removing stalkerware or changing your settings may be noticed, and can make the abuse worse. Removing it also deletes evidence. Before you change anything, make a safety plan, if you can with a support organisation: see [Weigh what protection costs](/guides/threat-modelling/#costs).
