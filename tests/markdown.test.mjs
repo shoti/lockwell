@@ -35,6 +35,19 @@ describe('parseBlocks', () => {
     });
   });
 
+  it('drops an editor comment on a line of its own and keeps the text around it', () => {
+    const nodes = parseBlocks('Before\n<!-- TODO(author): check this -->\nAfter', 'test.md');
+    assert.deepEqual(
+      nodes.map((n) => n.type === 'paragraph' && n.text),
+      ['Before', 'After'],
+    );
+  });
+
+  it('still rejects a comment that shares its line with text or spans lines', () => {
+    assert.throws(() => parseBlocks('<!-- note --> text', 'test.md'), ContentError);
+    assert.throws(() => parseBlocks('<!-- note\nmore -->', 'test.md'), ContentError);
+  });
+
   it('joins paragraph lines and keeps line numbers', () => {
     const nodes = parseBlocks('\n\nFirst line\nsecond line\n\nNext', 'test.md', 10);
     assert.equal(nodes.length, 2);

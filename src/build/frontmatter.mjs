@@ -101,7 +101,7 @@ function isCalendarDate(value) {
 }
 
 /**
- * @typedef {'text' | 'text?' | 'int' | 'date' | 'date?' | 'status?' | 'progress?' | 'audience' | 'group' | 'icon' | 'articleIcon'} FieldType
+ * @typedef {'text' | 'text?' | 'int' | 'date' | 'date?' | 'status?' | 'progress?' | 'legal?' | 'audience' | 'group' | 'icon' | 'articleIcon'} FieldType
  */
 
 /** The guide tracks, in the order they are listed. */
@@ -134,6 +134,7 @@ export const ARTICLE_ICONS = /** @type {const} */ (['lock', 'robot', 'logIn']);
 const ENUMS = {
   'status?': ['published', 'draft'],
   'progress?': ['local', 'session'],
+  'legal?': ['false', 'true'],
   audience: AUDIENCES,
   group: Object.values(GROUPS).flat(),
   icon: GUIDE_ICONS,
@@ -185,7 +186,7 @@ function convertField(key, value, type, file, line) {
     if (!valid) throw new ContentError(file, line, `"${key}" must be a date in YYYY-MM-DD format, got "${value}".`);
     return value;
   }
-  if (type === 'status?' || type === 'progress?' || type === 'audience' || type === 'group' || type === 'icon' || type === 'articleIcon') {
+  if (type === 'status?' || type === 'progress?' || type === 'legal?' || type === 'audience' || type === 'group' || type === 'icon' || type === 'articleIcon') {
     /** @type {readonly string[]} */
     const allowed = ENUMS[type];
     if (!allowed.includes(value)) throw new ContentError(file, line, `"${key}" must be one of: ${allowed.join(', ')}. Got "${value}".`);
