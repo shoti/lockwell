@@ -12,6 +12,9 @@ import {
 } from '../src/client/editor-doc.mjs';
 import { fileSize, ratioOf, typedSize, unsavedWork } from '../src/client/tool-editor.mjs';
 import { createHistory, commit } from '../src/client/history.mjs';
+import {
+  ADJUSTMENTS, PRESETS, applyColor, boxBlur, channelLuts, colorMatrix, colorPlan, combinedAdjust, isPlain, noAdjust, processBands, processPixels, radii, sharpen,
+} from '../src/client/editor-color.mjs';
 
 /** @typedef {import('../src/client/editor-doc.mjs').Doc} Doc */
 /** @typedef {import('../src/client/box.mjs').Box} Box */
@@ -233,5 +236,135 @@ describe('photo editor: proportions and fields', () => {
     assert.deepEqual(fileSize(250_000, 'en'), { unit: 'kb', n: '244' });
     assert.deepEqual(fileSize(3_500_000, 'en'), { unit: 'mb', n: '3.3' });
     assert.deepEqual(fileSize(3_500_000, 'ka'), { unit: 'mb', n: '3,3' }, 'Georgian writes a decimal comma');
+  });
+});
+
+describe('photo editor: colour', () => {
+  /** @typedef {import('../src/client/editor-color.mjs').PresetKey} PresetKey */
+  /** A picture of `width` × `height` with repeatable "random" pixels. @param {number} width @param {number} height */
+  const noise = (width, height) => {
+    let seed = 7;
+    return Uint8ClampedArray.from({ length: width * height * 4 }, (_, index) => (index % 4 === 3 ? 200 + (index % 50) : (seed = (seed * 1103515245 + 12345) % 2 ** 31) % 256));
+  };
+  /** One pixel through a filter. @param {PresetKey} preset @param {number[]} rgb */
+  const through = (preset, rgb) => {
+    const plan = colorPlan(noAdjust(), preset);
+    const data = Uint8ClampedArray.from([...rgb, 77]);
+    applyColor(data, plan.luts, plan.matrix);
+    return [...data];
+  };
+
+  it('changes nothing at all zeros and without a filter', () => {
+    assert.equal(isPlain(colorPlan(noAdjust(), 'none')), true);
+    for (const table of channelLuts(noAdjust())) assert.deepEqual([...table], Array.from({ length: 256 }, (_, i) => i));
+    assert.equal(colorMatrix(noAdjust(), 'none'), null);
+  });
+
+  it('keeps every table rising and within 0 to 255, at every slider’s ends and in between', () => {
+    const keys = ['exposure', 'brightness', 'contrast', 'highlights', 'shadows', 'warmth', 'tint'];
+    for (const key of keys) {
+      for (const value of [-100, -63, -20, 20, 63, 100]) {
+        for (const table of channelLuts({ ...noAdjust(), [key]: value })) {
+          for (let i = 1; i < 256; i += 1) assert.ok(table[i] >= table[i - 1], `${key} ${value} at ${i}`);
+          assert.ok(table.every((v) => v >= 0 && v <= 255));
+        }
+      }
+    }
+    for (const table of channelLuts({ ...noAdjust(), exposure: 100, contrast: 100, shadows: -100, highlights: 100, brightness: -100 })) {
+      for (let i = 1; i < 256; i += 1) assert.ok(table[i] >= table[i - 1], `everything at once, at ${i}`);
+    }
+  });
+
+  it('turns grey at saturation -100, and never touches alpha', () => {
+    const plan = colorPlan({ ...noAdjust(), saturation: -100 }, 'none');
+    const data = Uint8ClampedArray.from([200, 30, 90, 12, 0, 255, 0, 250]);
+    applyColor(data, plan.luts, plan.matrix);
+    assert.equal(data[0], data[1]);
+    assert.equal(data[1], data[2]);
+    assert.equal(data[4], data[6]);
+    assert.deepEqual([data[3], data[7]], [12, 250]);
+  });
+
+  it('gives known results for a known pixel through each filter', () => {
+    assert.deepEqual(through('none', [200, 100, 50]), [200, 100, 50, 77]);
+    assert.deepEqual(through('sepia', [200, 100, 50]), [165, 147, 114, 77]);
+    assert.deepEqual(through('mono', [200, 100, 50]), [118, 118, 118, 77]);
+    const [warm, cool] = [through('warm', [128, 128, 128]), through('cool', [128, 128, 128])];
+    assert.ok(warm[0] > 128 && warm[2] < 128, 'warm: redder, less blue');
+    assert.ok(cool[0] < 128 && cool[2] > 128, 'cool: bluer');
+    const vivid = through('vivid', [180, 120, 100]);
+    assert.ok(vivid[0] - vivid[2] > 80, 'vivid: colours further apart');
+    const faded = through('faded', [220, 40, 40]);
+    assert.ok(faded[0] - faded[1] < 180, 'faded: colours closer together');
+    for (const preset of /** @type {PresetKey[]} */ (Object.keys(PRESETS))) assert.equal(through(preset, [1, 2, 3])[3], 77, `${preset} keeps alpha`);
+  });
+
+  it('adds a filter’s settings to the visitor’s, within each slider’s range', () => {
+    assert.equal(combinedAdjust({ ...noAdjust(), warmth: 90 }, 'warm').warmth, 100);
+    assert.equal(combinedAdjust({ ...noAdjust(), saturation: 20 }, 'mono').saturation, -80);
+    assert.deepEqual(ADJUSTMENTS.filter(([, min]) => min === 0).map(([key]) => key), ['sharpen', 'soften', 'vignette']);
+  });
+
+  it('blurs a flat picture into itself, and one bright pixel evenly in every direction', () => {
+    const flat = new Uint8ClampedArray(20 * 10 * 4).fill(90);
+    const before = flat.slice();
+    boxBlur(flat, 20, 10, 3);
+    assert.deepEqual(flat, before);
+    sharpen(flat, 20, 10, 1, 2);
+    assert.deepEqual(flat, before, 'sharpening a flat picture changes nothing');
+    const [size, middle] = [21, 10];
+    const dot = new Uint8ClampedArray(size * size * 4);
+    dot[(middle * size + middle) * 4] = 255;
+    boxBlur(dot, size, size, 1);
+    const red = (/** @type {number} */ x, /** @type {number} */ y) => dot[(y * size + x) * 4];
+    for (const [dx, dy] of [[1, 0], [2, 1], [3, 3]]) {
+      const values = [red(middle + dx, middle + dy), red(middle - dx, middle + dy), red(middle + dx, middle - dy), red(middle - dx, middle - dy), red(middle + dy, middle + dx)];
+      assert.ok(values.every((value) => value === values[0]), `symmetric at ${dx},${dy}: ${values}`);
+    }
+    let total = 0;
+    for (let at = 0; at < dot.length; at += 4) total += dot[at];
+    assert.ok(Math.abs(total - 255) < 255 * 0.15, `about as bright in total: ${total}`);
+    assert.ok(red(middle, middle) < 255 && red(middle, middle) > 0);
+  });
+
+  it('works in bands to exactly the same pixels as on the whole picture', async () => {
+    const [width, height] = [37, 53];
+    for (const adjust of [{ ...noAdjust(), contrast: 40, saturation: -30 }, { ...noAdjust(), soften: 60 }, { ...noAdjust(), sharpen: 80, warmth: 20 }, { ...noAdjust(), soften: 30, sharpen: 100, exposure: -20 }]) {
+      const plan = colorPlan(adjust, 'sepia');
+      const radius = radii(plan, 400);
+      const whole = noise(width, height);
+      processPixels(whole, width, height, plan, radius);
+      const banded = noise(width, height);
+      const result = new Uint8ClampedArray(banded.length);
+      const finished = await processBands(width, height, plan, radius, {
+        read: (y, rows) => banded.slice(y * width * 4, (y + rows) * width * 4),
+        write: (y, rows, data) => result.set(data, y * width * 4),
+        bandRows: 5,
+        pause: async () => {},
+      });
+      assert.equal(finished, true);
+      assert.deepEqual(result, whole, JSON.stringify(adjust));
+    }
+  });
+
+  it('stops a render that is no longer wanted before its next band', async () => {
+    const [width, height] = [10, 40];
+    const plan = colorPlan({ ...noAdjust(), contrast: 50 }, 'none');
+    let reads = 0;
+    let wanted = true;
+    const finished = await processBands(width, height, plan, radii(plan, 100), {
+      read: (y, rows) => {
+        reads += 1;
+        return new Uint8ClampedArray(rows * width * 4);
+      },
+      write: () => {},
+      bandRows: 10,
+      pause: async () => {
+        wanted = false; // something changed while the page was free
+      },
+      stop: () => !wanted,
+    });
+    assert.equal(finished, false);
+    assert.equal(reads, 1, 'no band after the change');
   });
 });

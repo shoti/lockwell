@@ -16,6 +16,7 @@
  * oriented picture's width and height.
  */
 import { exportSize } from './canvas.mjs';
+import { noAdjust } from './editor-color.mjs';
 import { apply, compose, invert, rotate, scale, translate, turn } from './editor-matrix.mjs';
 
 /** @typedef {import('./box.mjs').Box} Box */
@@ -29,6 +30,8 @@ import { apply, compose, invert, rotate, scale, translate, turn } from './editor
  * @property {number} angle  Straightening in degrees, MAX_ANGLE either way; positive turns the picture clockwise.
  * @property {Box | null} crop  The crop as the visitor left it; null: the whole picture. See effectiveCrop.
  * @property {Size | null} size  Pixels of the saved copy; null: the crop's own size.
+ * @property {import('./editor-color.mjs').Adjust} adjust  The sliders; all 0: no change.
+ * @property {import('./editor-color.mjs').PresetKey} preset  The filter.
  */
 
 export const MAX_ANGLE = 45;
@@ -36,7 +39,7 @@ export const MAX_ANGLE = 45;
 const WHOLE = { x: 0, y: 0, w: 1, h: 1 };
 
 /** @returns {Doc} */
-export const emptyDoc = () => ({ quarter: 0, flipX: false, flipY: false, angle: 0, crop: null, size: null });
+export const emptyDoc = () => ({ quarter: 0, flipX: false, flipY: false, angle: 0, crop: null, size: null, adjust: noAdjust(), preset: 'none' });
 
 /** True when a description leaves the picture as it was opened. @param {Doc} doc */
 export const isUnchanged = (doc) => JSON.stringify(doc) === JSON.stringify(emptyDoc());

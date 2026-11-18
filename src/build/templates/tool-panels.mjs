@@ -310,6 +310,13 @@ function redactPanel(ctx) {
 const EDITOR_RATIOS = ['1:1', '4:3', '3:4', '3:2', '2:3', '16:9', '9:16'];
 /** Longer sides the photo editor offers in one press, in pixels. */
 const EDITOR_LONG_SIDES = [1080, 1600, 2048, 4096];
+/** The photo editor's sliders and where each starts (see ADJUSTMENTS in editor-color.mjs). */
+const EDITOR_ADJUSTMENTS = [
+  ['exposure', -100], ['brightness', -100], ['contrast', -100], ['highlights', -100], ['shadows', -100], ['saturation', -100],
+  ['warmth', -100], ['tint', -100], ['sharpen', 0], ['soften', 0], ['vignette', 0],
+];
+/** The photo editor's filters (see PRESETS in editor-color.mjs). */
+const EDITOR_PRESETS = ['none', 'mono', 'sepia', 'warm', 'cool', 'vivid', 'faded'];
 
 /** @param {Ctx} ctx */
 function editorPanel(ctx) {
@@ -359,7 +366,10 @@ function editorPanel(ctx) {
               <span class="editor__zoom-value" data-js="editor-zoom-value" translate="no">100%</span>
               ${iconAction('zoom-in', icons.plus, s('zoomIn'))}
             </div>
-            ${action('reset', icons.refresh, s('reset'))}
+            <div class="tool__actions">
+              ${action('compare', icons.eye, s('compare'))}
+              ${action('reset', icons.refresh, s('reset'))}
+            </div>
           </div>
           <div class="editor__view" data-zoom="1" data-js="editor-view">
             <canvas class="editor__canvas" tabindex="0" role="application" aria-label="${s('canvas')}" aria-describedby="editor__help" data-js="editor-canvas"></canvas>
@@ -371,6 +381,8 @@ function editorPanel(ctx) {
           <div class="tool__actions" role="group" aria-label="${s('tools')}">
             ${toolButton('crop', icons.crop, s('toolCrop'))}
             ${toolButton('resize', icons.resize, s('toolResize'))}
+            ${toolButton('adjust', icons.sliders, s('toolAdjust'))}
+            ${toolButton('filters', icons.palette, s('toolFilters'))}
           </div>
           <div class="editor__panel" data-js="editor-panel" data-tool="crop">
             <div class="tool__actions" role="group" aria-label="${s('turnGroup')}">
@@ -383,7 +395,7 @@ function editorPanel(ctx) {
               <label class="field__label" for="editor__angle">${s('straighten')}</label>
               <div class="editor__row">
                 <input class="range" type="range" id="editor__angle" min="-45" max="45" step="0.1" value="0" data-js="editor-angle">
-                <input class="input editor__degrees" type="number" inputmode="decimal" min="-45" max="45" step="0.1" value="0" aria-label="${s('straightenDegrees')}" data-js="editor-angle-number">
+                <input class="input editor__amount" type="number" inputmode="decimal" min="-45" max="45" step="0.1" value="0" aria-label="${s('straightenDegrees')}" data-js="editor-angle-number">
                 ${iconAction('angle-reset', icons.refresh, s('straightenReset'))}
               </div>
             </div>
@@ -430,6 +442,29 @@ function editorPanel(ctx) {
               ${action('original', icons.refresh, s('original'))}
             </div>
             <p class="tool__status" role="status" data-js="editor-size-note" data-enlarged="${s('enlarged')}" data-limit="${s('limit')}"></p>
+          </div>
+          <div class="editor__panel" data-js="editor-panel" data-tool="adjust" hidden>
+            ${EDITOR_ADJUSTMENTS.map(([key, min]) => {
+              const name = s(`adjustments.${key}`);
+              const reset = s('resetOne').replace('{name}', name);
+              return html`<div class="field">
+              <label class="field__label" for="editor__${key}">${name}</label>
+              <div class="editor__row">
+                <input class="range" type="range" id="editor__${key}" min="${String(min)}" max="100" step="1" value="0" data-js="editor-adjust" data-key="${key}">
+                <input class="input editor__amount" type="number" inputmode="numeric" min="${String(min)}" max="100" step="1" value="0" aria-label="${name}" data-js="editor-adjust-number" data-key="${key}">
+                <button class="button button--ghost button--small button--icon" type="button" aria-label="${reset}" title="${reset}" data-js="editor-adjust-reset" data-key="${key}">${icons.refresh}</button>
+              </div>
+            </div>`;
+            })}
+            <div class="tool__actions">
+              ${action('reset-all', icons.refresh, s('resetAll'))}
+            </div>
+          </div>
+          <div class="editor__panel" data-js="editor-panel" data-tool="filters" hidden>
+            <div class="tool__actions" role="group" aria-label="${s('toolFilters')}">
+              ${EDITOR_PRESETS.map((key) => html`<button class="button button--ghost button--small" type="button" aria-pressed="${key === 'none' ? 'true' : 'false'}" data-js="editor-preset" data-preset="${key}">${s(`presets.${key}`)}</button>`)}
+            </div>
+            <p class="facts__why">${s('filtersHelp')}</p>
           </div>
         </div>
         <div class="editor__save" role="group" aria-labelledby="editor__save">

@@ -21,7 +21,8 @@ import {
   cleanAngle, cropFromView, cropSize, cropToView, effectiveCrop, emptyDoc, fitCrop, flipDoc, isUnchanged, keepLongSide, limitCrop, orientedSize,
   outputSize, rotatedBounds, turnDoc, wholeMatrix, outputMatrix,
 } from './editor-doc.mjs';
-import { drawPhoto, renderDoc } from './editor-render.mjs';
+import { ADJUSTMENTS, colorPlan, isPlain, noAdjust } from './editor-color.mjs';
+import { adjustCanvasNow, drawPhoto, drawVignette, renderDoc } from './editor-render.mjs';
 
 /** @typedef {import('./box.mjs').Box} Box */
 /** @typedef {import('./box.mjs').Point} Point */
@@ -29,7 +30,10 @@ import { drawPhoto, renderDoc } from './editor-render.mjs';
 /** @typedef {import('./editor-doc.mjs').Doc} Doc */
 /** @typedef {import('./editor-doc.mjs').Size} Size */
 /** @typedef {import('./history.mjs').History<Doc>} History */
-/** @typedef {'crop' | 'resize'} Tool */
+/** @typedef {'crop' | 'resize' | 'adjust' | 'filters'} Tool */
+/** @typedef {import('./editor-color.mjs').AdjustKey} AdjustKey */
+/** @typedef {import('./editor-color.mjs').PresetKey} PresetKey */
+/** @typedef {import('./editor-render.mjs').Rect} Rect */
 
 const MAX_BYTES = 40 * 1024 * 1024;
 /** The longest side of the smaller copy the screen is drawn from; the saved copy always uses the full picture. */
@@ -40,6 +44,8 @@ const MIN_SCREEN = 24;
 const STEP_SCREEN = 8;
 /** The largest number the size fields take; the canvas limit applies after it. */
 const MAX_TYPED = 100_000;
+/** While a slider is dragged, colours are worked out on a copy of at most this many pixels, then stretched. */
+const DRAFT_PIXELS = 500_000;
 /** Wait after the quality slider stops before encoding again, in milliseconds. */
 const REENCODE_DELAY = 250;
 
@@ -122,6 +128,10 @@ export function init(root) {
   const panels = /** @type {HTMLElement[]} */ ([...root.querySelectorAll('[data-js="editor-panel"]')]);
   const formats = /** @type {HTMLInputElement[]} */ ([...root.querySelectorAll('[data-js="editor-format"]')]);
   const longSides = /** @type {HTMLButtonElement[]} */ ([...root.querySelectorAll('[data-js="editor-long"]')]);
+  const sliders = /** @type {HTMLInputElement[]} */ ([...root.querySelectorAll('[data-js="editor-adjust"]')]);
+  const amounts = /** @type {HTMLInputElement[]} */ ([...root.querySelectorAll('[data-js="editor-adjust-number"]')]);
+  const resets = /** @type {HTMLButtonElement[]} */ ([...root.querySelectorAll('[data-js="editor-adjust-reset"]')]);
+  const presets = /** @type {HTMLButtonElement[]} */ ([...root.querySelectorAll('[data-js="editor-preset"]')]);
   const lang = document.documentElement?.lang ?? 'en';
 
   /** @type {ImageBitmap | null} */
@@ -157,6 +167,10 @@ export function init(root) {
   let readable = true;
   /** @type {ReturnType<typeof setTimeout> | undefined} */
   let reencode;
+  /** "Hold to see the original" is held down. */
+  let comparing = false;
+  /** A colour slider is being dragged: colours are worked out on a small copy. */
+  let drafting = false;
 
   const doc = () => draft ?? history.entries[history.index];
   const oriented = () => orientedSize(doc(), /** @type {ImageBitmap} */ (image));
@@ -166,15 +180,28 @@ export function init(root) {
 
   /* ---------- Drawing ---------- */
 
-  /** What has to be redrawn at the next frame: the photo layer, or only what lies on top of it. */
-  const stale = { photo: false, screen: false };
+  /**
+   * What has to be redrawn at the next frame. Three layers, each redrawn only
+   * when what it shows changed: the photo through the geometry; the photo with
+   * its colours; and on screen, that plus the vignette, the crop frame and handles.
+   */
+  const stale = { photo: false, adjusted: false, screen: false };
   let frame = 0;
-  /** The photo as the screen shows it, before outlines and handles. */
+  /** The photo as the screen shows it, before colours, outlines and handles. */
   const photo = document.createElement('canvas');
+  /** The photo with its colours, soften and sharpen; while a slider is dragged, a smaller copy. */
+  const adjusted = document.createElement('canvas');
+  /** What the screen layer starts from: the photo, or the adjusted copy. */
+  /** @type {HTMLCanvasElement} */
+  let shown = photo;
+  /** The colour plan of the last description asked for, kept: working it out takes a few hundred steps. */
+  /** @type {{ key: string, plan: import('./editor-color.mjs').ColorPlan } | null} */
+  let planned = null;
 
-  /** @param {'photo' | 'screen'} stage */
+  /** @param {'photo' | 'adjusted' | 'screen'} stage  Each includes the ones after it. */
   const invalidate = (stage) => {
-    stale[stage] = true;
+    if (stage === 'photo') stale.photo = true;
+    if (stage !== 'screen') stale.adjusted = true;
     stale.screen = true;
     if (frame) return;
     frame = requestAnimationFrame(() => {
@@ -212,14 +239,60 @@ export function init(root) {
       if (photo.width !== size.width || photo.height !== size.height) Object.assign(photo, size);
       drawPicture(tool === 'crop' ? wholeMatrix(doc(), image, photo) : outputMatrix(doc(), image, photo));
     }
+    if (stale.adjusted) refreshAdjusted();
     stale.photo = false;
+    stale.adjusted = false;
     stale.screen = false;
     if (canvas.width !== photo.width || canvas.height !== photo.height) Object.assign(canvas, { width: photo.width, height: photo.height });
     const context = /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d'));
     context.clearRect(0, 0, canvas.width, canvas.height);
-    context.drawImage(photo, 0, 0);
+    if (comparing) {
+      context.drawImage(photo, 0, 0);
+    } else {
+      context.drawImage(shown, 0, 0, canvas.width, canvas.height);
+      const { vignette } = plan();
+      if (vignette) drawVignette(context, copyFrame(canvas), vignette);
+    }
     if (tool === 'crop') drawCropFrame(context);
     showState();
+  };
+
+  /** The colour plan of the description on screen. */
+  const plan = () => {
+    const { adjust, preset } = doc();
+    const key = JSON.stringify([adjust, preset]);
+    if (planned?.key !== key) planned = { key, plan: colorPlan(adjust, preset) };
+    return planned.plan;
+  };
+
+  /** Where the copy lies on a canvas the size of the screen's: the crop frame while cropping, else all of it. @param {{ width: number, height: number }} on @returns {Rect} */
+  const copyFrame = ({ width, height }) => {
+    if (tool !== 'crop') return { x: 0, y: 0, w: width, h: height };
+    const box = cropBox();
+    return { x: box.x * width, y: box.y * height, w: box.w * width, h: box.h * height };
+  };
+
+  /**
+   * The photo layer with its colours, soften and sharpen. The vignette is
+   * drawn on the screen layer instead, so it follows the crop frame as it moves.
+   */
+  const refreshAdjusted = () => {
+    const { vignette, ...rest } = plan();
+    const pixels = { ...rest, vignette: 0 };
+    if (isPlain(pixels)) {
+      shown = photo;
+      return;
+    }
+    // While a slider is dragged, a small copy keeps every frame quick; it is stretched to fit.
+    const factor = drafting ? Math.min(1, Math.sqrt(DRAFT_PIXELS / (photo.width * photo.height))) : 1;
+    const size = { width: Math.max(1, Math.round(photo.width * factor)), height: Math.max(1, Math.round(photo.height * factor)) };
+    if (adjusted.width !== size.width || adjusted.height !== size.height) Object.assign(adjusted, size);
+    const context = /** @type {CanvasRenderingContext2D} */ (adjusted.getContext('2d'));
+    context.clearRect(0, 0, size.width, size.height);
+    context.drawImage(photo, 0, 0, size.width, size.height);
+    const frameOn = copyFrame(size);
+    adjustCanvasNow(adjusted, pixels, { longSide: Math.max(frameOn.w, frameOn.h) });
+    shown = adjusted;
   };
 
   /** The crop frame, the shade around it, its handles, and thirds while it is being dragged. @param {CanvasRenderingContext2D} context */
@@ -303,6 +376,15 @@ export function init(root) {
     input('quality').disabled = type() === 'image/png';
     qualityValue.textContent = input('quality').value;
     button('create').disabled = !readable;
+    for (const [key] of ADJUSTMENTS) {
+      for (const field of [...sliders, ...amounts]) if (field.dataset.key === key && field !== document.activeElement) field.value = String(current.adjust[key]);
+    }
+    resets.forEach((reset) => {
+      reset.disabled = current.adjust[/** @type {AdjustKey} */ (reset.dataset.key)] === 0;
+    });
+    button('reset-all').disabled = ADJUSTMENTS.every(([key]) => current.adjust[key] === 0);
+    presets.forEach((other) => other.setAttribute('aria-pressed', String(other.dataset.preset === current.preset)));
+    button('compare').disabled = isPlain(plan());
   };
 
   /* ---------- Changes ---------- */
@@ -316,17 +398,23 @@ export function init(root) {
     save.clear();
   };
 
-  /** A finished change: a new step in the history. @param {Doc} next @param {string} [tag] */
-  const apply = (next, tag = '') => {
+  /**
+   * A finished change: a new step in the history.
+   * @param {Doc} next
+   * @param {string} [tag]  Steps with the same tag in a row count as one (see commit).
+   * @param {'photo' | 'adjusted' | 'screen'} [stage]  What the change affects: the geometry, only the colours, or only what lies on top.
+   */
+  const apply = (next, tag = '', stage = 'photo') => {
     draft = null;
+    drafting = false;
     if (JSON.stringify(next) === JSON.stringify(history.entries[history.index])) {
-      invalidate('photo');
+      invalidate(stage);
       return;
     }
     history = commit(history, next, tag);
     saved = false;
     hideResult();
-    invalidate('photo');
+    invalidate(stage);
   };
 
   /** @param {(history: History) => History} step */
@@ -351,6 +439,13 @@ export function init(root) {
 
   /** The crop as a box on the screen canvas while cropping, in fractions of it. */
   const cropBox = () => cropToView(effectiveCrop(doc(), /** @type {ImageBitmap} */ (image)), doc().angle, oriented());
+
+  /**
+   * What a new crop changes on screen. While cropping, the whole picture is shown
+   * whatever the crop, so only the frame moves; soften and sharpen are measured
+   * against the frame's size, though, so with those on, the colours too.
+   */
+  const cropStage = () => (tool === 'crop' && !plan().soften && !plan().sharpen ? 'screen' : 'photo');
 
   /** The screen box back to a crop, going only as far as the picture allows. @param {Box} box */
   const placeCrop = (box) => {
@@ -589,7 +684,7 @@ export function init(root) {
     gesture = null;
     const finished = event.type === 'pointerup' ? draft : null;
     if (finished) {
-      apply(finished);
+      apply(finished, '', cropStage());
     } else {
       // An interrupted drag: nothing changes.
       draft = null;
@@ -616,7 +711,7 @@ export function init(root) {
     const box = cropBox();
     const [dx, dy] = [x * step.x, y * step.y];
     const next = resize ? dragHandle(box, dx ? 'e' : 's', { x: box.x + box.w + dx, y: box.y + box.h + dy }) : moveBox(box, dx, dy);
-    apply(placeCrop(next), resize ? 'resize' : 'move');
+    apply(placeCrop(next), resize ? 'resize' : 'move', cropStage());
   };
 
   const removeCrop = () => {
@@ -696,6 +791,63 @@ export function init(root) {
     button(control).addEventListener('click', () => nudge(x, y, grow));
   }
 
+  /* ---------- Colours ---------- */
+
+  /**
+   * A slider's new value: while it is dragged, a draft worked out on a small
+   * copy; once let go (or typed), a step in the history.
+   * @param {AdjustKey} key
+   * @param {number} value
+   * @param {boolean} done
+   */
+  const setAdjust = (key, value, done) => {
+    const min = ADJUSTMENTS.find(([name]) => name === key)?.[1] ?? 0;
+    const current = history.entries[history.index];
+    const clean = Number.isFinite(value) ? Math.round(Math.min(100, Math.max(min, value))) : 0;
+    const next = { ...current, adjust: { ...current.adjust, [key]: clean } };
+    if (done) {
+      apply(next, `adjust:${key}`, 'adjusted');
+    } else {
+      draft = next;
+      drafting = true;
+      invalidate('adjusted');
+    }
+  };
+
+  sliders.forEach((slider) => {
+    const key = /** @type {AdjustKey} */ (slider.dataset.key);
+    slider.addEventListener('input', () => setAdjust(key, Number(slider.value), false));
+    slider.addEventListener('change', () => setAdjust(key, Number(slider.value), true));
+    // A double-click puts one slider back to 0.
+    slider.addEventListener('dblclick', () => setAdjust(key, 0, true));
+  });
+  amounts.forEach((amount) => amount.addEventListener('change', () => setAdjust(/** @type {AdjustKey} */ (amount.dataset.key), Number(amount.value), true)));
+  resets.forEach((reset) => reset.addEventListener('click', () => setAdjust(/** @type {AdjustKey} */ (reset.dataset.key), 0, true)));
+  button('reset-all').addEventListener('click', () => apply({ ...history.entries[history.index], adjust: noAdjust() }, '', 'adjusted'));
+  presets.forEach((other) =>
+    other.addEventListener('click', () => apply({ ...history.entries[history.index], preset: /** @type {PresetKey} */ (other.dataset.preset) }, '', 'adjusted')),
+  );
+
+  // "Hold to see the original": the same picture without colours, as long as it is pressed, by pointer or by Space.
+  const compare = button('compare');
+  /** @param {boolean} on */
+  const setComparing = (on) => {
+    if (comparing === on) return;
+    comparing = on;
+    invalidate('screen');
+  };
+  compare.addEventListener('pointerdown', () => setComparing(true));
+  for (const type of ['pointerup', 'pointerleave', 'pointercancel', 'blur']) compare.addEventListener(type, () => setComparing(false));
+  compare.addEventListener('keydown', (event) => {
+    if (event.key === ' ' || event.key === 'Enter') {
+      event.preventDefault();
+      setComparing(true);
+    }
+  });
+  compare.addEventListener('keyup', (event) => {
+    if (event.key === ' ' || event.key === 'Enter') setComparing(false);
+  });
+
   /* ---------- Size ---------- */
 
   /** A typed width or height; with the proportions locked the other side follows the crop's. @param {'width' | 'height'} side */
@@ -755,7 +907,10 @@ export function init(root) {
     try {
       if (made !== output?.canvas) {
         Object.assign(made, { width: size.width, height: size.height });
-        renderDoc(made, picture, current, { jpeg: wanted === 'image/jpeg' });
+        // Read back band by band: kept in ordinary memory, or each read waits for the graphics card.
+        made.getContext('2d', { willReadFrequently: true });
+        // In bands with pauses: a large picture never freezes the page. Stops early if the edit changes meanwhile.
+        if (!(await renderDoc(made, picture, current, { jpeg: wanted === 'image/jpeg', stop: isStale }))) throw new Error('stale');
       }
       blob = await encode(made, wanted, quality());
       if (blob.type !== wanted) throw new Error(`The browser wrote ${blob.type || 'nothing'} instead of ${wanted}.`);

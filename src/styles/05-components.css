@@ -2464,7 +2464,7 @@
   }
 
   /* Scoped to the row, or .input's width (declared later) wins. */
-  .editor__row .editor__degrees {
+  .editor__row .editor__amount {
     flex: none;
     width: 6rem;
   }

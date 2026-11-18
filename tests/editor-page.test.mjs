@@ -26,6 +26,10 @@ const browser = {
   decodeAs: null,
   /** How many times the page encoded a picture. */
   encodes: 0,
+  /** How many times the page read pixels back to work out colours (the read-back probe not counted). */
+  reads: 0,
+  /** Canvases the page made, in order: the first two are its photo layer and its colour layer. @type {Element[]} */
+  made: [],
 };
 
 class Element {
@@ -41,8 +45,10 @@ class Element {
     this.disabled = false;
     this.width = 0;
     this.height = 0;
-    /** Pictures drawn onto this canvas. */
+    /** Pictures drawn onto this canvas, and the last one. */
     this.draws = 0;
+    /** @type {unknown} */
+    this.lastDrawn = null;
     this.focused = 0;
     /** @type {File[]} */
     this.files = [];
@@ -84,6 +90,10 @@ class Element {
       '[data-js="editor-panel"]': () => ['crop', 'resize'].map((tool) => Object.assign(new Element(), { dataset: { tool } })),
       '[data-js="editor-format"]': () => ['image/jpeg', 'image/png', 'image/webp'].map((value) => Object.assign(new Element('input'), { value })),
       '[data-js="editor-long"]': () => ['1080', '1600'].map((size) => Object.assign(new Element('button'), { dataset: { size } })),
+      '[data-js="editor-adjust"]': () => ['contrast', 'vignette'].map((key) => Object.assign(new Element('input'), { dataset: { key }, value: '0' })),
+      '[data-js="editor-adjust-number"]': () => ['contrast', 'vignette'].map((key) => Object.assign(new Element('input'), { dataset: { key }, value: '0' })),
+      '[data-js="editor-adjust-reset"]': () => ['contrast', 'vignette'].map((key) => Object.assign(new Element('button'), { dataset: { key } })),
+      '[data-js="editor-preset"]': () => ['none', 'mono'].map((preset) => Object.assign(new Element('button'), { dataset: { preset } })),
     };
     if (!this.children.has(`all ${selector}`)) this.children.set(`all ${selector}`, lists[/** @type {keyof typeof lists} */ (selector)]?.() ?? []);
     return /** @type {Element[]} */ (this.children.get(`all ${selector}`));
@@ -116,13 +126,18 @@ class Element {
       /** @param {number} _x @param {number} _y @param {number} width @param {number} height */
       getImageData: (_x, _y, width, height) => {
         const data = new Uint8ClampedArray(width * height * 4);
+        if (!(width === 2 && height === 1)) browser.reads += 1;
         // The probe of canReadBack: a black pixel, then a red one.
         if (browser.readBack && width === 2 && height === 1) data.set([0, 0, 0, 255, 255, 0, 0, 255]);
         return { data };
       },
-      drawImage: () => {
+      /** @param {Element} source */
+      drawImage: (source) => {
         canvas.draws += 1;
+        canvas.lastDrawn = source;
       },
+      putImageData() {},
+      createRadialGradient: () => ({ addColorStop() {} }),
       setTransform() {},
       clearRect() {},
       fillRect() {},
@@ -156,8 +171,18 @@ const g = /** @type {Record<string, unknown>} */ (/** @type {unknown} */ (global
 Object.assign(g, {
   HTMLElement: Element,
   HTMLInputElement: Element,
+  ImageData: class {
+    /** @param {Uint8ClampedArray} data @param {number} width @param {number} height */
+    constructor(data, width, height) {
+      Object.assign(this, { data, width, height });
+    }
+  },
   document: {
-    createElement: () => new Element('canvas'),
+    createElement: () => {
+      const made = new Element('canvas');
+      browser.made.push(made);
+      return made;
+    },
     addEventListener() {},
     documentElement: { lang: 'en' },
     get activeElement() {
@@ -209,7 +234,7 @@ async function page() {
 
 describe('photo editor page', () => {
   beforeEach(() => {
-    Object.assign(browser, { cannotEncode: new Set(), readBack: true, decodeAs: null, encodes: 0 });
+    Object.assign(browser, { cannotEncode: new Set(), readBack: true, decodeAs: null, encodes: 0, reads: 0, made: [] });
     queued.length = 0;
   });
 
@@ -385,5 +410,103 @@ describe('photo editor page', () => {
     await making;
     await sleep(60);
     assert.equal(q('result').hidden, true);
+  });
+
+  it('works out colours once per slider step, on a small copy, and makes one step when let go', async () => {
+    const { q, all, press } = await page();
+    const [contrast] = all('adjust');
+    const [, colours] = browser.made;
+    browser.reads = 0;
+    contrast.value = '40';
+    await contrast.fire('input');
+    frames();
+    assert.equal(browser.reads, 1, 'one slider step: one read');
+    assert.ok(colours.width * colours.height <= 500_000, `a small copy while dragging: ${colours.width} × ${colours.height}`);
+    assert.equal(q('undo').disabled, true, 'dragging is not a step yet');
+    await contrast.fire('change');
+    frames();
+    assert.equal(colours.width, browser.made[0].width, 'full size once let go');
+    assert.equal(q('undo').disabled, false);
+    assert.equal(q('compare').disabled, false);
+    await press('undo');
+    assert.equal(q('compare').disabled, true, 'nothing to compare with');
+  });
+
+  it('works out colours zero times while the crop frame moves', async () => {
+    const { all, canvas, pointer } = await page();
+    const [contrast] = all('adjust');
+    contrast.value = '40';
+    await contrast.fire('change');
+    frames();
+    browser.reads = 0;
+    await canvas.fire('pointerdown', pointer(1, 400, 300));
+    for (let step = 0; step < 5; step += 1) {
+      await canvas.fire('pointermove', pointer(1, 400 - step * 10, 300));
+      frames();
+    }
+    await canvas.fire('pointerup', pointer(1, 360, 300));
+    frames();
+    assert.equal(browser.reads, 0);
+  });
+
+  it('shows the picture without colours while "Hold to see the original" is pressed', async () => {
+    const { q, all, canvas } = await page();
+    const [photo, colours] = browser.made;
+    const [contrast] = all('adjust');
+    contrast.value = '40';
+    await contrast.fire('change');
+    frames();
+    assert.equal(canvas.lastDrawn, colours);
+    await q('compare').fire('pointerdown');
+    frames();
+    assert.equal(canvas.lastDrawn, photo);
+    await q('compare').fire('pointerup');
+    frames();
+    assert.equal(canvas.lastDrawn, colours);
+    await q('compare').fire('keydown', { key: ' ' });
+    frames();
+    assert.equal(canvas.lastDrawn, photo, 'Space works too');
+    await q('compare').fire('keyup', { key: ' ' });
+  });
+
+  it('chooses a filter, marks it, and can reset one slider or all of them', async () => {
+    const { q, all, press } = await page();
+    const [none, mono] = all('preset');
+    await mono.fire('click');
+    frames();
+    assert.equal(mono.attributes['aria-pressed'], 'true');
+    assert.equal(none.attributes['aria-pressed'], 'false');
+    const [contrast] = all('adjust');
+    const [contrastAmount] = all('adjust-number');
+    contrastAmount.value = '250';
+    await contrastAmount.fire('change');
+    frames();
+    assert.equal(contrast.value, '100', 'kept within the slider’s range');
+    const [contrastReset] = all('adjust-reset');
+    assert.equal(contrastReset.disabled, false);
+    await contrastReset.fire('click');
+    frames();
+    assert.equal(contrast.value, '0');
+    contrast.value = '30';
+    await contrast.fire('change');
+    await press('reset-all');
+    assert.equal(contrast.value, '0');
+    assert.equal(mono.attributes['aria-pressed'], 'true', 'reset all leaves the filter');
+  });
+
+  it('saves a copy with colours through the banded drawing', async () => {
+    const { q, all } = await page();
+    const [, vignette] = all('adjust');
+    vignette.value = '50';
+    await vignette.fire('change');
+    const [contrast] = all('adjust');
+    contrast.value = '20';
+    await contrast.fire('change');
+    frames();
+    browser.reads = 0;
+    await q('create').fire('click');
+    await sleep(200);
+    assert.equal(q('result').hidden, false);
+    assert.ok(browser.reads >= 12, `the 4000 × 3000 copy was read in bands of about a megapixel: ${browser.reads}`);
   });
 });

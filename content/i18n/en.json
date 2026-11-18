@@ -954,7 +954,35 @@
         "replaceNo": "Keep working on this one",
         "replaceYes": "Open the new picture",
         "redactLink": "To hide a face or a name, use {link}: it covers them with solid shapes.",
-        "redactLinkText": "Image redaction"
+        "redactLinkText": "Image redaction",
+        "toolAdjust": "Adjust",
+        "toolFilters": "Filters",
+        "compare": "Hold to see the original",
+        "resetOne": "Reset {name}",
+        "resetAll": "Reset all adjustments",
+        "adjustments": {
+          "exposure": "Exposure",
+          "brightness": "Brightness",
+          "contrast": "Contrast",
+          "highlights": "Highlights",
+          "shadows": "Shadows",
+          "saturation": "Saturation",
+          "warmth": "Warmth",
+          "tint": "Tint",
+          "sharpen": "Sharpen",
+          "soften": "Soften the whole photo",
+          "vignette": "Darken the corners"
+        },
+        "presets": {
+          "none": "None",
+          "mono": "Black and white",
+          "sepia": "Sepia",
+          "warm": "Warm",
+          "cool": "Cool",
+          "vivid": "Vivid",
+          "faded": "Faded"
+        },
+        "filtersHelp": "A filter works together with the sliders under Adjust."
       },
       "document": {
         "title": "Document metadata",
