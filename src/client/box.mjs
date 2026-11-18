@@ -92,3 +92,45 @@ export function resizeFromHandle(box, handle, point, min = MIN_BOX) {
   if (handle.includes('s')) bottom = clamp(Math.max(point.y, top + min.y));
   return { ...box, x: left, y: top, w: right - left, h: bottom - top };
 }
+
+/**
+ * The largest box with given proportions inside a box, centred in it.
+ * @template {Box} T
+ * @param {T} box
+ * @param {number} ratio  Wanted width ÷ height, in pixels.
+ * @param {number} aspect  The picture's width ÷ height: fractions of each are not the same length.
+ * @returns {T}
+ */
+export function fitAspect(box, ratio, aspect) {
+  // In units where the picture is `aspect` wide and 1 high, so both sides are measured alike.
+  const [width, height] = [box.w * aspect, box.h];
+  const [w, h] = width / height > ratio ? [height * ratio, height] : [width, width / ratio];
+  return { ...box, x: box.x + (box.w - w / aspect) / 2, y: box.y + (box.h - h) / 2, w: w / aspect, h };
+}
+
+/**
+ * A box with one handle dragged to a point, keeping its proportions: a
+ * corner follows whichever direction the pointer moved further, the opposite
+ * corner stays put; an edge changes the other direction evenly on both sides.
+ * The result may reach past the picture: the caller limits it.
+ * @template {Box} T
+ * @param {T} box
+ * @param {Handle} handle
+ * @param {Point} point
+ * @param {number} ratio  Width ÷ height, in pixels.
+ * @param {number} aspect  The picture's width ÷ height.
+ * @param {Point} [min]
+ * @returns {T}
+ */
+export function resizeWithRatio(box, handle, point, ratio, aspect, min = MIN_BOX) {
+  const free = resizeFromHandle(box, handle, point, min);
+  let [w, h] = [free.w * aspect, free.h];
+  if (handle === 'n' || handle === 's') w = h * ratio;
+  else if (handle === 'e' || handle === 'w') h = w / ratio;
+  else if (w / ratio > h) h = w / ratio;
+  else w = h * ratio;
+  w /= aspect;
+  const x = handle.includes('w') ? box.x + box.w - w : handle.includes('e') ? box.x : box.x + (box.w - w) / 2;
+  const y = handle.includes('n') ? box.y + box.h - h : handle.includes('s') ? box.y : box.y + (box.h - h) / 2;
+  return { ...box, x, y, w, h };
+}

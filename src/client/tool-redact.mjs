@@ -16,10 +16,10 @@ import { initSave } from './save.mjs';
 import { fillText } from './fill.mjs';
 import { boxFromDrag, clamp, handleAt, moveBox, resizeBox, resizeFromHandle } from './box.mjs';
 import { commit, createHistory as historyOf, redo, undo } from './history.mjs';
-import { MAX_PIXELS, canReadBack, encode, examplePicture, exportSize, isAnimated, pixelsOf, release } from './canvas.mjs';
+import { MAX_PIXELS, ZOOMS, canReadBack, encode, examplePicture, exportSize, isAnimated, pinchZoom, pixelsOf, previewSize, release, stepZoom } from './canvas.mjs';
 
 // Moved to shared modules for the other image tools; still exported from here.
-export { boxFromDrag, commit, exportSize, handleAt, isAnimated, moveBox, redo, resizeBox, resizeFromHandle, undo };
+export { ZOOMS, boxFromDrag, commit, exportSize, handleAt, isAnimated, moveBox, pinchZoom, previewSize, redo, resizeBox, resizeFromHandle, stepZoom, undo };
 
 /** @typedef {import('./box.mjs').Box} Box */
 /** @typedef {import('./box.mjs').Point} Point */
@@ -44,10 +44,6 @@ const MIN_SCREEN = 6;
 /** How far an arrow key or a move or resize button changes the selected shape, in CSS pixels on screen. */
 const STEP_SCREEN = 8;
 const MAX_BYTES = 40 * 1024 * 1024;
-/** Width of the editing preview at 100% zoom; the saved copy always uses the full image. */
-const PREVIEW_WIDTH = 1600;
-const PREVIEW_PIXELS = 8_000_000;
-export const ZOOMS = [1, 1.5, 2, 3, 4];
 /** Rounding slack: 0.3 × 1000 is 300.00000000000006, which must not count as a 301st pixel. */
 const TOLERANCE = 1e-6;
 
@@ -161,19 +157,6 @@ export function outputFrame(imageWidth, imageHeight, crop, maxPixels = MAX_PIXEL
 }
 
 /**
- * Size of the editing canvas: sharper when zoomed in, never larger than the
- * image or than a canvas can hold.
- * @param {number} imageWidth
- * @param {number} imageHeight
- * @param {number} zoom
- */
-export function previewSize(imageWidth, imageHeight, zoom) {
-  const width = Math.min(imageWidth, Math.round(PREVIEW_WIDTH * zoom));
-  const size = exportSize(width, Math.max(1, Math.round((width * imageHeight) / imageWidth)), PREVIEW_PIXELS);
-  return { width: size.width, height: size.height };
-}
-
-/**
  * How far, in image pixels, the editor may show a box beyond its exact
  * edge: one preview pixel at the coarsest zoom, because the preview rounds
  * outwards on its own grid. The saved copy grows its boxes by this much, so
@@ -186,29 +169,6 @@ export function previewGrow(imageWidth, imageHeight) {
   const ratio = Math.max(imageWidth / preview.width, imageHeight / preview.height);
   // On the same grid both round the same way.
   return ratio > 1 + TOLERANCE ? ratio : 0;
-}
-
-/**
- * The next zoom level in a direction, or the same one at either end.
- * @param {number} zoom
- * @param {1 | -1} direction
- */
-export function stepZoom(zoom, direction) {
-  const index = ZOOMS.indexOf(zoom);
-  return ZOOMS[Math.min(ZOOMS.length - 1, Math.max(0, (index === -1 ? 0 : index) + direction))];
-}
-
-/**
- * The zoom step nearest to where two fingers have moved since they touched
- * down: spreading them twice as far doubles the zoom.
- * @param {number} zoom  The zoom when the second finger touched down.
- * @param {number} startDistance  The distance between the fingers then.
- * @param {number} distance  The distance now; 0 once a finger has lifted.
- */
-export function pinchZoom(zoom, startDistance, distance) {
-  if (startDistance <= 0 || distance <= 0) return zoom;
-  const wanted = (zoom * distance) / startDistance;
-  return ZOOMS.reduce((best, step) => (Math.abs(Math.log(step / wanted)) < Math.abs(Math.log(best / wanted)) ? step : best));
 }
 
 /** Within this angle of level or upright, a straight line is made exactly level or upright. */

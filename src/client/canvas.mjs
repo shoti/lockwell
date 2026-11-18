@@ -22,6 +22,49 @@ export function exportSize(width, height, maxPixels = MAX_PIXELS) {
   return { width: Math.max(1, Math.floor(width * factor)), height: Math.max(1, Math.floor(height * factor)), scaled: true };
 }
 
+/* ---------- Editing preview and zoom ---------- */
+
+/** Width of the editing preview at 100% zoom; the saved copy always uses the full image. */
+const PREVIEW_WIDTH = 1600;
+const PREVIEW_PIXELS = 8_000_000;
+export const ZOOMS = [1, 1.5, 2, 3, 4];
+
+/**
+ * Size of the editing canvas: sharper when zoomed in, never larger than the
+ * image or than a canvas can hold.
+ * @param {number} imageWidth
+ * @param {number} imageHeight
+ * @param {number} zoom
+ */
+export function previewSize(imageWidth, imageHeight, zoom) {
+  const width = Math.min(imageWidth, Math.round(PREVIEW_WIDTH * zoom));
+  const size = exportSize(width, Math.max(1, Math.round((width * imageHeight) / imageWidth)), PREVIEW_PIXELS);
+  return { width: size.width, height: size.height };
+}
+
+/**
+ * The next zoom level in a direction, or the same one at either end.
+ * @param {number} zoom
+ * @param {1 | -1} direction
+ */
+export function stepZoom(zoom, direction) {
+  const index = ZOOMS.indexOf(zoom);
+  return ZOOMS[Math.min(ZOOMS.length - 1, Math.max(0, (index === -1 ? 0 : index) + direction))];
+}
+
+/**
+ * The zoom step nearest to where two fingers have moved since they touched
+ * down: spreading them twice as far doubles the zoom.
+ * @param {number} zoom  The zoom when the second finger touched down.
+ * @param {number} startDistance  The distance between the fingers then.
+ * @param {number} distance  The distance now; 0 once a finger has lifted.
+ */
+export function pinchZoom(zoom, startDistance, distance) {
+  if (startDistance <= 0 || distance <= 0) return zoom;
+  const wanted = (zoom * distance) / startDistance;
+  return ZOOMS.reduce((best, step) => (Math.abs(Math.log(step / wanted)) < Math.abs(Math.log(best / wanted)) ? step : best));
+}
+
 /* ---------- Animated pictures ---------- */
 
 /**
@@ -86,11 +129,57 @@ export const release = (done) => {
   done.height = 0;
 };
 
-/** @param {HTMLCanvasElement} source @param {string} mime @returns {Promise<Blob>} */
-export const encode = (source, mime) =>
+/** @param {HTMLCanvasElement} source @param {string} mime @param {number} [quality]  0 to 1, for JPEG and WebP. @returns {Promise<Blob>} */
+export const encode = (source, mime, quality = 0.92) =>
   new Promise((resolve, reject) => {
-    source.toBlob((blob) => (blob ? resolve(blob) : reject(new Error(`The browser could not encode the image as ${mime}.`))), mime, 0.92);
+    source.toBlob((blob) => (blob ? resolve(blob) : reject(new Error(`The browser could not encode the image as ${mime}.`))), mime, quality);
   });
+
+/**
+ * Whether this browser can write a format from a canvas. A browser that
+ * can't hands back a PNG instead of failing, so the file's type tells.
+ * @param {string} mime
+ */
+export async function canEncode(mime) {
+  const probe = document.createElement('canvas');
+  [probe.width, probe.height] = [1, 1];
+  try {
+    return (await encode(probe, mime)).type === mime;
+  } catch (error) {
+    console.warn(`[lockwell] This browser could not write a test picture as ${mime}.`, error);
+    return false;
+  } finally {
+    release(probe);
+  }
+}
+
+/**
+ * A smaller copy of a picture, halved step by step: one large reduction in a
+ * single drawImage leaves jagged edges in some browsers. The caller releases it.
+ * @param {CanvasImageSource & { width: number, height: number }} source
+ * @param {number} width
+ * @param {number} height
+ * @returns {HTMLCanvasElement}
+ */
+export function downscale(source, width, height) {
+  /** @type {CanvasImageSource} */
+  let current = source;
+  let [w, h] = [source.width, source.height];
+  /** @type {HTMLCanvasElement | null} */
+  let made = null;
+  do {
+    [w, h] = [Math.max(width, Math.ceil(w / 2)), Math.max(height, Math.ceil(h / 2))];
+    const next = document.createElement('canvas');
+    [next.width, next.height] = [w, h];
+    const context = /** @type {CanvasRenderingContext2D} */ (next.getContext('2d'));
+    context.imageSmoothingQuality = 'high';
+    context.drawImage(current, 0, 0, w, h);
+    if (made) release(made);
+    made = next;
+    current = next;
+  } while (w > width || h > height);
+  return made;
+}
 
 /**
  * The pixels of a decoded picture, read back from a canvas.

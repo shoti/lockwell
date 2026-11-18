@@ -63,6 +63,13 @@ export const icons = {
   circle: icon('<ellipse cx="12" cy="12" rx="8.5" ry="7"/>'),
   pen: icon('<path d="m4 20 1-4.5L16.5 4a2.1 2.1 0 0 1 3 3L8 18.5 4 20Z"/><path d="m14.5 6 3 3"/>'),
   crop: icon('<path d="M7 3v14h14"/><path d="M3 7h14v14"/>'),
+  sliders: icon('<path d="M4 6h3M11 6h9M4 12h9M17 12h3M4 18h1M9 18h11"/><circle cx="9" cy="6" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="7" cy="18" r="2"/>'),
+  rotateLeft: icon('<rect x="10" y="10" width="10" height="10" rx="1.5"/><path d="M4.5 10a7 7 0 0 1 9-5.5"/><path d="M4 5.5V10h4.5"/>'),
+  rotateRight: icon('<rect x="4" y="10" width="10" height="10" rx="1.5"/><path d="M19.5 10a7 7 0 0 0-9-5.5"/><path d="M20 5.5V10h-4.5"/>'),
+  flipH: icon('<path d="M12 3.5v17"/><path d="M9 7 4 17h5V7Z"/><path d="m15 7 5 10h-5V7Z"/>'),
+  flipV: icon('<path d="M3.5 12h17"/><path d="M7 9 17 4v5H7Z"/><path d="m7 15 10 5v-5H7Z"/>'),
+  resize: icon('<path d="M14 4h6v6M10 20H4v-6M20 4l-6.5 6.5M4 20l6.5-6.5"/>'),
+  swap: icon('<rect x="4" y="7" width="9" height="13" rx="1.5"/><path d="M16 4.5h1.5a2.5 2.5 0 0 1 2.5 2.5v4"/><path d="m17.5 9 2.5 2.5L22.5 9"/>'),
   edit: icon('<path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/>'),
 
   // Guide subjects (the `icon:` front matter key; names listed in GUIDE_ICONS, frontmatter.mjs).

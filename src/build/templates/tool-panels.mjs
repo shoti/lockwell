@@ -306,6 +306,166 @@ function redactPanel(ctx) {
       </div>`;
 }
 
+/** Crop proportions offered by the photo editor, after "free" and "original" (see RATIOS in tool-editor.mjs). */
+const EDITOR_RATIOS = ['1:1', '4:3', '3:4', '3:2', '2:3', '16:9', '9:16'];
+/** Longer sides the photo editor offers in one press, in pixels. */
+const EDITOR_LONG_SIDES = [1080, 1600, 2048, 4096];
+
+/** @param {Ctx} ctx */
+function editorPanel(ctx) {
+  const { t } = ctx;
+  /** @param {string} key */
+  const s = (key) => t(`tools.items.editor.${key}`);
+  /** @param {string} name @param {SafeHtml} icon @param {string} label */
+  const action = (name, icon, label) =>
+    html`<button class="button button--ghost button--small" type="button" data-js="editor-${name}">${icon}<span>${label}</span></button>`;
+  /** A button that shows only an icon; its name is read out and shown on hover. @param {string} name @param {SafeHtml} icon @param {string} label */
+  const iconAction = (name, icon, label) =>
+    html`<button class="button button--ghost button--small button--icon" type="button" aria-label="${label}" title="${label}" data-js="editor-${name}">${icon}</button>`;
+  /** @param {string} key @param {SafeHtml} icon @param {string} label */
+  const toolButton = (key, icon, label) =>
+    html`<button class="button button--ghost button--small" type="button" aria-pressed="${key === 'crop' ? 'true' : 'false'}" data-js="editor-tool" data-tool="${key}">${icon}<span>${label}</span></button>`;
+  /** @param {string} name  data-js name, and the id after "editor__". @param {string} label @param {string} min @param {string} max */
+  const numberField = (name, label, min, max) => html`<div class="field editor__number">
+              <label class="field__label" for="editor__${name}">${label}</label>
+              <input class="input" type="number" inputmode="numeric" id="editor__${name}" min="${min}" max="${max}" step="1" data-js="editor-${name}">
+            </div>`;
+  const [linkBefore, linkAfter] = s('redactLink').split('{link}');
+  return html`<div class="field">
+        <label class="field__label" for="editor__file">${s('file')}</label>
+        ${filePicker(ctx, 'editor__file', 'editor-file', 'image/*')}
+        <p class="facts__why">${s('pasteHint')}</p>
+        <div class="tool__actions">
+          <button class="button button--ghost button--small" type="button" data-js="editor-example">${icons.eye}<span>${t('tools.example')}</span></button>
+        </div>
+      </div>
+      <div class="tool__note editor__replace" role="alertdialog" aria-labelledby="editor__replace" data-js="editor-replace" hidden>
+        <p id="editor__replace">${s('replaceText')}</p>
+        <div class="tool__actions">
+          <button class="button button--small" type="button" data-js="editor-replace-no">${s('replaceNo')}</button>
+          <button class="button button--ghost button--small" type="button" data-js="editor-replace-yes">${s('replaceYes')}</button>
+        </div>
+      </div>
+      <p class="tool__message" role="status" data-js="editor-message" data-unsupported="${s('unsupported')}" data-too-large="${s('tooLarge')}" data-resized="${s('resized')}" data-animated="${s('animated')}" data-encode-failed="${s('encodeFailed')}" data-blocked="${s('blocked')}"></p>
+      <div class="editor" data-js="editor-editor" hidden>
+        <div class="editor__stage">
+          <div class="editor__bar">
+            <div class="tool__actions">
+              ${action('undo', icons.undo, s('undo'))}
+              ${action('redo', icons.redo, s('redo'))}
+            </div>
+            <div class="tool__actions editor__zoom">
+              ${iconAction('zoom-out', icons.minus, s('zoomOut'))}
+              <span class="editor__zoom-value" data-js="editor-zoom-value" translate="no">100%</span>
+              ${iconAction('zoom-in', icons.plus, s('zoomIn'))}
+            </div>
+            ${action('reset', icons.refresh, s('reset'))}
+          </div>
+          <div class="editor__view" data-zoom="1" data-js="editor-view">
+            <canvas class="editor__canvas" tabindex="0" role="application" aria-label="${s('canvas')}" aria-describedby="editor__help" data-js="editor-canvas"></canvas>
+          </div>
+          <p class="tool__status" role="status" data-js="editor-status" data-template="${s('status')}"></p>
+          <p class="facts__why" id="editor__help">${s('help')}</p>
+        </div>
+        <div class="editor__controls">
+          <div class="tool__actions" role="group" aria-label="${s('tools')}">
+            ${toolButton('crop', icons.crop, s('toolCrop'))}
+            ${toolButton('resize', icons.resize, s('toolResize'))}
+          </div>
+          <div class="editor__panel" data-js="editor-panel" data-tool="crop">
+            <div class="tool__actions" role="group" aria-label="${s('turnGroup')}">
+              ${iconAction('rotate-left', icons.rotateLeft, s('rotateLeft'))}
+              ${iconAction('rotate-right', icons.rotateRight, s('rotateRight'))}
+              ${iconAction('flip-h', icons.flipH, s('flipH'))}
+              ${iconAction('flip-v', icons.flipV, s('flipV'))}
+            </div>
+            <div class="field">
+              <label class="field__label" for="editor__angle">${s('straighten')}</label>
+              <div class="editor__row">
+                <input class="range" type="range" id="editor__angle" min="-45" max="45" step="0.1" value="0" data-js="editor-angle">
+                <input class="input editor__degrees" type="number" inputmode="decimal" min="-45" max="45" step="0.1" value="0" aria-label="${s('straightenDegrees')}" data-js="editor-angle-number">
+                ${iconAction('angle-reset', icons.refresh, s('straightenReset'))}
+              </div>
+            </div>
+            <div class="field">
+              <label class="field__label" for="editor__aspect">${s('aspect')}</label>
+              <div class="editor__row">
+                <select class="select" id="editor__aspect" data-js="editor-aspect">
+                  <option value="free">${s('aspectFree')}</option>
+                  <option value="original">${s('aspectOriginal')}</option>
+                  ${EDITOR_RATIOS.map((ratio) => html`<option value="${ratio}">${ratio}</option>`)}
+                </select>
+                ${iconAction('aspect-swap', icons.swap, s('aspectSwap'))}
+              </div>
+            </div>
+            <div class="editor__bar">
+              <div class="tool__actions" role="group" aria-label="${s('moveGroup')}">
+                ${iconAction('move-left', icons.arrowLeft, s('moveLeft'))}
+                ${iconAction('move-up', icons.arrowUp, s('moveUp'))}
+                ${iconAction('move-down', icons.arrowDown, s('moveDown'))}
+                ${iconAction('move-right', icons.arrowRight, s('moveRight'))}
+              </div>
+              <div class="tool__actions" role="group" aria-label="${s('sizeGroup')}">
+                ${iconAction('narrower', icons.narrower, s('narrower'))}
+                ${iconAction('wider', icons.wider, s('wider'))}
+                ${iconAction('shorter', icons.shorter, s('shorter'))}
+                ${iconAction('taller', icons.taller, s('taller'))}
+              </div>
+            </div>
+            <div class="tool__actions">
+              ${action('uncrop', icons.crop, s('removeCrop'))}
+            </div>
+          </div>
+          <div class="editor__panel" data-js="editor-panel" data-tool="resize" hidden>
+            <div class="editor__sizes">
+              ${numberField('width', s('width'), '1', '100000')}
+              ${numberField('height', s('height'), '1', '100000')}
+            </div>
+            ${option('editor__lock', 'editor-lock', s('lock'), true)}
+            ${numberField('percent', s('percent'), '1', '1000')}
+            <div class="tool__actions" role="group" aria-label="${s('longGroup')}">
+              ${EDITOR_LONG_SIDES.map((side) => html`<button class="button button--ghost button--small" type="button" data-js="editor-long" data-size="${String(side)}">${s('longSide').replace('{n}', String(side))}</button>`)}
+            </div>
+            <div class="tool__actions">
+              ${action('original', icons.refresh, s('original'))}
+            </div>
+            <p class="tool__status" role="status" data-js="editor-size-note" data-enlarged="${s('enlarged')}" data-limit="${s('limit')}"></p>
+          </div>
+        </div>
+        <div class="editor__save" role="group" aria-labelledby="editor__save">
+          <p class="field__label" id="editor__save">${s('saveTitle')}</p>
+          <div class="tool__actions" role="radiogroup" aria-label="${s('format')}">
+            ${radio('editor-format', 'editor__jpeg', 'image/jpeg', 'editor-format', 'JPEG', true)}
+            ${radio('editor-format', 'editor__png', 'image/png', 'editor-format', 'PNG', false)}
+            ${radio('editor-format', 'editor__webp', 'image/webp', 'editor-format', 'WebP', false)}
+          </div>
+          <p class="tool__status" data-js="editor-format-note" data-no-webp="${s('noWebp')}"></p>
+          <div class="field">
+            <label class="field__label" for="editor__quality">${s('quality')}</label>
+            <div class="editor__row">
+              <input class="range" type="range" id="editor__quality" min="1" max="100" step="1" value="92" data-js="editor-quality">
+              <span class="editor__quality-value" data-js="editor-quality-value" translate="no">92</span>
+            </div>
+          </div>
+          <div class="tool__actions">
+            <button class="button button--small" type="button" data-js="editor-create">${icons.eye}<span>${s('create')}</span></button>
+          </div>
+          <div class="editor__result" tabindex="-1" role="group" aria-labelledby="editor__result" data-js="editor-result" hidden>
+            <p class="field__label" id="editor__result">${s('resultTitle')}</p>
+            <p class="facts__why">${s('resultHelp')}</p>
+            <canvas class="editor__saved" data-js="editor-result-canvas"></canvas>
+            <p class="facts__why" data-js="editor-result-info" data-kb="${s('kb')}" data-mb="${s('mb')}" translate="no"></p>
+            ${saveBox(ctx, s('download'))}
+            <div class="tool__actions">
+              <button class="button button--ghost button--small" type="button" data-js="editor-copy" data-done="${s('copied')}" data-failed="${s('copyFailed')}">${icons.copy}<span>${s('copyImage')}</span></button>
+            </div>
+            <p class="tool__status" role="status" data-js="editor-result-status"></p>
+          </div>
+        </div>
+      </div>
+      <p class="facts__why">${linkBefore}<a href="${ctx.url('/tools/image-redaction/')}">${s('redactLinkText')}</a>${linkAfter ?? ''}</p>`;
+}
+
 /**
  * Rows of the photo report, in the order they are listed: named values (see
  * Findings.fields in tool-photo.mjs), then kinds of data that are only named.
@@ -854,6 +1014,7 @@ export const PANELS = {
   links: linksPanel,
   check: checkPanel,
   redact: redactPanel,
+  editor: editorPanel,
   document: documentPanel,
   hidden: hiddenPanel,
   photo: photoPanel,

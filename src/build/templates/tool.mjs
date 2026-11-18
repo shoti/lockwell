@@ -31,7 +31,7 @@ export function toolPage(ctx, tool) {
 
   const body = html`<div class="container page">
   ${breadcrumbs(ctx, [{ name: t('nav.home'), route: '/' }, { name: t('nav.tools'), route: '/tools/' }, { name }])}
-  <div class="tool-page">
+  <div class="tool-page${tool.wide ? ' tool-page--wide' : ''}">
     <header class="page-header">
       <h1 class="page-header__title">${name}</h1>
       <p class="lead">${t(`tools.items.${tool.key}.summary`)}</p>
