@@ -12,12 +12,14 @@
 /**
  * @typedef {object} Tool
  * @property {string} slug  URL: /tools/<slug>/
- * @property {'password' | 'links' | 'check' | 'photo' | 'video' | 'attachment' | 'redact' | 'document' | 'hidden' | 'browser'} key  UI strings group, panel and client module.
- * @property {'key' | 'link' | 'shield' | 'image' | 'film' | 'paperclip' | 'marker' | 'file' | 'eye' | 'monitor'} icon
+ * @property {'password' | 'links' | 'check' | 'photo' | 'video' | 'attachment' | 'redact' | 'editor' | 'document' | 'hidden' | 'browser'} key  UI strings group, panel and client module.
+ * @property {'key' | 'link' | 'shield' | 'image' | 'film' | 'paperclip' | 'marker' | 'sliders' | 'file' | 'eye' | 'monitor'} icon
  * @property {number} notes  How many "tools.items.<key>.note<N>" paragraphs explain the tool.
  * @property {number} ai  How many "tools.items.<key>.ai<N>" paragraphs say how the tool compares with asking an AI service (0: no such section).
  * @property {boolean} [requests]  The tool can make a request to its own host when the visitor asks (the browser
  *   check's IP lookup): its page allows connect-src 'self' and says so in "tools.items.<key>.local".
+ * @property {boolean} [wide]  The tool needs room (a picture beside its controls): its section may use the page's
+ *   full width from 64rem, while the text around it keeps the reading width.
  */
 
 /** How many tools the home page shows (the first ones in TOOLS). */
@@ -31,6 +33,7 @@ export const TOOLS = [
   { slug: 'browser-check', key: 'browser', icon: 'monitor', notes: 3, ai: 0, requests: true },
   { slug: 'link-cleaner', key: 'links', icon: 'link', notes: 3, ai: 0 },
   { slug: 'image-redaction', key: 'redact', icon: 'marker', notes: 5, ai: 2 },
+  { slug: 'image-editor', key: 'editor', icon: 'sliders', notes: 5, ai: 2, wide: true },
   { slug: 'document-metadata', key: 'document', icon: 'file', notes: 4, ai: 1 },
   { slug: 'hidden-characters', key: 'hidden', icon: 'eye', notes: 3, ai: 2 },
   { slug: 'video-metadata', key: 'video', icon: 'film', notes: 5, ai: 1 },
@@ -42,7 +45,7 @@ export const TOOLS = [
  * @type {{ key: 'share' | 'suspicious' | 'device', tools: Tool['key'][] }[]}
  */
 export const TOOL_GROUPS = [
-  { key: 'share', tools: ['photo', 'video', 'redact', 'document', 'links', 'hidden'] },
+  { key: 'share', tools: ['photo', 'video', 'redact', 'editor', 'document', 'links', 'hidden'] },
   { key: 'suspicious', tools: ['check', 'attachment'] },
   { key: 'device', tools: ['password', 'browser'] },
 ];

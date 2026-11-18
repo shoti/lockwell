@@ -14,6 +14,7 @@ const LOADERS = {
   links: () => import('./tool-links.mjs'),
   check: () => import('./tool-check.mjs'),
   redact: () => import('./tool-redact.mjs'),
+  editor: () => import('./tool-editor.mjs'),
   document: () => import('./tool-document.mjs'),
   hidden: () => import('./tool-hidden.mjs'),
   photo: () => import('./tool-photo.mjs'),

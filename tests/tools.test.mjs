@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import { after, before, describe, it } from 'node:test';
 import { build } from '../src/build/build.mjs';
 import { TOOLS, TOOL_GROUPS } from '../src/build/tools.mjs';
+import { ADJUSTMENTS, PRESETS } from '../src/client/editor-color.mjs';
 import { FONTS, TRACE_URL, autofillLeak, browserFacts, canvasNoise, canvasPattern, compareFacts, detectFonts, detectProtections, fingerprintSource, layoutSample, parseTrace, protectionNotes, rememberedFacts, utcOffset } from '../src/client/tool-browser.mjs';
 import { imitatedBrand, inspectLink, nestedDomain, oneEditApart, punycodeDecode, scriptTrick, siteOf, unicodeHost } from '../src/client/tool-check.mjs';
 import { KINDS as HIDDEN_KINDS } from '../src/client/tool-hidden.mjs';
@@ -638,6 +639,22 @@ describe('image redaction', () => {
     const source = await readFile(new URL('../src/client/tool-redact.mjs', import.meta.url), 'utf8');
     assert.doesNotMatch(source, /fetch\(|XMLHttpRequest|sendBeacon|WebSocket|localStorage|sessionStorage|location\./);
     assert.doesNotMatch(source, /context\.filter/, 'solid boxes only: no blur');
+  });
+
+  it('shows keyboard focus on the picture of both image tools around the scrolling view, where it can’t be cut off', async () => {
+    const css = await readFile(new URL('../src/styles/05-components.css', import.meta.url), 'utf8');
+    for (const tool of ['redact', 'editor']) {
+      const rule = new RegExp(`\\.${tool}__view:has\\(\\.${tool}__canvas:focus-visible\\)[^{]*\\{[^}]*outline: 3px solid var\\(--color-focus\\);`);
+      assert.match(css, rule, tool);
+    }
+  });
+
+  it('keeps the image in the page in the modules it shares with other image tools, and in the photo editor', async () => {
+    for (const name of ['box.mjs', 'history.mjs', 'canvas.mjs', 'editor-matrix.mjs', 'editor-doc.mjs', 'editor-color.mjs', 'editor-layers.mjs', 'editor-render.mjs', 'tool-editor.mjs']) {
+      const source = await readFile(new URL(`../src/client/${name}`, import.meta.url), 'utf8');
+      assert.doesNotMatch(source, /fetch\(|XMLHttpRequest|sendBeacon|WebSocket|localStorage|sessionStorage|location\./, name);
+      assert.doesNotMatch(source, /context\.filter/, `${name}: no blur`);
+    }
   });
 });
 
@@ -1384,6 +1401,42 @@ describe('tool pages', () => {
     }
     const css = await read('assets/site.css');
     for (const zoom of ZOOMS.filter((zoom) => zoom !== 1)) assert.ok(css.includes(`.redact__view[data-zoom="${zoom}"] .redact__canvas`), `a width for zoom ${zoom}`);
+  });
+
+  it('photo editor page holds every control and message its code uses, and nothing styled inline', async () => {
+    const code = await readFile(new URL('../src/client/tool-editor.mjs', import.meta.url), 'utf8');
+    const names = new Set([...code.matchAll(/(?:find|button|input)\('([a-z-]+)'\)/g)].map((m) => m[1]));
+    for (const name of ['move-left', 'move-right', 'move-up', 'move-down', 'narrower', 'wider', 'shorter', 'taller', 'tool', 'panel', 'format', 'long']) names.add(name);
+    assert.ok(names.size > 40, `found the names in the code (${names.size})`);
+    for (const lang of ['', 'en/']) {
+      const page = await read(`${lang}tools/image-editor/index.html`);
+      for (const name of names) assert.match(page, new RegExp(`data-js="editor-${name}"`), `${lang}: ${name}`);
+      for (const tool of ['crop', 'resize', 'adjust', 'filters', 'text', 'draw']) {
+        assert.match(page, new RegExp(`data-js="editor-tool" data-tool="${tool}"`), tool);
+        assert.match(page, new RegExp(`data-js="editor-panel" data-tool="${tool}"`), tool);
+      }
+      for (const [key, min] of ADJUSTMENTS) {
+        assert.match(page, new RegExp(`min="${min}" max="100" step="1" value="0" data-js="editor-adjust" data-key="${key}"`), `${lang}: slider ${key}`);
+        for (const name of ['adjust-number', 'adjust-reset']) assert.match(page, new RegExp(`data-js="editor-${name}" data-key="${key}"`), `${lang}: ${name} ${key}`);
+      }
+      for (const preset of Object.keys(PRESETS)) assert.match(page, new RegExp(`data-js="editor-preset" data-preset="${preset}">[^<]+</button>`), `${lang}: filter ${preset}`);
+      for (const shape of ['pen', 'highlighter', 'line', 'arrow', 'rect', 'ellipse']) assert.match(page, new RegExp(`data-js="editor-shape" data-shape="${shape}">`), `${lang}: shape ${shape}`);
+      for (const name of ['text-size', 'text-opacity', 'stroke-width', 'stroke-opacity']) assert.match(page, new RegExp(`data-js="editor-${name}-number"`), `${lang}: ${name} number`);
+      for (const target of ['text-color', 'stroke']) assert.match(page, new RegExp(`aria-label="[^"]+" title="[^"]+" data-js="editor-swatch" data-for="${target}" data-color="#[0-9a-f]{6}"`), `${lang}: swatches for ${target}`);
+      assert.match(page, /<textarea class="textarea" id="editor__text" rows="3" dir="auto" data-js="editor-text" data-new-text="[^"]+">/, `${lang}: text typed in a real field`);
+      for (const message of ['none', 'text', 'drawing']) assert.match(page, new RegExp(`data-js="editor-selected"[^>]* data-${message}="[^"]+"`), `${lang}: selected ${message}`);
+      for (const format of ['image/jpeg', 'image/png', 'image/webp']) assert.match(page, new RegExp(`value="${format}" data-js="editor-format"`), format);
+      for (const message of ['unsupported', 'too-large', 'resized', 'animated', 'encode-failed', 'blocked', 'template', 'enlarged', 'limit', 'no-webp', 'kb', 'mb', 'done', 'failed']) assert.match(page, new RegExp(`data-${message}="[^"]+"`), `${lang}: ${message}`);
+      assert.match(page, /data-limit="[^"]*\{w\} × \{h\}/, 'the limit says the size');
+      for (const button of page.matchAll(/<button class="[^"]*button--icon"[^>]*>/g)) assert.match(button[0], /aria-label="[^"]+" title="[^"]+"/, `${lang}: ${button[0]}`);
+      const tool = /<section class="tool js-only"[\s\S]*?<\/section>/.exec(page)?.[0] ?? '';
+      assert.doesNotMatch(tool, /\sstyle=/, 'no inline styles (CSP)');
+      assert.match(tool, /<a href="[^"]*\/tools\/image-redaction\/">/, 'points to Image redaction for hiding things');
+      assert.match(page, /<div class="tool-page tool-page--wide">/);
+    }
+    const css = await read('assets/site.css');
+    for (const zoom of ZOOMS.filter((zoom) => zoom !== 1)) assert.ok(css.includes(`.editor__view[data-zoom="${zoom}"] .editor__canvas`), `a width for zoom ${zoom}`);
+    assert.match(css, /\.tool-page--wide > \.tool \{\s*max-width: none;/);
   });
 
   it('pages say how the tool compares with asking an AI service, where that matters', async () => {

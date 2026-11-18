@@ -2338,6 +2338,12 @@
     max-block-size: 80vh;
   }
 
+  /* The canvas's own focus ring would be cut off by the scrolling box: the box shows it instead. */
+  .redact__view:has(.redact__canvas:focus-visible) {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
   /* touch-action: none, so dragging a finger draws instead of scrolling the page. */
   .redact__canvas,
   .redact__saved {
@@ -2391,6 +2397,203 @@
   .redact__result {
     padding-block-start: var(--space-4);
     border-block-start: 1px solid var(--color-border);
+  }
+
+  /* A tool that needs room (the photo editor): from 64rem the tool itself may use the page's width; the text around it keeps the reading width. */
+  .tool-page--wide {
+    max-width: none;
+  }
+
+  .tool-page--wide > * {
+    max-width: 40rem;
+  }
+
+  @media (min-width: 64rem) {
+    .tool-page--wide > .tool {
+      max-width: none;
+    }
+  }
+
+  /* Photo editor: on a phone everything in one column; from 64rem the photo on the left, the controls on the right. */
+  .editor,
+  .editor__stage,
+  .editor__controls,
+  .editor__panel,
+  .editor__save,
+  .editor__result {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4);
+    align-content: start;
+  }
+
+  .editor {
+    gap: var(--space-6);
+  }
+
+  @media (min-width: 64rem) {
+    .editor {
+      grid-template-columns: minmax(0, 1fr) 20rem;
+    }
+
+    .editor__save {
+      grid-column: 1 / -1;
+    }
+  }
+
+  .editor__bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+
+  .editor__zoom,
+  .editor__row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .editor__zoom-value,
+  .editor__quality-value {
+    min-inline-size: 3.2em;
+    font-size: var(--step--1);
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+  }
+
+  .editor__row .range {
+    flex: 1;
+    min-inline-size: 0;
+  }
+
+  /* Scoped to the row, or .input's width (declared later) wins. */
+  .editor__row .editor__amount {
+    flex: none;
+    width: 6rem;
+  }
+
+  .editor__colors {
+    flex-wrap: wrap;
+  }
+
+  .editor__color {
+    inline-size: 3rem;
+    block-size: var(--tap);
+    padding: 2px;
+    border: 2px solid var(--color-control-border);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+    cursor: pointer;
+  }
+
+  /* One-press colours: the colours themselves, so they stay the same in both themes. */
+  .editor__swatch {
+    inline-size: 2rem;
+    block-size: 2rem;
+    border: 2px solid var(--color-border-strong);
+    border-radius: var(--radius-full);
+    cursor: pointer;
+  }
+
+  .editor__swatch--black { background: #000000; }
+  .editor__swatch--white { background: #ffffff; }
+  .editor__swatch--red { background: #e53935; }
+  .editor__swatch--orange { background: #fb8c00; }
+  .editor__swatch--yellow { background: #fdd835; }
+  .editor__swatch--green { background: #43a047; }
+  .editor__swatch--blue { background: #1e88e5; }
+
+  .editor__sizes {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-3);
+  }
+
+  /* The photo, which scrolls inside this box once it is zoomed in. */
+  .editor__view {
+    overflow: auto;
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-2);
+  }
+
+  .editor__view:not([data-zoom="1"]) {
+    max-block-size: 80vh;
+  }
+
+  /* The canvas's own focus ring would be cut off by the scrolling box: the box shows it instead. */
+  .editor__view:has(.editor__canvas:focus-visible) {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  /* touch-action: none, so dragging a finger moves the crop instead of scrolling the page. */
+  .editor__canvas,
+  .editor__saved {
+    display: block;
+    width: 100%;
+    max-width: none;
+    height: auto;
+  }
+
+  .editor__canvas {
+    touch-action: none;
+  }
+
+  /* At 100% the whole photo fits on screen, tall ones included. */
+  .editor__view[data-zoom="1"] .editor__canvas {
+    width: auto;
+    max-width: 100%;
+    max-height: 75vh;
+    margin-inline: auto;
+  }
+
+  .editor__view[data-zoom="1.5"] .editor__canvas { width: 150%; }
+  .editor__view[data-zoom="2"] .editor__canvas { width: 200%; }
+  .editor__view[data-zoom="3"] .editor__canvas { width: 300%; }
+  .editor__view[data-zoom="4"] .editor__canvas { width: 400%; }
+
+  .editor__canvas[data-cursor="move"] { cursor: move; }
+  .editor__canvas[data-cursor="ns"] { cursor: ns-resize; }
+  .editor__canvas[data-cursor="ew"] { cursor: ew-resize; }
+  .editor__canvas[data-cursor="nwse"] { cursor: nwse-resize; }
+  .editor__canvas[data-cursor="nesw"] { cursor: nesw-resize; }
+
+  /* The copy at most at its own size, and never taller than the screen. */
+  .editor__saved {
+    width: auto;
+    max-width: 100%;
+    max-height: 75vh;
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-2);
+  }
+
+  .editor__save .field {
+    max-width: 30rem;
+  }
+
+  .editor__save,
+  .editor__result {
+    padding-block-start: var(--space-4);
+    border-block-start: 1px solid var(--color-border);
+  }
+
+  .select {
+    width: 100%;
+    min-height: var(--tap);
+    padding-inline: var(--space-3);
+    border: 2px solid var(--color-control-border);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+    color: inherit;
+  }
+
+  .select:hover {
+    border-color: var(--color-accent);
   }
 
   /* A file is being dragged over the tool. */
