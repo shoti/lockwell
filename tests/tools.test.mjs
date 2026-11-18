@@ -639,6 +639,14 @@ describe('image redaction', () => {
     assert.doesNotMatch(source, /fetch\(|XMLHttpRequest|sendBeacon|WebSocket|localStorage|sessionStorage|location\./);
     assert.doesNotMatch(source, /context\.filter/, 'solid boxes only: no blur');
   });
+
+  it('keeps the image in the page in the modules it shares with other image tools', async () => {
+    for (const name of ['box.mjs', 'history.mjs', 'canvas.mjs']) {
+      const source = await readFile(new URL(`../src/client/${name}`, import.meta.url), 'utf8');
+      assert.doesNotMatch(source, /fetch\(|XMLHttpRequest|sendBeacon|WebSocket|localStorage|sessionStorage|location\./, name);
+      assert.doesNotMatch(source, /context\.filter/, `${name}: no blur`);
+    }
+  });
 });
 
 describe('image redaction: review of 2026-11-13', () => {

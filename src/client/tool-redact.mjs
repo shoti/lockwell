@@ -14,13 +14,15 @@
 import { receiveFiles } from './files.mjs';
 import { initSave } from './save.mjs';
 import { fillText } from './fill.mjs';
+import { boxFromDrag, clamp, handleAt, moveBox, resizeBox, resizeFromHandle } from './box.mjs';
+import { commit, createHistory as historyOf, redo, undo } from './history.mjs';
+import { MAX_PIXELS, canReadBack, encode, examplePicture, exportSize, isAnimated, pixelsOf, release } from './canvas.mjs';
 
-/**
- * A rectangle as fractions of the image (0 to 1), so it means the same on
- * the small preview and on the full-size copy.
- * @typedef {{ x: number, y: number, w: number, h: number }} Box
- */
-/** @typedef {{ x: number, y: number }} Point */
+// Moved to shared modules for the other image tools; still exported from here.
+export { boxFromDrag, commit, exportSize, handleAt, isAnimated, moveBox, redo, resizeBox, resizeFromHandle, undo };
+
+/** @typedef {import('./box.mjs').Box} Box */
+/** @typedef {import('./box.mjs').Point} Point */
 /** @typedef {Box & { type: 'box' | 'ellipse' }} Area */
 /**
  * A freehand stroke.
@@ -28,114 +30,28 @@ import { fillText } from './fill.mjs';
  */
 /** @typedef {Area | Line} Shape */
 /** @typedef {{ shapes: Shape[], crop: Box | null }} Drawing */
-/** @typedef {'nw' | 'ne' | 'se' | 'sw' | 'n' | 'e' | 's' | 'w'} Handle */
+/** @typedef {import('./box.mjs').Handle} Handle */
 /**
  * The part of the image (in image pixels) that is drawn onto a canvas of
  * `width` × `height`.
  * @typedef {{ sx: number, sy: number, sw: number, sh: number, width: number, height: number }} Frame
  */
-/** @typedef {{ entries: Drawing[], index: number, tag: string }} History */
+/** @typedef {import('./history.mjs').History<Drawing>} History */
 /** @typedef {'box' | 'ellipse' | 'marker' | 'crop'} Mode */
 
-/** Smallest box side when no screen size is known, as a fraction of the image. */
-const MIN_SIDE = 0.01;
 /** Smallest box side on screen, in CSS pixels: smaller drags are slips, not boxes. */
 const MIN_SCREEN = 6;
 /** How far an arrow key or a move or resize button changes the selected shape, in CSS pixels on screen. */
 const STEP_SCREEN = 8;
-/** Browsers refuse or mangle canvases beyond this many pixels (about 16 megapixels on iPhones). */
-const MAX_PIXELS = 16_000_000;
-/** Safari refuses canvases longer than this on either side, whatever their area. */
-const MAX_SIDE = 16_384;
 const MAX_BYTES = 40 * 1024 * 1024;
 /** Width of the editing preview at 100% zoom; the saved copy always uses the full image. */
 const PREVIEW_WIDTH = 1600;
 const PREVIEW_PIXELS = 8_000_000;
 export const ZOOMS = [1, 1.5, 2, 3, 4];
-const HISTORY_LIMIT = 100;
 /** Rounding slack: 0.3 × 1000 is 300.00000000000006, which must not count as a 301st pixel. */
 const TOLERANCE = 1e-6;
 
-/** @param {number} value */
-const clamp = (value) => Math.min(1, Math.max(0, value));
-
 /* ---------- Geometry ---------- */
-
-/** @type {Point} */
-const MIN_BOX = { x: MIN_SIDE, y: MIN_SIDE };
-
-/**
- * The box between two corners of a drag, kept inside the image.
- * @param {Point} from
- * @param {Point} to
- * @param {Point} [min]  Smallest side in each direction, as fractions of the image (see `screenFraction`).
- * @returns {Box | null}  null when the drag was too small to be a box.
- */
-export function boxFromDrag(from, to, min = MIN_BOX) {
-  const [x1, x2] = [clamp(Math.min(from.x, to.x)), clamp(Math.max(from.x, to.x))];
-  const [y1, y2] = [clamp(Math.min(from.y, to.y)), clamp(Math.max(from.y, to.y))];
-  const box = { x: x1, y: y1, w: x2 - x1, h: y2 - y1 };
-  return box.w >= min.x && box.h >= min.y ? box : null;
-}
-
-/**
- * @template {Box} T
- * @param {T} box
- * @param {number} dx
- * @param {number} dy
- * @returns {T}  The same size, moved but not past the image's edges.
- */
-export function moveBox(box, dx, dy) {
-  return { ...box, x: Math.min(1 - box.w, Math.max(0, box.x + dx)), y: Math.min(1 - box.h, Math.max(0, box.y + dy)) };
-}
-
-/**
- * @template {Box} T
- * @param {T} box
- * @param {number} dw
- * @param {number} dh
- * @param {Point} [min]  Smallest side in each direction, as fractions of the image.
- * @returns {T}  The same corner, resized between the smallest size and the image's edge.
- */
-export function resizeBox(box, dw, dh, min = MIN_BOX) {
-  return { ...box, w: Math.min(1 - box.x, Math.max(min.x, box.w + dw)), h: Math.min(1 - box.y, Math.max(min.y, box.h + dh)) };
-}
-
-/**
- * The handle of a box under a pointer, if any. Corners win over edges.
- * @param {Box} box
- * @param {Point} point
- * @param {Point} reach  How close counts, as fractions of the image in each direction.
- * @returns {Handle | null}
- */
-export function handleAt(box, point, reach) {
-  const xs = { w: box.x, '': box.x + box.w / 2, e: box.x + box.w };
-  const ys = { n: box.y, '': box.y + box.h / 2, s: box.y + box.h };
-  for (const handle of /** @type {Handle[]} */ (['nw', 'ne', 'se', 'sw', 'n', 'e', 's', 'w'])) {
-    const hx = xs[/** @type {keyof typeof xs} */ (handle.replace(/[ns]/, ''))];
-    const hy = ys[/** @type {keyof typeof ys} */ (handle.replace(/[ew]/, ''))];
-    if (Math.abs(point.x - hx) <= reach.x && Math.abs(point.y - hy) <= reach.y) return handle;
-  }
-  return null;
-}
-
-/**
- * A box with one handle dragged to a point; the opposite side stays put.
- * @template {Box} T
- * @param {T} box
- * @param {Handle} handle
- * @param {Point} point
- * @param {Point} [min]  Smallest side in each direction, as fractions of the image.
- * @returns {T}
- */
-export function resizeFromHandle(box, handle, point, min = MIN_BOX) {
-  let [left, top, right, bottom] = [box.x, box.y, box.x + box.w, box.y + box.h];
-  if (handle.includes('w')) left = clamp(Math.min(point.x, right - min.x));
-  if (handle.includes('e')) right = clamp(Math.max(point.x, left + min.x));
-  if (handle.includes('n')) top = clamp(Math.min(point.y, bottom - min.y));
-  if (handle.includes('s')) bottom = clamp(Math.max(point.y, top + min.y));
-  return { ...box, x: left, y: top, w: right - left, h: bottom - top };
-}
 
 /**
  * The rectangle around a shape.
@@ -224,20 +140,6 @@ export function frameRect(box, imageWidth, imageHeight, frame, grow = 0) {
  */
 export function pixelRect(box, width, height) {
   return frameRect(box, width, height, { sx: 0, sy: 0, sw: width, sh: height, width, height });
-}
-
-/**
- * Size of the saved copy: the image's own size, or scaled down to what a
- * canvas can hold, in area and on each side.
- * @param {number} width
- * @param {number} height
- * @param {number} [maxPixels]
- * @returns {{ width: number, height: number, scaled: boolean }}
- */
-export function exportSize(width, height, maxPixels = MAX_PIXELS) {
-  const factor = Math.min(Math.sqrt(maxPixels / (width * height)), MAX_SIDE / Math.max(width, height));
-  if (factor >= 1) return { width, height, scaled: false };
-  return { width: Math.max(1, Math.floor(width * factor)), height: Math.max(1, Math.floor(height * factor)), scaled: true };
 }
 
 /**
@@ -528,90 +430,17 @@ function inFrame(shape, image, frame) {
   return left + bounds.w * image.width > 0 && top + bounds.h * image.height > 0 && left < frame.sw && top < frame.sh;
 }
 
-/* ---------- Animated pictures ---------- */
-
-/**
- * Whether a picture moves: a GIF with more than one frame, an animated PNG
- * or WebP, or an AVIF or HEIF image sequence. A browser opens only the first
- * frame of these, so that is all the saved copy can hold.
- * @param {Uint8Array} bytes  The file, or at least its start (a GIF needs all of its first frame).
- */
-export function isAnimated(bytes) {
-  const text = (/** @type {number} */ at, /** @type {number} */ length) => String.fromCharCode(...bytes.subarray(at, at + length));
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  if (text(0, 4) === 'GIF8') return gifFrames(bytes) > 1;
-  if (text(1, 3) === 'PNG') {
-    // acTL comes before the first IDAT in an animated PNG.
-    for (let at = 8; at + 8 <= bytes.length; at += 12 + view.getUint32(at)) {
-      const type = text(at + 4, 4);
-      if (type === 'acTL') return true;
-      if (type === 'IDAT') return false;
-    }
-    return false;
-  }
-  if (text(0, 4) === 'RIFF' && text(8, 4) === 'WEBP') return text(12, 4) === 'VP8X' && bytes.length > 20 && (bytes[20] & 0x02) !== 0;
-  if (text(4, 4) === 'ftyp' && bytes.length >= 8) {
-    const size = Math.min(bytes.length, view.getUint32(0));
-    for (let at = 8; at + 4 <= size; at += 4) if (['avis', 'hevs', 'msf1'].includes(text(at, 4))) return true;
-  }
-  return false;
-}
-
-/**
- * Counts a GIF's frames, stopping at the second.
- * @param {Uint8Array} bytes
- */
-function gifFrames(bytes) {
-  /** Skips data sub-blocks from `at`; returns where they end. @param {number} at */
-  const skipBlocks = (at) => {
-    while (at < bytes.length && bytes[at] !== 0) at += bytes[at] + 1;
-    return at + 1;
-  };
-  let at = 13 + (bytes[10] & 0x80 ? 3 * 2 ** ((bytes[10] & 7) + 1) : 0);
-  let frames = 0;
-  while (at < bytes.length && frames < 2) {
-    if (bytes[at] === 0x21) {
-      at = skipBlocks(at + 2);
-    } else if (bytes[at] === 0x2c) {
-      frames += 1;
-      const flags = bytes[at + 9];
-      at += 10 + (flags & 0x80 ? 3 * 2 ** ((flags & 7) + 1) : 0);
-      at = skipBlocks(at + 1); // past the LZW code size
-    } else {
-      break;
-    }
-  }
-  return frames;
-}
-
 /* ---------- Undo and redo ---------- */
 
-/** @param {Drawing} drawing @returns {History} */
-export const createHistory = (drawing) => ({ entries: [drawing], index: 0, tag: '' });
+/**
+ * A history of drawings. Typed here, so a first drawing with no shapes yet
+ * still starts a history that takes shapes later.
+ * @param {Drawing} drawing @returns {History}
+ */
+export const createHistory = (drawing) => historyOf(drawing);
 
 /** @param {History} history */
 export const currentDrawing = (history) => history.entries[history.index];
-
-/**
- * Adds a step. Steps with the same non-empty tag in a row (a run of arrow
- * key presses on one shape) count as one, so undo takes the whole run back.
- * @param {History} history
- * @param {Drawing} drawing
- * @param {string} [tag]
- * @returns {History}
- */
-export function commit(history, drawing, tag = '') {
-  const merge = tag !== '' && tag === history.tag;
-  const kept = history.entries.slice(0, history.index + (merge ? 0 : 1));
-  const entries = [...kept, drawing].slice(-HISTORY_LIMIT);
-  return { entries, index: entries.length - 1, tag };
-}
-
-/** @param {History} history @returns {History} */
-export const undo = (history) => ({ ...history, index: Math.max(0, history.index - 1), tag: '' });
-
-/** @param {History} history @returns {History} */
-export const redo = (history) => ({ ...history, index: Math.min(history.entries.length - 1, history.index + 1), tag: '' });
 
 /* ---------- Drawing ---------- */
 
@@ -735,12 +564,6 @@ export function init(root) {
     if (mode === 'crop') return crop;
     const shape = shapes[selected];
     return shape && shape.type !== 'line' ? shape : null;
-  };
-
-  /** Gives a canvas's memory back to the browser. @param {HTMLCanvasElement} done */
-  const release = (done) => {
-    done.width = 0;
-    done.height = 0;
   };
 
   const hideResult = () => {
@@ -1180,55 +1003,6 @@ export function init(root) {
 
   /* ---------- Result ---------- */
 
-  /** @param {HTMLCanvasElement} source @param {string} mime @returns {Promise<Blob>} */
-  const encode = (source, mime) =>
-    new Promise((resolve, reject) => {
-      source.toBlob((blob) => (blob ? resolve(blob) : reject(new Error(`The browser could not encode the image as ${mime}.`))), mime, 0.92);
-    });
-
-  /**
-   * The pixels of a decoded picture, read back from a canvas.
-   * @param {ImageBitmap} decoded
-   * @param {number} width
-   * @param {number} height
-   */
-  const pixelsOf = (decoded, width, height) => {
-    const reader = document.createElement('canvas');
-    [reader.width, reader.height] = [width, height];
-    try {
-      const context = /** @type {CanvasRenderingContext2D} */ (reader.getContext('2d', { willReadFrequently: true }));
-      context.drawImage(decoded, 0, 0);
-      return context.getImageData(0, 0, width, height).data;
-    } finally {
-      release(reader);
-    }
-  };
-
-  /**
-   * Whether this page may read pixels back from a canvas. Tor Browser,
-   * Mullvad Browser and Firefox with fingerprinting resistance hand back
-   * blank or made-up pixels until the visitor allows it; Brave changes a
-   * few by a little, which the tolerance allows.
-   */
-  const canReadBack = () => {
-    const probe = document.createElement('canvas');
-    [probe.width, probe.height] = [2, 1];
-    try {
-      const context = /** @type {CanvasRenderingContext2D} */ (probe.getContext('2d', { willReadFrequently: true }));
-      context.fillStyle = '#000';
-      context.fillRect(0, 0, 1, 1);
-      context.fillStyle = '#f00';
-      context.fillRect(1, 0, 1, 1);
-      const data = context.getImageData(0, 0, 2, 1).data;
-      return [0, 0, 0, 255, 255, 0, 0, 255].every((value, index) => Math.abs(data[index] - value) <= 8);
-    } catch (error) {
-      console.warn('[lockwell] This browser does not let the page read a canvas back.', error);
-      return false;
-    } finally {
-      release(probe);
-    }
-  };
-
   /** @param {string | undefined} text @param {'ok' | 'warn'} state */
   const showVerdict = (text, state) => {
     verified.textContent = text ?? '';
@@ -1345,46 +1119,4 @@ export function init(root) {
       saved = true;
     });
   }
-}
-
-/**
- * The example picture: a street with a car's number plate, a person and a
- * shop sign, the kinds of things people cover before sharing.
- * @returns {Promise<Blob>}
- */
-async function examplePicture() {
-  const canvas = document.createElement('canvas');
-  [canvas.width, canvas.height] = [960, 640];
-  const context = /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d'));
-  const fill = (/** @type {string} */ colour, /** @type {number[]} */ ...rect) => {
-    context.fillStyle = colour;
-    context.fillRect(rect[0], rect[1], rect[2], rect[3]);
-  };
-  fill('#a9c8e6', 0, 0, 960, 360);
-  fill('#9b9b96', 0, 360, 960, 280);
-  fill('#d8cbb3', 40, 80, 400, 280); // a building
-  fill('#2f5f8a', 90, 140, 300, 60); // its sign
-  context.fillStyle = '#ffffff';
-  context.font = 'bold 36px sans-serif';
-  context.fillText('BAKERY 24', 140, 182);
-  fill('#c23b2e', 520, 400, 340, 110); // a car
-  fill('#c23b2e', 580, 340, 210, 70);
-  fill('#24313d', 600, 352, 170, 50);
-  fill('#ffffff', 625, 470, 150, 34); // its number plate
-  context.fillStyle = '#111111';
-  context.font = 'bold 26px monospace';
-  context.fillText('AA-001-AA', 632, 496);
-  context.fillStyle = '#1d1d1d';
-  for (const x of [580, 800]) {
-    context.beginPath();
-    context.arc(x, 515, 34, 0, Math.PI * 2);
-    context.fill();
-  }
-  // A person: head and body.
-  context.fillStyle = '#e0b48f';
-  context.beginPath();
-  context.arc(330, 300, 38, 0, Math.PI * 2);
-  context.fill();
-  fill('#3d6b4f', 285, 340, 90, 170);
-  return new Promise((resolve, reject) => canvas.toBlob((blob) => (blob ? resolve(blob) : reject(new Error('The browser could not draw the example picture.'))), 'image/png'));
 }
