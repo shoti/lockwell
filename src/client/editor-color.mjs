@@ -268,6 +268,12 @@ function columnPass(from, to, width, height, radius) {
  */
 const scratch = { spare: new Uint8ClampedArray(0), blurred: new Uint8ClampedArray(0) };
 
+/** Gives the kept working space back, once the dragging is over or a copy is made. */
+export function releaseScratch() {
+  scratch.spare = new Uint8ClampedArray(0);
+  scratch.blurred = new Uint8ClampedArray(0);
+}
+
 /**
  * A working array of `length` from the kept space, grown when too small. Its contents are left over: overwrite them.
  * @param {'spare' | 'blurred'} name
@@ -356,15 +362,16 @@ export function processPixels(data, width, height, plan, radius) {
  * @param {object} io
  * @param {(y: number, rows: number) => Uint8ClampedArray} io.read  Rows from y, RGBA.
  * @param {(y: number, rows: number, data: Uint8ClampedArray) => void} io.write
- * @param {number} [io.bandRows]  Rows per band; about a megapixel by default.
+ * @param {number} [io.bandRows]  Rows per band; by default about a megapixel, and at least twice the blur's reach.
  * @param {() => Promise<unknown>} [io.pause]  Between bands.
  * @param {() => boolean} [io.stop]  True when the result is no longer wanted: checked after every pause.
  * @returns {Promise<boolean>}  False when stopped.
  */
 export async function processBands(width, height, plan, radius, { read, write, bandRows, pause = () => new Promise((resolve) => setTimeout(resolve, 0)), stop = () => false }) {
-  const rows = Math.max(1, bandRows ?? Math.floor(1_000_000 / width));
   // How far a pixel's blur reaches: three box passes for soften, one for sharpen.
   const margin = 3 * radius.soften + radius.sharpen;
+  // About a megapixel, but at least twice the reach: a wide picture's thin bands would each be read with far more rows than they hold.
+  const rows = Math.max(1, bandRows ?? Math.max(Math.floor(1_000_000 / width), 2 * margin));
   /** Unchanged rows just above the current band. */
   let above = new Uint8ClampedArray(0);
   for (let top = 0; top < height; top += rows) {

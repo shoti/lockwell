@@ -13,8 +13,8 @@ date its sources were last checked.
   and turned by pointer or keyboard; saves as JPEG, PNG or WebP (WebP only
   where the browser can write it). The saved copy is drawn fresh from the
   photo's pixels, so it has none of the original's hidden data; the preview
-  shows the saved file itself. It offers no blur and points to Image
-  redaction for hiding things.
+  shows the saved file itself. It has no tool for blurring part of a
+  picture and points to Image redaction for hiding things.
 - Shared code for the image tools (box geometry, undo history, canvas
   helpers, zoom) moved out of the image redaction tool; that tool is
   unchanged.

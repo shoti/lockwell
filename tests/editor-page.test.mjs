@@ -33,6 +33,14 @@ const browser = {
   reads: 0,
   /** Canvases the page made, in order: the first two are its photo layer and its colour layer. @type {Element[]} */
   made: [],
+  /** Pixels in each read back to work out colours. @type {number[]} */
+  readSizes: [],
+  /** Each encode: the canvas encoded and the type asked for. @type {{ canvas: Element, type: string }[]} */
+  encoded: [],
+  /** Names of the decoded pictures the page closed. @type {string[]} */
+  closed: [],
+  /** Milliseconds an encode takes. */
+  encodeDelay: 20,
 };
 
 class Element {
@@ -134,7 +142,10 @@ class Element {
       /** @param {number} _x @param {number} _y @param {number} width @param {number} height */
       getImageData: (_x, _y, width, height) => {
         const data = new Uint8ClampedArray(width * height * 4);
-        if (!(width === 2 && height === 1)) browser.reads += 1;
+        if (!(width === 2 && height === 1)) {
+          browser.reads += 1;
+          browser.readSizes.push(width * height);
+        }
         // The probe of canReadBack: a black pixel, then a red one.
         if (browser.readBack && width === 2 && height === 1) data.set([0, 0, 0, 255, 255, 0, 0, 255]);
         return { data };
@@ -175,10 +186,11 @@ class Element {
   /** @param {(blob: Blob) => void} done @param {string} type */
   toBlob(done, type) {
     browser.encodes += 1;
+    browser.encoded.push({ canvas: this, type });
     const written = browser.cannotEncode.has(type) ? 'image/png' : type;
     const blob = new Blob(['x'.repeat(2048)], { type: written });
     const size = browser.decodeAs ?? { width: this.width, height: this.height };
-    setTimeout(() => done(Object.assign(blob, { decodedSize: size })), 20);
+    setTimeout(() => done(Object.assign(blob, { decodedSize: size })), browser.encodeDelay);
   }
 }
 
@@ -215,7 +227,13 @@ Object.assign(g, {
   },
   getComputedStyle: () => ({ getPropertyValue: () => '' }),
   requestAnimationFrame: (/** @type {() => void} */ callback) => queued.push(callback),
-  createImageBitmap: async (/** @type {Blob & { decodedSize?: { width: number, height: number } }} */ blob) => ({ ...(blob.decodedSize ?? { width: 4000, height: 3000 }), close() {} }),
+  /** A file can say what it decodes to, how long that takes, and that it fails. */
+  createImageBitmap: async (/** @type {Blob & { name?: string, decodedSize?: { width: number, height: number }, decodeDelay?: number, broken?: boolean }} */ blob) => {
+    if (blob.decodeDelay) await sleep(blob.decodeDelay);
+    if (blob.broken) throw new Error('not a picture');
+    const name = blob.name ?? 'copy';
+    return { ...(blob.decodedSize ?? { width: 4000, height: 3000 }), name, close: () => browser.closed.push(name) };
+  },
 });
 
 const { init } = await import('../src/client/tool-editor.mjs');
@@ -261,7 +279,7 @@ async function page() {
 
 describe('photo editor page', () => {
   beforeEach(() => {
-    Object.assign(browser, { cannotEncode: new Set(), readBack: true, decodeAs: null, encodes: 0, reads: 0, made: [] });
+    Object.assign(browser, { cannotEncode: new Set(), readBack: true, decodeAs: null, encodes: 0, reads: 0, made: [], readSizes: [], encoded: [], closed: [], encodeDelay: 20 });
     queued.length = 0;
   });
 
@@ -626,5 +644,173 @@ describe('photo editor page', () => {
     await press('undo');
     await press('undo');
     assert.equal(q('selected').textContent, 'none', 'the text it pointed to is gone');
+  });
+
+  /**
+   * A file that decodes to a given size, after a delay, or not at all.
+   * @param {string} name @param {{ width?: number, height?: number, delay?: number, broken?: boolean }} [how]
+   */
+  const picture = (name, { width = 4000, height = 3000, delay = 0, broken = false } = {}) =>
+    Object.assign(new File(['a'], name, { type: 'image/png' }), { decodedSize: { width, height }, decodeDelay: delay, broken });
+
+  /** Where the photo layer's last picture came from: the decoded file's name, through the smaller screen copy if any. */
+  const drawnFrom = () => {
+    /** @type {unknown} */
+    let source = browser.made[0].lastDrawn;
+    while (source instanceof Element) source = source.lastDrawn;
+    return /** @type {{ name?: string } | null} */ (source)?.name;
+  };
+
+  it('opens the picture chosen last when two are chosen quickly, and closes the other', async () => {
+    const { q } = await page();
+    const file = q('file');
+    file.files = [picture('big.jpg', { width: 4898, height: 3265, delay: 40 })];
+    const first = file.fire('change');
+    file.files = [picture('small.png', { width: 800, height: 600 })];
+    await file.fire('change');
+    await first;
+    await sleep(60); // the slow decode has finished too
+    frames();
+    assert.equal(q('status').textContent, '800 × 600', 'the size line is the last choice');
+    assert.equal(drawnFrom(), 'small.png', 'and so is the picture on screen');
+    assert.ok(browser.closed.includes('big.jpg'), 'the earlier picture is closed');
+
+    file.files = [picture('slow.png', { width: 800, height: 600, delay: 40 })];
+    const slow = file.fire('change');
+    file.files = [picture('fast.jpg', { width: 4898, height: 3265 })];
+    await file.fire('change');
+    await slow;
+    await sleep(60);
+    frames();
+    assert.equal(q('status').textContent, '4898 × 3265', 'a slow earlier choice does not replace a later one');
+    assert.equal(drawnFrom(), 'fast.jpg');
+  });
+
+  it('keeps the open picture when the next file can’t be opened', async () => {
+    const { q } = await page();
+    q('file').files = [picture('photo.heic', { broken: true })];
+    await q('file').fire('change');
+    await sleep(10);
+    frames();
+    assert.equal(q('message').textContent, 'unsupported');
+    assert.equal(q('editor').hidden, false, 'the editor still shows the picture');
+    assert.equal(q('status').textContent, '4000 × 3000');
+    assert.deepEqual(browser.closed, [], 'nothing was closed');
+  });
+
+  it('works out colours again at the new size after zooming in', async () => {
+    const { q, all, press } = await page();
+    const [contrast] = all('adjust');
+    contrast.value = '40';
+    await contrast.fire('change');
+    frames();
+    const [photo, colours] = browser.made;
+    await press('zoom-in');
+    frames();
+    assert.equal(colours.width, photo.width, `colour layer ${colours.width} wide, photo layer ${photo.width}`);
+    assert.equal(colours.height, photo.height);
+  });
+
+  it('straightens on a small copy while the slider is dragged, with colours on', async () => {
+    const { q, all } = await page();
+    const [contrast] = all('adjust');
+    contrast.value = '40';
+    await contrast.fire('change');
+    frames();
+    browser.readSizes = [];
+    for (const angle of ['2', '4', '6']) {
+      q('angle').value = angle;
+      await q('angle').fire('input');
+      frames();
+    }
+    assert.ok(browser.readSizes.length > 0 && browser.readSizes.every((pixels) => pixels <= 500_000), `reads while dragging: ${browser.readSizes.join(', ')}`);
+    await q('angle').fire('change');
+    frames();
+    assert.equal(browser.made[1].width, browser.made[0].width, 'full size once let go');
+  });
+
+  it('encodes the copy drawn for the format asked for, when quality changes while the format changes', async () => {
+    const { q, all } = await page();
+    await q('create').fire('click');
+    await sleep(60);
+    const pngCanvas = browser.encoded.at(-1)?.canvas;
+    // The JPEG copy takes longer than the wait before a quality change re-encodes, as a large picture does.
+    browser.encodeDelay = 600;
+    const [jpeg] = all('format');
+    for (const format of all('format')) format.checked = format === jpeg;
+    const switching = jpeg.fire('change');
+    await sleep(20);
+    q('quality').value = '50';
+    await q('quality').fire('input');
+    browser.encodeDelay = 20;
+    await switching;
+    await sleep(1000);
+    const last = browser.encoded.at(-1);
+    assert.equal(last?.type, 'image/jpeg');
+    assert.notEqual(last?.canvas, pngCanvas, 'a JPEG is not encoded from the canvas drawn for PNG (no white under transparency)');
+    assert.match(q('result-info').textContent, /JPEG/);
+  });
+
+  it('makes the copy in the format chosen while the first copy was being made', async () => {
+    const { q, all } = await page();
+    const create = q('create').fire('click');
+    const [jpeg] = all('format');
+    for (const format of all('format')) format.checked = format === jpeg;
+    await jpeg.fire('change');
+    await create;
+    await sleep(120);
+    assert.equal(q('result').hidden, false);
+    assert.match(q('result-info').textContent, /JPEG/, q('result-info').textContent);
+  });
+
+  it('zooms with + and − in the Text and Draw tools too', async () => {
+    const p = await page();
+    await chooseTool(p, 'text');
+    await p.canvas.fire('keydown', { key: '+', code: 'Equal' });
+    frames();
+    assert.equal(p.q('zoom-value').textContent, '150%');
+    await p.canvas.fire('keydown', { key: '-', code: 'Minus' });
+    frames();
+    assert.equal(p.q('zoom-value').textContent, '100%');
+  });
+
+  it('keeps the copy when Ctrl+Z has nothing to undo', async () => {
+    const { q, canvas } = await page();
+    await q('create').fire('click');
+    await sleep(60);
+    assert.equal(q('result').hidden, false);
+    await canvas.fire('keydown', { key: 'z', code: 'KeyZ', ctrlKey: true });
+    frames();
+    assert.equal(q('result').hidden, false);
+  });
+
+  it('writes the live lines only when they change, and the size once a drag ends', async () => {
+    const { q, canvas, pointer } = await page();
+    /** Counts writes to an element's text. @param {Element} element */
+    const count = (element) => {
+      let text = element.textContent;
+      const writes = { n: 0 };
+      Object.defineProperty(element, 'textContent', {
+        get: () => text,
+        set: (value) => {
+          writes.n += 1;
+          text = value;
+        },
+      });
+      return writes;
+    };
+    const [status, selected, sizeNote] = [count(q('status')), count(q('selected')), count(q('size-note'))];
+    await canvas.fire('pointerdown', pointer(1, 790, 590));
+    for (let step = 1; step <= 5; step += 1) {
+      await canvas.fire('pointermove', pointer(1, 790 - step * 20, 590 - step * 20));
+      frames();
+    }
+    assert.equal(status.n, 0, 'the size line waits for the drag to end');
+    assert.equal(selected.n, 0);
+    assert.equal(sizeNote.n, 0);
+    await canvas.fire('pointerup', pointer(1, 690, 490));
+    frames();
+    assert.equal(status.n, 1);
+    assert.notEqual(q('status').textContent, '4000 × 3000');
   });
 });

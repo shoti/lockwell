@@ -22,7 +22,7 @@ import {
   cleanAngle, cropFromView, cropSize, cropToView, effectiveCrop, emptyDoc, fitCrop, flipDoc, isUnchanged, keepLongSide, limitCrop, orientedSize,
   outputSize, rotatedBounds, turnDoc, viewMatrix, wholeMatrix, wholeView, outputMatrix,
 } from './editor-doc.mjs';
-import { ADJUSTMENTS, colorPlan, isPlain, noAdjust } from './editor-color.mjs';
+import { ADJUSTMENTS, colorPlan, isPlain, noAdjust, releaseScratch } from './editor-color.mjs';
 import { adjustCanvasNow, drawLayers, drawPhoto, drawVignette, loadFonts, renderDoc } from './editor-render.mjs';
 
 /** @typedef {import('./box.mjs').Box} Box */
@@ -176,6 +176,8 @@ export function init(root) {
   let output = null;
   /** Counts copies being made: one that is no longer the latest, or whose picture or edit changed meanwhile, is dropped. */
   let makes = 0;
+  /** The latest copy asked for is still being made: a new format or quality then makes it again. */
+  let making = false;
   let saved = false;
   /** @type {File | null} */
   let pending = null;
@@ -405,6 +407,8 @@ export function init(root) {
     context.drawImage(photo, 0, 0, size.width, size.height);
     const frameOn = copyFrame(size);
     adjustCanvasNow(adjusted, pixels, { longSide: Math.max(frameOn.w, frameOn.h) });
+    // Kept while dragging, so frames don't allocate; given back once the full-size preview is done.
+    if (!drafting) releaseScratch();
     shown = adjusted;
   };
 
@@ -451,13 +455,27 @@ export function init(root) {
     }
   };
 
+  /**
+   * A screen reader reads a live line out each time it is written: write it
+   * only when its text changes.
+   * @param {HTMLElement} line
+   * @param {string} text
+   */
+  const say = (line, text) => {
+    if (line.textContent !== text) line.textContent = text;
+  };
+
   /** Fills in values and turns controls on or off to match the edit. */
   const showState = () => {
     if (!image) return;
     const current = doc();
     const size = outputSize(current, image);
     const crop = cropSize(current, image);
-    status.textContent = fillText(status.dataset.template, { w: String(size.width), h: String(size.height) });
+    // The live lines follow finished steps, not every frame of a drag.
+    const committed = history.entries[history.index];
+    const kept = outputSize(committed, image);
+    const keptCrop = cropSize(committed, image);
+    say(status, fillText(status.dataset.template, { w: String(kept.width), h: String(kept.height) }));
     button('undo').disabled = history.index === 0;
     button('redo').disabled = history.index === history.entries.length - 1;
     button('reset').disabled = isUnchanged(history.entries[history.index]);
@@ -483,9 +501,9 @@ export function init(root) {
     button('uncrop').disabled = current.crop === null;
     button('aspect-swap').disabled = !(aspect.value in SWAPPED);
     button('original').disabled = current.size === null;
-    const enlarged = size.width > crop.width || size.height > crop.height;
-    const limited = exportSize(current.size?.width ?? crop.width, current.size?.height ?? crop.height).scaled;
-    sizeNote.textContent = [enlarged ? sizeNote.dataset.enlarged : '', limited ? fillText(sizeNote.dataset.limit, { w: String(size.width), h: String(size.height) }) : ''].filter(Boolean).join(' ');
+    const enlarged = kept.width > keptCrop.width || kept.height > keptCrop.height;
+    const limited = exportSize(committed.size?.width ?? keptCrop.width, committed.size?.height ?? keptCrop.height).scaled;
+    say(sizeNote, [enlarged ? sizeNote.dataset.enlarged : '', limited ? fillText(sizeNote.dataset.limit, { w: String(kept.width), h: String(kept.height) }) : ''].filter(Boolean).join(' '));
     input('quality').disabled = type() === 'image/png';
     qualityValue.textContent = input('quality').value;
     button('create').disabled = !readable;
@@ -505,6 +523,7 @@ export function init(root) {
 
   const hideResult = () => {
     clearTimeout(reencode);
+    making = false; // a copy being made is of an edit that no longer is
     if (output) release(output.canvas);
     output = null;
     if (result.hidden) return;
@@ -534,10 +553,14 @@ export function init(root) {
   /** @param {(history: History) => History} step */
   const travel = (step) => {
     const before = history.entries[history.index];
-    history = step(history);
+    const next = step(history);
+    // Nothing to undo or redo (the shortcut works when the button is off): the copy and the work stay as they are.
+    if (next.index === history.index) return;
+    history = next;
     const after = history.entries[history.index];
     if (selected >= after.layers.length) selected = -1;
     draft = null;
+    drafting = false;
     saved = false;
     hideResult();
     invalidate(changedStage(before, after));
@@ -609,8 +632,9 @@ export function init(root) {
     const [cx, cy] = [(view.scrollLeft + view.clientWidth / 2) / view.scrollWidth, (view.scrollTop + view.clientHeight / 2) / view.scrollHeight];
     zoom = next;
     view.dataset.zoom = String(zoom);
-    draw();
+    // Drawn now, not at the next frame, so the scroll position below fits the new size.
     stale.photo = true;
+    stale.adjusted = true;
     draw();
     view.scrollLeft = cx * view.scrollWidth - view.clientWidth / 2;
     view.scrollTop = cy * view.scrollHeight - view.clientHeight / 2;
@@ -636,6 +660,9 @@ export function init(root) {
 
   /* ---------- Opening a picture ---------- */
 
+  /** Counts pictures being opened: only the latest choice is opened. */
+  let opens = 0;
+
   /** @param {File} chosen */
   const open = async (chosen) => {
     // An edit that wasn't saved would be lost: ask first, in the page.
@@ -646,28 +673,44 @@ export function init(root) {
       button('replace-no').focus();
       return;
     }
+    await openNow(chosen);
+  };
+
+  /**
+   * Opens a picture without asking. The one on show stays until the new one
+   * has decoded, so a file that can't be opened loses nothing; a choice made
+   * meanwhile wins over this one.
+   * @param {File} chosen
+   */
+  const openNow = async (chosen) => {
     pending = null;
     replace.hidden = true;
-    image?.close();
-    image = null;
-    if (screenSource) release(screenSource);
-    screenSource = null;
-    editor.hidden = true;
-    hideResult();
-    message.textContent = '';
+    const ticket = ++opens;
     if (chosen.size > MAX_BYTES) {
       message.textContent = message.dataset.tooLarge ?? '';
       return;
     }
+    /** @type {ImageBitmap} */
+    let next;
     let moving = false;
     try {
       moving = isAnimated(new Uint8Array(await chosen.arrayBuffer()));
-      image = await createImageBitmap(chosen);
+      next = await createImageBitmap(chosen);
     } catch (error) {
+      if (ticket !== opens) return;
       console.warn('[lockwell] The chosen file could not be opened as an image.', error);
       message.textContent = message.dataset.unsupported ?? '';
       return;
     }
+    if (ticket !== opens) {
+      next.close();
+      return;
+    }
+    image?.close();
+    image = next;
+    if (screenSource) release(screenSource);
+    screenSource = null;
+    hideResult();
     name = chosen.name;
     const longest = Math.max(image.width, image.height);
     if (longest > SCREEN_SOURCE) {
@@ -705,10 +748,9 @@ export function init(root) {
     if (chosen) open(chosen);
   });
   receiveFiles(root, open, { paste: true });
+  // The visitor chose to let the edit go; if the new file can't be opened, the edit stays.
   button('replace-yes').addEventListener('click', () => {
-    const next = pending;
-    saved = true; // The visitor chose to let the edit go.
-    if (next) open(next);
+    if (pending) openNow(pending);
   });
   button('replace-no').addEventListener('click', () => {
     pending = null;
@@ -900,7 +942,7 @@ export function init(root) {
       // A second finger: this is a pan or a pinch.
       draft = null;
       gesture = { kind: 'pan', zoom, distance: spread() };
-      invalidate('photo');
+      invalidate('screen');
       return;
     }
     if (!event.isPrimary) return;
@@ -1013,6 +1055,7 @@ export function init(root) {
       apply(next, 'angle');
     } else {
       draft = next;
+      drafting = true;
       invalidate('photo');
     }
   };
@@ -1027,6 +1070,10 @@ export function init(root) {
       travel(event.code === 'KeyY' || event.shiftKey ? redo : undo);
     } else if (event.ctrlKey || event.metaKey || event.altKey) {
       return;
+    } else if (event.key === '+' || event.key === '=') {
+      setZoom(stepZoom(zoom, 1));
+    } else if (event.key === '-') {
+      setZoom(stepZoom(zoom, -1));
     } else if (objects()) {
       if (!layerKey(event)) return;
     } else if (event.key in arrows && tool === 'crop') {
@@ -1034,10 +1081,6 @@ export function init(root) {
       nudge(x, y, event.shiftKey);
     } else if ((event.key === 'Delete' || event.key === 'Backspace') && tool === 'crop') {
       removeCrop();
-    } else if (event.key === '+' || event.key === '=') {
-      setZoom(stepZoom(zoom, 1));
-    } else if (event.key === '-') {
-      setZoom(stepZoom(zoom, -1));
     } else {
       return;
     }
@@ -1372,7 +1415,7 @@ export function init(root) {
     const object = /** @type {HTMLElement} */ (find('object'));
     object.hidden = !objects();
     const line = /** @type {HTMLElement} */ (find('selected'));
-    line.textContent = (!layer ? line.dataset.none : layer.type === 'text' ? line.dataset.text : line.dataset.drawing) ?? '';
+    say(line, (!layer ? line.dataset.none : layer.type === 'text' ? line.dataset.text : line.dataset.drawing) ?? '');
     for (const name of ['layer-left', 'layer-right', 'layer-up', 'layer-down', 'layer-smaller', 'layer-larger', 'duplicate', 'delete']) button(name).disabled = !layer;
     button('forward').disabled = !layer || selected === doc().layers.length - 1;
     button('backward').disabled = !layer || selected === 0;
@@ -1460,12 +1503,31 @@ export function init(root) {
    */
   const makeCopy = async (redraw) => {
     if (!image || !readable) return;
-    const [ticket, picture, steps] = [++makes, image, history];
+    const ticket = ++makes;
+    making = true;
+    try {
+      await makeCopyFor(ticket, image, redraw);
+    } finally {
+      if (ticket === makes) making = false;
+      // The blur's working space can be as large as a band of the copy: give it back.
+      releaseScratch();
+    }
+  };
+
+  /**
+   * @param {number} ticket
+   * @param {ImageBitmap} picture
+   * @param {boolean} redraw
+   */
+  const makeCopyFor = async (ticket, picture, redraw) => {
+    const steps = history;
     const isStale = () => ticket !== makes || image !== picture || history !== steps;
     const current = history.entries[history.index];
     const wanted = type();
     const size = outputSize(current, picture);
-    const made = !redraw && output ? output.canvas : document.createElement('canvas');
+    // The copy on show can be encoded again only for a format drawn the same way: JPEG has white under transparency.
+    const reuse = !redraw && output !== null && (output.type === 'image/jpeg') === (wanted === 'image/jpeg');
+    const made = reuse && output ? output.canvas : document.createElement('canvas');
     resultStatus.textContent = '';
     if (message.textContent === message.dataset.encodeFailed) message.textContent = '';
     /** @type {Blob} */
@@ -1514,13 +1576,13 @@ export function init(root) {
   formats.forEach((format) =>
     format.addEventListener('change', () => {
       invalidate('screen');
-      if (output) makeCopy(true);
+      if (output || making) makeCopy(true);
     }),
   );
   input('quality').addEventListener('input', () => {
     qualityValue.textContent = input('quality').value;
     clearTimeout(reencode);
-    if (output) reencode = setTimeout(() => makeCopy(false), REENCODE_DELAY);
+    if (output || making) reencode = setTimeout(() => makeCopy(false), REENCODE_DELAY);
   });
 
   const copyButton = button('copy');

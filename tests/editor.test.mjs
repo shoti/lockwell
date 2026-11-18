@@ -350,6 +350,28 @@ describe('photo editor: colour', () => {
     }
   });
 
+  it('makes bands at least twice as tall as the blur reaches, so wide pictures are not worked through many times', async () => {
+    // A panorama: about a megapixel is only 20 rows here, but soften reaches 30 rows up and down.
+    const [width, height] = [50_000, 60];
+    const plan = colorPlan({ ...noAdjust(), soften: 50 }, 'none');
+    const radius = { soften: 10, sharpen: 0 };
+    const source = new Uint8ClampedArray(width * height * 4).map((_, at) => (at * 7) % 256);
+    const whole = source.slice();
+    processPixels(whole, width, height, plan, radius);
+    const result = new Uint8ClampedArray(source.length);
+    let bands = 0;
+    await processBands(width, height, plan, radius, {
+      read: (y, rows) => source.slice(y * width * 4, (y + rows) * width * 4),
+      write: (y, rows, data) => {
+        bands += 1;
+        result.set(data, y * width * 4);
+      },
+      pause: async () => {},
+    });
+    assert.equal(bands, 1, 'one band of 60 rows, not three of 20 that each read 80 more');
+    assert.deepEqual(result, whole);
+  });
+
   it('stops a render that is no longer wanted before its next band', async () => {
     const [width, height] = [10, 40];
     const plan = colorPlan({ ...noAdjust(), contrast: 50 }, 'none');

@@ -641,8 +641,16 @@ describe('image redaction', () => {
     assert.doesNotMatch(source, /context\.filter/, 'solid boxes only: no blur');
   });
 
+  it('shows keyboard focus on the picture of both image tools around the scrolling view, where it can’t be cut off', async () => {
+    const css = await readFile(new URL('../src/styles/05-components.css', import.meta.url), 'utf8');
+    for (const tool of ['redact', 'editor']) {
+      const rule = new RegExp(`\\.${tool}__view:has\\(\\.${tool}__canvas:focus-visible\\)[^{]*\\{[^}]*outline: 3px solid var\\(--color-focus\\);`);
+      assert.match(css, rule, tool);
+    }
+  });
+
   it('keeps the image in the page in the modules it shares with other image tools, and in the photo editor', async () => {
-    for (const name of ['box.mjs', 'history.mjs', 'canvas.mjs', 'editor-matrix.mjs', 'editor-doc.mjs', 'editor-render.mjs', 'tool-editor.mjs']) {
+    for (const name of ['box.mjs', 'history.mjs', 'canvas.mjs', 'editor-matrix.mjs', 'editor-doc.mjs', 'editor-color.mjs', 'editor-layers.mjs', 'editor-render.mjs', 'tool-editor.mjs']) {
       const source = await readFile(new URL(`../src/client/${name}`, import.meta.url), 'utf8');
       assert.doesNotMatch(source, /fetch\(|XMLHttpRequest|sendBeacon|WebSocket|localStorage|sessionStorage|location\./, name);
       assert.doesNotMatch(source, /context\.filter/, `${name}: no blur`);
