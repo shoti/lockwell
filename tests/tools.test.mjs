@@ -1403,7 +1403,7 @@ describe('tool pages', () => {
     for (const lang of ['', 'en/']) {
       const page = await read(`${lang}tools/image-editor/index.html`);
       for (const name of names) assert.match(page, new RegExp(`data-js="editor-${name}"`), `${lang}: ${name}`);
-      for (const tool of ['crop', 'resize', 'adjust', 'filters']) {
+      for (const tool of ['crop', 'resize', 'adjust', 'filters', 'text', 'draw']) {
         assert.match(page, new RegExp(`data-js="editor-tool" data-tool="${tool}"`), tool);
         assert.match(page, new RegExp(`data-js="editor-panel" data-tool="${tool}"`), tool);
       }
@@ -1412,6 +1412,11 @@ describe('tool pages', () => {
         for (const name of ['adjust-number', 'adjust-reset']) assert.match(page, new RegExp(`data-js="editor-${name}" data-key="${key}"`), `${lang}: ${name} ${key}`);
       }
       for (const preset of Object.keys(PRESETS)) assert.match(page, new RegExp(`data-js="editor-preset" data-preset="${preset}">[^<]+</button>`), `${lang}: filter ${preset}`);
+      for (const shape of ['pen', 'highlighter', 'line', 'arrow', 'rect', 'ellipse']) assert.match(page, new RegExp(`data-js="editor-shape" data-shape="${shape}">`), `${lang}: shape ${shape}`);
+      for (const name of ['text-size', 'text-opacity', 'stroke-width', 'stroke-opacity']) assert.match(page, new RegExp(`data-js="editor-${name}-number"`), `${lang}: ${name} number`);
+      for (const target of ['text-color', 'stroke']) assert.match(page, new RegExp(`aria-label="[^"]+" title="[^"]+" data-js="editor-swatch" data-for="${target}" data-color="#[0-9a-f]{6}"`), `${lang}: swatches for ${target}`);
+      assert.match(page, /<textarea class="textarea" id="editor__text" rows="3" dir="auto" data-js="editor-text" data-new-text="[^"]+">/, `${lang}: text typed in a real field`);
+      for (const message of ['none', 'text', 'drawing']) assert.match(page, new RegExp(`data-js="editor-selected"[^>]* data-${message}="[^"]+"`), `${lang}: selected ${message}`);
       for (const format of ['image/jpeg', 'image/png', 'image/webp']) assert.match(page, new RegExp(`value="${format}" data-js="editor-format"`), format);
       for (const message of ['unsupported', 'too-large', 'resized', 'animated', 'encode-failed', 'blocked', 'template', 'enlarged', 'limit', 'no-webp', 'kb', 'mb', 'done', 'failed']) assert.match(page, new RegExp(`data-${message}="[^"]+"`), `${lang}: ${message}`);
       assert.match(page, /data-limit="[^"]*\{w\} × \{h\}/, 'the limit says the size');

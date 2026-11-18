@@ -317,6 +317,10 @@ const EDITOR_ADJUSTMENTS = [
 ];
 /** The photo editor's filters (see PRESETS in editor-color.mjs). */
 const EDITOR_PRESETS = ['none', 'mono', 'sepia', 'warm', 'cool', 'vivid', 'faded'];
+/** Colours offered in one press for text and drawings, as #rrggbb (the only form the editor accepts). */
+const EDITOR_SWATCHES = [['black', '#000000'], ['white', '#ffffff'], ['red', '#e53935'], ['orange', '#fb8c00'], ['yellow', '#fdd835'], ['green', '#43a047'], ['blue', '#1e88e5']];
+/** What the Draw tool draws (see tool-editor.mjs). */
+const EDITOR_SHAPES = /** @type {const} */ ([['pen', 'pen'], ['highlighter', 'highlighter'], ['line', 'lineTool'], ['arrow', 'arrowTool'], ['rect', 'square'], ['ellipse', 'circle']]);
 
 /** @param {Ctx} ctx */
 function editorPanel(ctx) {
@@ -336,6 +340,27 @@ function editorPanel(ctx) {
   const numberField = (name, label, min, max) => html`<div class="field editor__number">
               <label class="field__label" for="editor__${name}">${label}</label>
               <input class="input" type="number" inputmode="numeric" id="editor__${name}" min="${min}" max="${max}" step="1" data-js="editor-${name}">
+            </div>`;
+  /** A range with a number field beside it. @param {string} name @param {string} label @param {number} min @param {number} max @param {number} value */
+  const slider = (name, label, min, max, value) => html`<div class="field">
+              <label class="field__label" for="editor__${name}">${label}</label>
+              <div class="editor__row">
+                <input class="range" type="range" id="editor__${name}" min="${String(min)}" max="${String(max)}" step="1" value="${String(value)}" data-js="editor-${name}">
+                <input class="input editor__amount" type="number" inputmode="numeric" min="${String(min)}" max="${String(max)}" step="1" value="${String(value)}" aria-label="${label}" data-js="editor-${name}-number">
+              </div>
+            </div>`;
+  /**
+   * A colour chooser, with a row of common colours when `swatches` is set.
+   * @param {string} name @param {string} label @param {string} value @param {boolean} swatches
+   */
+  const colorField = (name, label, value, swatches) => html`<div class="field">
+              <label class="field__label" for="editor__${name}">${label}</label>
+              <div class="editor__row editor__colors">
+                <input class="editor__color" type="color" id="editor__${name}" value="${value}" data-js="editor-${name}">
+                ${swatches
+                  ? EDITOR_SWATCHES.map(([key, color]) => html`<button class="editor__swatch editor__swatch--${key}" type="button" aria-label="${s(`colors.${key}`)}" title="${s(`colors.${key}`)}" data-js="editor-swatch" data-for="${name}" data-color="${color}"></button>`)
+                  : null}
+              </div>
             </div>`;
   const [linkBefore, linkAfter] = s('redactLink').split('{link}');
   return html`<div class="field">
@@ -383,6 +408,8 @@ function editorPanel(ctx) {
             ${toolButton('resize', icons.resize, s('toolResize'))}
             ${toolButton('adjust', icons.sliders, s('toolAdjust'))}
             ${toolButton('filters', icons.palette, s('toolFilters'))}
+            ${toolButton('text', icons.type, s('toolText'))}
+            ${toolButton('draw', icons.pen, s('toolDraw'))}
           </div>
           <div class="editor__panel" data-js="editor-panel" data-tool="crop">
             <div class="tool__actions" role="group" aria-label="${s('turnGroup')}">
@@ -465,6 +492,75 @@ function editorPanel(ctx) {
               ${EDITOR_PRESETS.map((key) => html`<button class="button button--ghost button--small" type="button" aria-pressed="${key === 'none' ? 'true' : 'false'}" data-js="editor-preset" data-preset="${key}">${s(`presets.${key}`)}</button>`)}
             </div>
             <p class="facts__why">${s('filtersHelp')}</p>
+          </div>
+          <div class="editor__panel" data-js="editor-panel" data-tool="text" hidden>
+            <div class="tool__actions">
+              ${action('add-text', icons.plus, s('addText'))}
+            </div>
+            <div class="field">
+              <label class="field__label" for="editor__text">${s('text')}</label>
+              <textarea class="textarea" id="editor__text" rows="3" dir="auto" data-js="editor-text" data-new-text="${s('newText')}"></textarea>
+            </div>
+            <div class="field">
+                <label class="field__label" for="editor__font">${s('font')}</label>
+                <select class="select" id="editor__font" data-js="editor-font">
+                  ${['site', 'sans', 'serif', 'mono'].map((font) => html`<option value="${font}">${s(`fonts.${font}`)}</option>`)}
+                </select>
+              </div>
+              <div class="field">
+                <label class="field__label" for="editor__align">${s('align')}</label>
+                <select class="select" id="editor__align" data-js="editor-align">
+                  ${['start', 'center', 'end'].map((align) => html`<option value="${align}"${align === 'center' ? html` selected` : null}>${s(`aligns.${align}`)}</option>`)}
+                </select>
+              </div>
+            ${slider('text-size', s('textSize'), 5, 300, 60)}
+            ${colorField('text-color', s('color'), '#ffffff', true)}
+            <div class="tool__actions">
+              ${option('editor__bold', 'editor-bold', s('bold'), true)}
+              ${option('editor__italic', 'editor-italic', s('italic'), false)}
+            </div>
+            ${slider('text-opacity', s('opacity'), 10, 100, 100)}
+            ${option('editor__outline', 'editor-outline', s('outline'), true)}
+            ${colorField('outline-color', s('outlineColor'), '#000000', false)}
+            ${option('editor__background', 'editor-background', s('background'), false)}
+            ${colorField('background-color', s('backgroundColor'), '#000000', false)}
+          </div>
+          <div class="editor__panel" data-js="editor-panel" data-tool="draw" hidden>
+            <div class="tool__actions" role="group" aria-label="${s('shape')}">
+              ${EDITOR_SHAPES.map(([shape, icon]) => html`<button class="button button--ghost button--small" type="button" aria-pressed="${shape === 'pen' ? 'true' : 'false'}" data-js="editor-shape" data-shape="${shape}">${icons[icon]}<span>${s(`shapes.${shape}`)}</span></button>`)}
+            </div>
+            ${colorField('stroke', s('color'), '#e53935', true)}
+            ${slider('stroke-width', s('thickness'), 1, 60, 6)}
+            ${option('editor__fill', 'editor-fill', s('fill'), false)}
+            ${colorField('fill-color', s('fillColor'), '#fdd835', false)}
+            ${slider('stroke-opacity', s('opacity'), 10, 100, 100)}
+            <p class="facts__why">${s('drawHelp')}</p>
+          </div>
+          <div class="editor__panel" role="group" aria-labelledby="editor__object" data-js="editor-object" hidden>
+            <p class="field__label" id="editor__object">${s('object')}</p>
+            <p class="tool__status" role="status" data-js="editor-selected" data-none="${s('selectedNone')}" data-text="${s('selectedText')}" data-drawing="${s('selectedDrawing')}"></p>
+            <div class="editor__bar">
+              <div class="tool__actions" role="group" aria-label="${s('layerMove')}">
+                ${iconAction('layer-left', icons.arrowLeft, s('moveLeft'))}
+                ${iconAction('layer-up', icons.arrowUp, s('moveUp'))}
+                ${iconAction('layer-down', icons.arrowDown, s('moveDown'))}
+                ${iconAction('layer-right', icons.arrowRight, s('moveRight'))}
+              </div>
+              <div class="tool__actions" role="group" aria-label="${s('layerSize')}">
+                ${iconAction('layer-smaller', icons.minus, s('smaller'))}
+                ${iconAction('layer-larger', icons.plus, s('larger'))}
+              </div>
+            </div>
+            <div class="field">
+              <label class="field__label" for="editor__rotation">${s('rotation')}</label>
+              <input class="input editor__amount" type="number" inputmode="decimal" id="editor__rotation" min="-180" max="180" step="1" value="0" data-js="editor-layer-rotation">
+            </div>
+            <div class="tool__actions">
+              ${action('duplicate', icons.copy, s('duplicate'))}
+              ${action('forward', icons.arrowUp, s('forward'))}
+              ${action('backward', icons.arrowDown, s('backward'))}
+              ${action('delete', icons.trash, s('delete'))}
+            </div>
           </div>
         </div>
         <div class="editor__save" role="group" aria-labelledby="editor__save">

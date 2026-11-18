@@ -2469,6 +2469,37 @@
     width: 6rem;
   }
 
+  .editor__colors {
+    flex-wrap: wrap;
+  }
+
+  .editor__color {
+    inline-size: 3rem;
+    block-size: var(--tap);
+    padding: 2px;
+    border: 2px solid var(--color-control-border);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+    cursor: pointer;
+  }
+
+  /* One-press colours: the colours themselves, so they stay the same in both themes. */
+  .editor__swatch {
+    inline-size: 2rem;
+    block-size: 2rem;
+    border: 2px solid var(--color-border-strong);
+    border-radius: var(--radius-full);
+    cursor: pointer;
+  }
+
+  .editor__swatch--black { background: #000000; }
+  .editor__swatch--white { background: #ffffff; }
+  .editor__swatch--red { background: #e53935; }
+  .editor__swatch--orange { background: #fb8c00; }
+  .editor__swatch--yellow { background: #fdd835; }
+  .editor__swatch--green { background: #43a047; }
+  .editor__swatch--blue { background: #1e88e5; }
+
   .editor__sizes {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));

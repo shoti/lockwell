@@ -15,6 +15,9 @@ import { createHistory, commit } from '../src/client/history.mjs';
 import {
   ADJUSTMENTS, PRESETS, applyColor, boxBlur, channelLuts, colorMatrix, colorPlan, combinedAdjust, isPlain, noAdjust, processBands, processPixels, radii, sharpen,
 } from '../src/client/editor-color.mjs';
+import { arrowHead, cleanColor, cleanRotation, frameCorners, hitLayer, layerFrame, moveLayer, orientLayers, rotateLayer, scaleLayer, textLines } from '../src/client/editor-layers.mjs';
+import { viewMatrix } from '../src/client/editor-doc.mjs';
+import { redo, undo } from '../src/client/history.mjs';
 
 /** @typedef {import('../src/client/editor-doc.mjs').Doc} Doc */
 /** @typedef {import('../src/client/box.mjs').Box} Box */
@@ -366,5 +369,128 @@ describe('photo editor: colour', () => {
     });
     assert.equal(finished, false);
     assert.equal(reads, 1, 'no band after the change');
+  });
+});
+
+describe('photo editor: text and drawings', () => {
+  /** @typedef {import('../src/client/editor-layers.mjs').Layer} Layer */
+  /** Every character 10 pixels wide at 20 px, scaled with the font size. @type {import('../src/client/editor-layers.mjs').Measure} */
+  const measure = (text, font) => text.length * 0.5 * Number(/(\d+(?:\.\d+)?)px/.exec(font)?.[1] ?? 20);
+  const size = { width: 400, height: 200 };
+  /** @type {import('../src/client/editor-layers.mjs').TextLayer} */
+  const text = { type: 'text', x: 0.5, y: 0.5, text: 'Hello\nGeorgia', font: 'site', size: 0.05, bold: true, italic: false, align: 'center', color: '#ffffff', opacity: 1, outline: '#000000', background: null, rotation: 0 };
+  /** @type {import('../src/client/editor-layers.mjs').ShapeLayer} */
+  const rect = { type: 'rect', x: 0.25, y: 0.25, w: 0.5, h: 0.5, stroke: '#e53935', width: 0.01, fill: null, opacity: 1, rotation: 0 };
+  /** @type {import('../src/client/editor-layers.mjs').LineLayer} */
+  const arrow = { type: 'arrow', from: { x: 0.1, y: 0.5 }, to: { x: 0.9, y: 0.5 }, stroke: '#000000', width: 0.01, opacity: 1 };
+  /** @type {import('../src/client/editor-layers.mjs').PenLayer} */
+  const pen = { type: 'pen', points: [{ x: 0.1, y: 0.1 }, { x: 0.2, y: 0.3 }, { x: 0.4, y: 0.2 }], stroke: '#43a047', width: 0.02, opacity: 0.4 };
+  /** @param {Layer} layer */
+  const corners = (layer) => frameCorners(layerFrame(layer, size, measure));
+
+  it('lays out text in lines from a measuring function', () => {
+    const block = textLines(text, size, measure);
+    assert.deepEqual(block.lines, ['Hello', 'Georgia']);
+    assert.equal(block.pixels, 20, '5% of the longer side, 400 px');
+    assert.equal(block.width, 70, 'the longer line');
+    assert.equal(block.height, 50, 'two lines at 1.25');
+    assert.match(block.font, /^600 20px "FiraGO", sans-serif$/, 'the site font has semibold, not bold');
+  });
+
+  it('outlines and hits each kind of layer, turned ones too', () => {
+    const frame = layerFrame(text, size, measure);
+    assert.deepEqual([frame.cx, frame.cy, frame.w, frame.h], [200, 100, 70, 50]);
+    assert.equal(hitLayer(text, { x: 230, y: 120 }, size, measure), true);
+    assert.equal(hitLayer(text, { x: 240, y: 100 }, size, measure), false, 'just outside');
+    const turned = { ...text, rotation: 90 };
+    assert.equal(hitLayer(turned, { x: 200, y: 134 }, size, measure), true, 'turned: now tall');
+    assert.equal(hitLayer(turned, { x: 230, y: 100 }, size, measure), false);
+    assert.equal(hitLayer(rect, { x: 110, y: 60 }, size, measure), true);
+    assert.equal(hitLayer({ ...rect, rotation: 45 }, { x: 102, y: 52 }, size, measure), false, 'a turned box has lost its corner');
+    assert.equal(hitLayer(arrow, { x: 200, y: 101 }, size, measure), true);
+    assert.equal(hitLayer(arrow, { x: 200, y: 110 }, size, measure), false);
+    assert.equal(hitLayer(arrow, { x: 200, y: 110 }, size, measure, 8), true, 'a finger reaches further');
+    assert.equal(hitLayer(pen, { x: 60, y: 45 }, size, measure), true, 'on the stroke');
+    assert.equal(hitLayer(pen, { x: 100, y: 25 }, size, measure), false, 'inside its outline but off the stroke');
+  });
+
+  it('moves, scales about a fixed point and turns layers', () => {
+    const moved = moveLayer(rect, 40, -20, size);
+    [0.35, 0.15, 0.5, 0.5].forEach((value, index) => assert.ok(Math.abs([moved.x, moved.y, moved.w, moved.h][index] - value) < 1e-12, `${index}`));
+    const anchor = corners(rect)[0];
+    const larger = scaleLayer(rect, 1.5, anchor, size);
+    near(corners(larger)[0], anchor, 'the anchor stays');
+    assert.ok(Math.abs(larger.w - 0.75) < 1e-12 && Math.abs(larger.h - 0.75) < 1e-12, 'proportions kept');
+    const textAnchor = corners(text)[2];
+    const smaller = scaleLayer(text, 0.5, textAnchor, size);
+    assert.equal(smaller.size, 0.025);
+    near(corners(smaller)[2], textAnchor, 'text: the corner stays');
+    assert.equal(rotateLayer(text, 200, size, measure).rotation, -160, 'kept within ±180');
+    const turnedArrow = rotateLayer(arrow, 90, size, measure);
+    near({ x: turnedArrow.from.x * 400, y: turnedArrow.from.y * 200 }, { x: 200, y: -60 }, 'a line turns about its middle');
+    assert.equal(cleanRotation(-180), -180);
+    assert.equal(cleanRotation(540), -180);
+  });
+
+  it('accepts only #rrggbb colours', () => {
+    assert.equal(cleanColor('#AABBCC', '#000000'), '#aabbcc');
+    for (const bad of ['red', '#abc', 'url(x)', 'rgb(1,2,3)', '#aabbccdd', 7, null]) assert.equal(cleanColor(bad, '#000000'), '#000000', String(bad));
+  });
+
+  it('keeps layers on the same part of the picture through turns and mirrors, and never mirrors text', () => {
+    const layers = /** @type {Layer[]} */ ([text, { ...rect, rotation: 20 }, arrow, pen]);
+    /** @param {unknown} value */
+    const clean = (value) => JSON.parse(JSON.stringify(value, (_, v) => (typeof v === 'number' ? Math.round(v * 1e9) / 1e9 : v)));
+    let turned = layers;
+    for (let i = 0; i < 4; i += 1) turned = orientLayers(turned, { turn: 1 });
+    assert.deepEqual(clean(turned), clean(layers), 'four turns');
+    assert.deepEqual(clean(orientLayers(orientLayers(layers, { turn: 1 }), { turn: -1 })), clean(layers), 'there and back');
+    for (const flip of /** @type {const} */ (['x', 'y'])) assert.deepEqual(clean(orientLayers(orientLayers(layers, { flip }), { flip })), clean(layers), `mirror ${flip} twice`);
+    const [mirrored] = orientLayers([{ ...text, x: 0.2, rotation: 10 }], { flip: 'x' });
+    assert.equal(mirrored.type, 'text');
+    if (mirrored.type !== 'text') return;
+    assert.ok(Math.abs(mirrored.x - 0.8) < 1e-12);
+    assert.equal(mirrored.rotation, -10, 'its slant reverses with the picture');
+    assert.equal(mirrored.size, text.size);
+    assert.equal(mirrored.text, text.text, 'and its letters stay as they were');
+  });
+
+  it('turning the photo turns every layer with the saved copy', () => {
+    const source = { width: 400, height: 200 };
+    const layers = /** @type {Layer[]} */ ([{ ...text, rotation: 15 }, { ...rect, rotation: 20 }, arrow, pen]);
+    const doc = { ...emptyDoc(), angle: 6, crop: { x: 0.1, y: 0.1, w: 0.8, h: 0.8 }, layers };
+    const target = outputSize(doc, source);
+    for (const direction of /** @type {const} */ ([1, -1])) {
+      const turned = turnDoc(doc, direction);
+      const turnedTarget = outputSize(turned, source);
+      const [before, after] = [viewMatrix(doc, source, target), viewMatrix(turned, source, turnedTarget)];
+      const [sizeBefore, sizeAfter] = [orientedSize(doc, source), orientedSize(turned, source)];
+      layers.forEach((layer, index) => {
+        const was = frameCorners(layerFrame(layer, sizeBefore, measure)).map((p) => apply(before, p));
+        const now = frameCorners(layerFrame(turned.layers[index], sizeAfter, measure)).map((p) => apply(after, p));
+        const expected = was.map((p) => (direction === 1 ? { x: target.height - p.y, y: p.x } : { x: p.y, y: target.width - p.x }));
+        // The same four points, whichever corner each outline starts from.
+        for (const point of expected) assert.ok(now.some((q) => Math.abs(q.x - point.x) < 1e-6 && Math.abs(q.y - point.y) < 1e-6), `${layer.type} ${direction}: ${JSON.stringify(point)}`);
+      });
+    }
+  });
+
+  it('draws an arrowhead from the line’s thickness, with the line stopping inside it', () => {
+    const head = arrowHead({ x: 0, y: 0 }, { x: 100, y: 0 }, 5);
+    assert.deepEqual(head.tip, { x: 100, y: 0 });
+    near(head.left, { x: 80, y: 11 });
+    near(head.right, { x: 80, y: -11 });
+    assert.ok(head.lineEnd.x > 80 && head.lineEnd.x < 100);
+    assert.equal(arrowHead({ x: 0, y: 0 }, { x: 100, y: 0 }, 1).tip.x - arrowHead({ x: 0, y: 0 }, { x: 100, y: 0 }, 1).left.x, 10, 'never smaller than 10 pixels');
+  });
+
+  it('undoes and redoes whole edit descriptions', () => {
+    let history = createHistory(emptyDoc());
+    const withText = { ...emptyDoc(), layers: [text] };
+    history = commit(history, withText);
+    history = commit(history, turnDoc(withText, 1));
+    assert.deepEqual(undo(history).entries[undo(history).index], withText);
+    assert.deepEqual(redo(undo(history)).entries[1], withText);
+    assert.equal(undo(undo(history)).entries[0].layers.length, 0);
   });
 });

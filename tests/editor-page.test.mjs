@@ -16,6 +16,9 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** @typedef {Record<string, unknown> & { type: string }} FakeEvent */
 
+/** The editor's tools, in the page's order. */
+const TOOLS = ['crop', 'resize', 'adjust', 'filters', 'text', 'draw'];
+
 /** What the fake browser can do; tests change it before opening a page. */
 const browser = {
   /** Formats toBlob can't write: it hands back a PNG instead, as browsers do. @type {Set<string>} */
@@ -49,6 +52,8 @@ class Element {
     this.draws = 0;
     /** @type {unknown} */
     this.lastDrawn = null;
+    /** Text and shapes drawn since the canvas was last cleared. @type {string[]} */
+    this.ops = [];
     this.focused = 0;
     /** @type {File[]} */
     this.files = [];
@@ -86,14 +91,16 @@ class Element {
   /** @param {string} selector */
   querySelectorAll(selector) {
     const lists = {
-      '[data-js="editor-tool"]': () => ['crop', 'resize'].map((tool) => Object.assign(new Element('button'), { dataset: { tool } })),
-      '[data-js="editor-panel"]': () => ['crop', 'resize'].map((tool) => Object.assign(new Element(), { dataset: { tool } })),
+      '[data-js="editor-tool"]': () => TOOLS.map((tool) => Object.assign(new Element('button'), { dataset: { tool } })),
+      '[data-js="editor-panel"]': () => TOOLS.map((tool) => Object.assign(new Element(), { dataset: { tool } })),
       '[data-js="editor-format"]': () => ['image/jpeg', 'image/png', 'image/webp'].map((value) => Object.assign(new Element('input'), { value })),
       '[data-js="editor-long"]': () => ['1080', '1600'].map((size) => Object.assign(new Element('button'), { dataset: { size } })),
       '[data-js="editor-adjust"]': () => ['contrast', 'vignette'].map((key) => Object.assign(new Element('input'), { dataset: { key }, value: '0' })),
       '[data-js="editor-adjust-number"]': () => ['contrast', 'vignette'].map((key) => Object.assign(new Element('input'), { dataset: { key }, value: '0' })),
       '[data-js="editor-adjust-reset"]': () => ['contrast', 'vignette'].map((key) => Object.assign(new Element('button'), { dataset: { key } })),
       '[data-js="editor-preset"]': () => ['none', 'mono'].map((preset) => Object.assign(new Element('button'), { dataset: { preset } })),
+      '[data-js="editor-shape"]': () => ['pen', 'rect', 'arrow'].map((shape) => Object.assign(new Element('button'), { dataset: { shape } })),
+      '[data-js="editor-swatch"]': () => [Object.assign(new Element('button'), { dataset: { for: 'stroke', color: '#1e88e5' } })],
     };
     if (!this.children.has(`all ${selector}`)) this.children.set(`all ${selector}`, lists[/** @type {keyof typeof lists} */ (selector)]?.() ?? []);
     return /** @type {Element[]} */ (this.children.get(`all ${selector}`));
@@ -115,6 +122,7 @@ class Element {
     this.focused += 1;
     activeElement = this;
   }
+  select() {}
   setPointerCapture() {}
   scrollBy() {}
   getBoundingClientRect() {
@@ -138,8 +146,24 @@ class Element {
       },
       putImageData() {},
       createRadialGradient: () => ({ addColorStop() {} }),
+      save() {},
+      restore() {},
+      translate() {},
+      rotate() {},
+      closePath() {},
+      fill() {},
+      arc() {},
+      ellipse: () => canvas.ops.push('ellipse'),
+      rect: () => canvas.ops.push('rect'),
+      /** @param {string} text */
+      fillText: (text) => canvas.ops.push(`text:${text}`),
+      strokeText() {},
+      /** @param {string} text */
+      measureText: (text) => ({ width: text.length * 10 }),
       setTransform() {},
-      clearRect() {},
+      clearRect: () => {
+        canvas.ops = [];
+      },
       fillRect() {},
       strokeRect() {},
       beginPath() {},
@@ -211,6 +235,9 @@ async function page() {
   Object.assign(q('format-note').dataset, { noWebp: 'no webp' });
   Object.assign(q('size-note').dataset, { enlarged: 'enlarged', limit: 'limit {w} × {h}' });
   Object.assign(q('result-info').dataset, { kb: '{n} KB', mb: '{n} MB' });
+  Object.assign(q('selected').dataset, { none: 'none', text: 'text', drawing: 'drawing' });
+  q('text').dataset.newText = 'Text';
+  for (const [name, value] of [['text-size', '60'], ['text-opacity', '100'], ['stroke-width', '6'], ['stroke-opacity', '100'], ['font', 'site'], ['align', 'center'], ['text-color', '#ffffff'], ['stroke', '#e53935']]) q(name).value = value;
   init(/** @type {HTMLElement} */ (/** @type {unknown} */ (root)));
   const all = (/** @type {string} */ name) => root.querySelectorAll(`[data-js="editor-${name}"]`);
   const canvas = q('canvas');
@@ -508,5 +535,96 @@ describe('photo editor page', () => {
     await sleep(200);
     assert.equal(q('result').hidden, false);
     assert.ok(browser.reads >= 12, `the 4000 × 3000 copy was read in bands of about a megapixel: ${browser.reads}`);
+  });
+
+  /** Chooses a tool by its button. @param {ReturnType<typeof page> extends Promise<infer P> ? P : never} p @param {string} name */
+  const chooseTool = async (p, name) => {
+    const button = p.all('tool').find((other) => other.dataset.tool === name);
+    await button?.fire('click');
+    frames();
+  };
+  /** @param {string} key @param {Record<string, unknown>} [extra] */
+  const keyEvent = (key, extra = {}) => ({ key, code: key, shiftKey: false, ctrlKey: false, metaKey: false, altKey: false, ...extra });
+
+  it('adds text, types into it, moves and deletes it, and reads no pixels doing so', async () => {
+    const p = await page();
+    const { q, canvas, press } = p;
+    const [contrast] = p.all('adjust');
+    contrast.value = '30';
+    await contrast.fire('change');
+    frames();
+    await chooseTool(p, 'text');
+    assert.equal(q('object').hidden, false, 'the object controls show for the Text tool');
+    assert.equal(q('layer-left').disabled, true, 'off until something is selected');
+    browser.reads = 0;
+    await press('add-text');
+    assert.equal(q('selected').textContent, 'text');
+    assert.ok(canvas.ops.includes('text:Text'), canvas.ops.join());
+    q('text').value = 'Hi\nthere';
+    await q('text').fire('input');
+    frames();
+    assert.ok(canvas.ops.includes('text:Hi') && canvas.ops.includes('text:there'), 'one line each');
+    await canvas.fire('keydown', keyEvent('ArrowRight'));
+    await canvas.fire('keydown', keyEvent('ArrowUp', { shiftKey: true }));
+    frames();
+    assert.equal(q('selected').textContent, 'text', 'still selected after moving and resizing');
+    await canvas.fire('keydown', keyEvent('Delete'));
+    frames();
+    assert.equal(q('selected').textContent, 'none');
+    assert.ok(!canvas.ops.includes('text:Hi'));
+    await press('undo');
+    assert.ok(canvas.ops.includes('text:Hi'), 'undo brings it back');
+    assert.equal(browser.reads, 0, 'adding, typing, moving and deleting text work out no colours');
+    await chooseTool(p, 'crop');
+    assert.equal(q('object').hidden, true);
+  });
+
+  it('draws a box by dragging, drops a slip, and selects what it drew', async () => {
+    const p = await page();
+    const { q, canvas, pointer } = p;
+    await chooseTool(p, 'draw');
+    await p.all('shape')[1].fire('click');
+    await canvas.fire('pointerdown', pointer(1, 100, 100));
+    await canvas.fire('pointermove', pointer(1, 300, 250));
+    await canvas.fire('pointerup', pointer(1, 300, 250));
+    frames();
+    assert.equal(q('selected').textContent, 'drawing');
+    assert.equal(canvas.ops.filter((op) => op === 'rect').length, 1);
+    await canvas.fire('keydown', keyEvent('Escape'));
+    frames();
+    assert.equal(q('selected').textContent, 'none');
+    await canvas.fire('pointerdown', pointer(2, 500, 500));
+    await canvas.fire('pointermove', pointer(2, 503, 502));
+    await canvas.fire('pointerup', pointer(2, 503, 502));
+    frames();
+    assert.equal(canvas.ops.filter((op) => op === 'rect').length, 1, 'a slip of a few pixels draws nothing');
+    await canvas.fire('pointerdown', pointer(3, 200, 175));
+    await canvas.fire('pointerup', pointer(3, 200, 175));
+    frames();
+    assert.equal(q('selected').textContent, 'drawing', 'a tap on it selects it');
+    await p.all('swatch')[0].fire('click');
+    frames();
+    assert.equal(q('stroke').value, '#1e88e5');
+    await canvas.fire('keydown', keyEvent('Enter'));
+    frames();
+    assert.equal(canvas.ops.filter((op) => op === 'rect').length, 2, 'Enter adds one in the middle');
+    await p.press('duplicate');
+    assert.equal(canvas.ops.filter((op) => op === 'rect').length, 3);
+    await p.press('backward');
+    await p.press('delete');
+    assert.equal(canvas.ops.filter((op) => op === 'rect').length, 2);
+  });
+
+  it('turning the photo keeps what was drawn, and undo after a turn keeps the selection only if it still exists', async () => {
+    const p = await page();
+    const { q, canvas, press } = p;
+    await chooseTool(p, 'text');
+    await press('add-text');
+    await press('rotate-right');
+    assert.ok(canvas.ops.includes('text:Text'));
+    assert.equal(q('status').textContent, '3000 × 4000');
+    await press('undo');
+    await press('undo');
+    assert.equal(q('selected').textContent, 'none', 'the text it pointed to is gone');
   });
 });

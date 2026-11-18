@@ -17,7 +17,8 @@
  */
 import { exportSize } from './canvas.mjs';
 import { noAdjust } from './editor-color.mjs';
-import { apply, compose, invert, rotate, scale, translate, turn } from './editor-matrix.mjs';
+import { orientLayers } from './editor-layers.mjs';
+import { apply, compose, invert, multiply, rotate, scale, translate, turn } from './editor-matrix.mjs';
 
 /** @typedef {import('./box.mjs').Box} Box */
 /** @typedef {import('./editor-matrix.mjs').Matrix} Matrix */
@@ -32,6 +33,7 @@ import { apply, compose, invert, rotate, scale, translate, turn } from './editor
  * @property {Size | null} size  Pixels of the saved copy; null: the crop's own size.
  * @property {import('./editor-color.mjs').Adjust} adjust  The sliders; all 0: no change.
  * @property {import('./editor-color.mjs').PresetKey} preset  The filter.
+ * @property {import('./editor-layers.mjs').Layer[]} layers  Text and drawings, back to front, on the turned picture.
  */
 
 export const MAX_ANGLE = 45;
@@ -39,7 +41,7 @@ export const MAX_ANGLE = 45;
 const WHOLE = { x: 0, y: 0, w: 1, h: 1 };
 
 /** @returns {Doc} */
-export const emptyDoc = () => ({ quarter: 0, flipX: false, flipY: false, angle: 0, crop: null, size: null, adjust: noAdjust(), preset: 'none' });
+export const emptyDoc = () => ({ quarter: 0, flipX: false, flipY: false, angle: 0, crop: null, size: null, adjust: noAdjust(), preset: 'none', layers: [] });
 
 /** True when a description leaves the picture as it was opened. @param {Doc} doc */
 export const isUnchanged = (doc) => JSON.stringify(doc) === JSON.stringify(emptyDoc());
@@ -236,12 +238,13 @@ export function keepLongSide(size, crop) {
 }
 
 /**
- * Source pixels to a canvas showing the saved copy, at any size.
+ * Turned-picture pixels (where the crop and the layers live) to a canvas
+ * showing the saved copy, at any size.
  * @param {Doc} doc
  * @param {Size} source
  * @param {Size} target
  */
-export function outputMatrix(doc, source, target) {
+export function viewMatrix(doc, source, target) {
   const size = orientedSize(doc, source);
   const crop = effectiveCrop(doc, source);
   const [cw, ch] = [crop.w * size.width, crop.h * size.height];
@@ -250,8 +253,27 @@ export function outputMatrix(doc, source, target) {
     scale(target.width / cw, target.height / ch),
     rotate(radians(doc.angle)),
     translate(-(crop.x + crop.w / 2) * size.width, -(crop.y + crop.h / 2) * size.height),
-    orientMatrix(doc, source),
   );
+}
+
+/**
+ * Source pixels to a canvas showing the saved copy, at any size.
+ * @param {Doc} doc
+ * @param {Size} source
+ * @param {Size} target
+ */
+export const outputMatrix = (doc, source, target) => multiply(viewMatrix(doc, source, target), orientMatrix(doc, source));
+
+/**
+ * Turned-picture pixels to a canvas showing the whole straightened picture, for cropping.
+ * @param {Doc} doc
+ * @param {Size} source
+ * @param {Size} target
+ */
+export function wholeView(doc, source, target) {
+  const size = orientedSize(doc, source);
+  const bounds = rotatedBounds(size, doc.angle);
+  return multiply(scale(target.width / bounds.width, target.height / bounds.height), boundsMatrix(doc.angle, size));
 }
 
 /**
@@ -260,11 +282,7 @@ export function outputMatrix(doc, source, target) {
  * @param {Size} source
  * @param {Size} target
  */
-export function wholeMatrix(doc, source, target) {
-  const size = orientedSize(doc, source);
-  const bounds = rotatedBounds(size, doc.angle);
-  return compose(scale(target.width / bounds.width, target.height / bounds.height), boundsMatrix(doc.angle, size), orientMatrix(doc, source));
-}
+export const wholeMatrix = (doc, source, target) => multiply(wholeView(doc, source, target), orientMatrix(doc, source));
 
 /* ---------- Changes ---------- */
 
@@ -284,6 +302,7 @@ export function turnDoc(doc, direction) {
     flipY: doc.flipX,
     crop: crop && (direction === 1 ? { x: 1 - crop.y - crop.h, y: crop.x, w: crop.h, h: crop.w } : { x: crop.y, y: 1 - crop.x - crop.w, w: crop.h, h: crop.w }),
     size: doc.size && { width: doc.size.height, height: doc.size.width },
+    layers: orientLayers(doc.layers, { turn: direction }),
   };
 }
 
@@ -301,6 +320,7 @@ export function flipDoc(doc, axis) {
     flipY: axis === 'y' ? !doc.flipY : doc.flipY,
     angle: doc.angle ? -doc.angle : 0,
     crop: crop && (axis === 'x' ? { ...crop, x: 1 - crop.x - crop.w } : { ...crop, y: 1 - crop.y - crop.h }),
+    layers: orientLayers(doc.layers, { flip: axis }),
   };
 }
 

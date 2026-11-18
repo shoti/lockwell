@@ -16,13 +16,14 @@ import { fillText } from './fill.mjs';
 import { fitAspect, handleAt, moveBox, resizeFromHandle, resizeWithRatio } from './box.mjs';
 import { commit, createHistory, redo, undo } from './history.mjs';
 import { ZOOMS, canEncode, canReadBack, downscale, encode, examplePicture, exportSize, isAnimated, pinchZoom, previewSize, release, stepZoom } from './canvas.mjs';
-import { multiply, scale } from './editor-matrix.mjs';
+import { apply as applyMatrix, invert, multiply, scale } from './editor-matrix.mjs';
+import { canvasFont, cleanColor, cleanRotation, frameCorners, hitLayer, isLine, layerFrame, moveLayer, rotateLayer, scaleLayer } from './editor-layers.mjs';
 import {
   cleanAngle, cropFromView, cropSize, cropToView, effectiveCrop, emptyDoc, fitCrop, flipDoc, isUnchanged, keepLongSide, limitCrop, orientedSize,
-  outputSize, rotatedBounds, turnDoc, wholeMatrix, outputMatrix,
+  outputSize, rotatedBounds, turnDoc, viewMatrix, wholeMatrix, wholeView, outputMatrix,
 } from './editor-doc.mjs';
 import { ADJUSTMENTS, colorPlan, isPlain, noAdjust } from './editor-color.mjs';
-import { adjustCanvasNow, drawPhoto, drawVignette, renderDoc } from './editor-render.mjs';
+import { adjustCanvasNow, drawLayers, drawPhoto, drawVignette, loadFonts, renderDoc } from './editor-render.mjs';
 
 /** @typedef {import('./box.mjs').Box} Box */
 /** @typedef {import('./box.mjs').Point} Point */
@@ -30,7 +31,11 @@ import { adjustCanvasNow, drawPhoto, drawVignette, renderDoc } from './editor-re
 /** @typedef {import('./editor-doc.mjs').Doc} Doc */
 /** @typedef {import('./editor-doc.mjs').Size} Size */
 /** @typedef {import('./history.mjs').History<Doc>} History */
-/** @typedef {'crop' | 'resize' | 'adjust' | 'filters'} Tool */
+/** @typedef {'crop' | 'resize' | 'adjust' | 'filters' | 'text' | 'draw'} Tool */
+/** @typedef {'pen' | 'highlighter' | 'line' | 'arrow' | 'rect' | 'ellipse'} Shape  What the Draw tool draws. */
+/** @typedef {import('./editor-layers.mjs').Layer} Layer */
+/** @typedef {import('./editor-layers.mjs').TextLayer} TextLayer */
+/** @typedef {import('./editor-matrix.mjs').Matrix} Matrix */
 /** @typedef {import('./editor-color.mjs').AdjustKey} AdjustKey */
 /** @typedef {import('./editor-color.mjs').PresetKey} PresetKey */
 /** @typedef {import('./editor-render.mjs').Rect} Rect */
@@ -46,6 +51,8 @@ const STEP_SCREEN = 8;
 const MAX_TYPED = 100_000;
 /** While a slider is dragged, colours are worked out on a copy of at most this many pixels, then stretched. */
 const DRAFT_PIXELS = 500_000;
+/** A highlighter's opacity, as a share of the opacity chosen. */
+const HIGHLIGHT = 0.4;
 /** Wait after the quality slider stops before encoding again, in milliseconds. */
 const REENCODE_DELAY = 250;
 
@@ -151,9 +158,18 @@ export function init(root) {
    * @type {null
    *   | { kind: 'move', from: Point, start: Box }
    *   | { kind: 'resize', handle: Handle }
-   *   | { kind: 'pan', zoom: number, distance: number }}
+   *   | { kind: 'pan', zoom: number, distance: number }
+   *   | { kind: 'layer-move', from: Point, start: Layer }
+   *   | { kind: 'layer-scale', anchor: Point, distance: number, start: Layer }
+   *   | { kind: 'layer-rotate', centre: Point, from: number, start: Layer }
+   *   | { kind: 'draw', start: Point, layer: Layer }}
+   *   Layer gestures keep their points in pixels of the turned picture; `draw` keeps where it began on the canvas.
    */
   let gesture = null;
+  /** The text or drawing the handles, the keyboard and the panel act on, or -1. */
+  let selected = -1;
+  /** @type {Shape} */
+  let shape = 'pen';
   /** @type {Map<number, Point>} */
   const pointers = new Map();
   /** The copy on show, kept so it can be copied and encoded again. @type {{ canvas: HTMLCanvasElement, blob: Blob, type: string, doc: Doc } | null} */
@@ -252,9 +268,106 @@ export function init(root) {
       context.drawImage(shown, 0, 0, canvas.width, canvas.height);
       const { vignette } = plan();
       if (vignette) drawVignette(context, copyFrame(canvas), vignette);
+      askFonts(doc().layers);
+      drawLayers(context, doc().layers, screenMatrix(), oriented());
     }
     if (tool === 'crop') drawCropFrame(context);
+    else if (objects()) drawSelection(context);
     showState();
+  };
+
+  /** Turned-picture pixels to screen canvas pixels: the whole picture while cropping, else the copy. */
+  const screenMatrix = () => {
+    const picture = /** @type {ImageBitmap} */ (image);
+    return tool === 'crop' ? wholeView(doc(), picture, canvas) : viewMatrix(doc(), picture, canvas);
+  };
+  /** How many canvas pixels one pixel of the turned picture covers on screen. */
+  const screenScale = () => {
+    const [a, b, c, d] = screenMatrix();
+    return Math.sqrt(Math.abs(a * d - b * c)) || 1;
+  };
+  /** Canvas pixels per CSS pixel. */
+  const cssRatio = () => canvas.width / (canvas.getBoundingClientRect().width || canvas.width || 1);
+
+  /** Fonts asked for already: a canvas draws with the site font only once it has loaded. */
+  const fontsAsked = new Set();
+  /** @param {Layer[]} layers */
+  const askFonts = (layers) => {
+    for (const layer of layers) {
+      if (layer.type !== 'text' || layer.font !== 'site') continue;
+      const font = canvasFont(layer, 16);
+      if (fontsAsked.has(font)) continue;
+      fontsAsked.add(font);
+      loadFonts([layer]).then(() => invalidate('screen'));
+    }
+  };
+
+  /** Measures text in a canvas font, for outlines and hit tests. */
+  /** @type {CanvasRenderingContext2D | null} */
+  let measurer = null;
+  /** @type {import('./editor-layers.mjs').Measure} */
+  const measure = (text, font) => {
+    measurer ??= document.createElement('canvas').getContext('2d');
+    if (!measurer) return text.length * 10;
+    measurer.font = font;
+    return measurer.measureText(text).width;
+  };
+
+  /** True while the Text or Draw tool is chosen: then text and drawings can be selected and changed. */
+  const objects = () => tool === 'text' || tool === 'draw';
+  const selectedLayer = () => doc().layers[selected] ?? null;
+
+  /**
+   * Where the selected layer's handles are, in canvas pixels: its four
+   * corners, and the round turning handle above its top edge.
+   */
+  const handles = () => {
+    const layer = selectedLayer();
+    if (!image || !layer) return null;
+    const frame = layerFrame(layer, oriented(), measure);
+    const matrix = screenMatrix();
+    const corners = frameCorners(frame).map((corner) => applyMatrix(matrix, corner));
+    const centre = applyMatrix(matrix, { x: frame.cx, y: frame.cy });
+    const top = { x: (corners[0].x + corners[1].x) / 2, y: (corners[0].y + corners[1].y) / 2 };
+    const length = Math.hypot(top.x - centre.x, top.y - centre.y);
+    const [ux, uy] = length > 1e-6 ? [(top.x - centre.x) / length, (top.y - centre.y) / length] : [0, -1];
+    const away = 28 * cssRatio();
+    return { frame, corners, top, rotate: { x: top.x + ux * away, y: top.y + uy * away } };
+  };
+
+  /** The selected layer's outline and handles. @param {CanvasRenderingContext2D} context */
+  const drawSelection = (context) => {
+    const found = handles();
+    if (!found) return;
+    const ratio = cssRatio();
+    const line = 1.5 * ratio;
+    const accent = getComputedStyle(root).getPropertyValue('--color-focus').trim() || '#0e6a69';
+    const outline = () => {
+      context.beginPath();
+      found.corners.forEach((corner, index) => (index ? context.lineTo(corner.x, corner.y) : context.moveTo(corner.x, corner.y)));
+      context.closePath();
+      context.moveTo(found.top.x, found.top.y);
+      context.lineTo(found.rotate.x, found.rotate.y);
+    };
+    // White under the accent, so the outline shows on light and dark pictures.
+    context.lineWidth = line * 2;
+    context.strokeStyle = '#fff';
+    outline();
+    context.stroke();
+    context.lineWidth = line;
+    context.strokeStyle = accent;
+    outline();
+    context.stroke();
+    const side = 10 * ratio;
+    context.fillStyle = '#fff';
+    for (const corner of found.corners) {
+      context.fillRect(corner.x - side / 2, corner.y - side / 2, side, side);
+      context.strokeRect(corner.x - side / 2, corner.y - side / 2, side, side);
+    }
+    context.beginPath();
+    context.arc(found.rotate.x, found.rotate.y, side / 1.6, 0, Math.PI * 2);
+    context.fill();
+    context.stroke();
   };
 
   /** The colour plan of the description on screen. */
@@ -385,6 +498,7 @@ export function init(root) {
     button('reset-all').disabled = ADJUSTMENTS.every(([key]) => current.adjust[key] === 0);
     presets.forEach((other) => other.setAttribute('aria-pressed', String(other.dataset.preset === current.preset)));
     button('compare').disabled = isPlain(plan());
+    showObjects();
   };
 
   /* ---------- Changes ---------- */
@@ -419,11 +533,26 @@ export function init(root) {
 
   /** @param {(history: History) => History} step */
   const travel = (step) => {
+    const before = history.entries[history.index];
     history = step(history);
+    const after = history.entries[history.index];
+    if (selected >= after.layers.length) selected = -1;
     draft = null;
     saved = false;
     hideResult();
-    invalidate('photo');
+    invalidate(changedStage(before, after));
+  };
+
+  /**
+   * What has to be redrawn between two descriptions: everything when the
+   * geometry differs, the colours when only they do, else only what lies on top.
+   * @param {Doc} a
+   * @param {Doc} b
+   */
+  const changedStage = (a, b) => {
+    const same = (/** @type {(keyof Doc)[]} */ keys) => keys.every((key) => JSON.stringify(a[key]) === JSON.stringify(b[key]));
+    if (!same(['quarter', 'flipX', 'flipY', 'angle', 'crop', 'size'])) return 'photo';
+    return same(['adjust', 'preset']) ? 'screen' : 'adjusted';
   };
 
   /**
@@ -562,6 +691,7 @@ export function init(root) {
     history = createHistory(emptyDoc());
     draft = null;
     saved = false;
+    selected = -1;
     aspect.value = 'free';
     tool = 'crop';
     zoom = 1;
@@ -618,6 +748,145 @@ export function init(root) {
   /** @param {Box} box @param {Point} at */
   const inside = (box, at) => at.x >= box.x && at.x <= box.x + box.w && at.y >= box.y && at.y <= box.y + box.h;
 
+  /* ---------- Text and drawings: pointer ---------- */
+
+  /** Where a pointer is, in canvas pixels. @param {{ clientX: number, clientY: number }} event */
+  const canvasPoint = (event) => {
+    const area = canvas.getBoundingClientRect();
+    return { x: ((event.clientX - area.left) / area.width) * canvas.width, y: ((event.clientY - area.top) / area.height) * canvas.height };
+  };
+  /** A canvas point in pixels of the turned picture. @param {Point} point */
+  const toOriented = (point) => applyMatrix(invert(screenMatrix()), point);
+  /** Pixels of the turned picture as fractions of it. @param {Point} point */
+  const toFraction = (point) => {
+    const size = oriented();
+    return { x: point.x / size.width, y: point.y / size.height };
+  };
+  /** A distance on screen in pixels of the turned picture. @param {number} pixels  CSS pixels. */
+  const screenToOriented = (pixels) => (pixels * cssRatio()) / screenScale();
+  /** The current layers with one replaced. @param {number} index @param {Layer} layer */
+  const withLayer = (index, layer) => {
+    const current = history.entries[history.index];
+    return { ...current, layers: current.layers.map((other, at) => (at === index ? layer : other)) };
+  };
+  /** Degrees from a centre to a point. @param {Point} centre @param {Point} point */
+  const bearing = (centre, point) => (Math.atan2(point.y - centre.y, point.x - centre.x) * 180) / Math.PI;
+
+  /** @param {PointerEvent} event */
+  const layerDown = (event) => {
+    const at = canvasPoint(event);
+    const here = toOriented(at);
+    const near = (event.pointerType === 'mouse' ? 12 : 20) * cssRatio();
+    const found = handles();
+    const layer = selectedLayer();
+    if (found && layer) {
+      if (Math.hypot(at.x - found.rotate.x, at.y - found.rotate.y) <= near) {
+        const centre = { x: found.frame.cx, y: found.frame.cy };
+        gesture = { kind: 'layer-rotate', centre, from: bearing(centre, here), start: layer };
+        return;
+      }
+      const corner = found.corners.findIndex((point) => Math.hypot(at.x - point.x, at.y - point.y) <= near);
+      if (corner !== -1) {
+        const corners = frameCorners(found.frame);
+        const anchor = corners[(corner + 2) % 4];
+        gesture = { kind: 'layer-scale', anchor, distance: Math.hypot(corners[corner].x - anchor.x, corners[corner].y - anchor.y) || 1, start: layer };
+        return;
+      }
+    }
+    const { layers } = doc();
+    const hit = layers.findLastIndex((other) => hitLayer(other, here, oriented(), measure, near / screenScale()));
+    if (hit !== -1) {
+      selected = hit;
+      gesture = { kind: 'layer-move', from: here, start: layers[hit] };
+      return;
+    }
+    selected = -1;
+    if (tool === 'draw') startDrawing(at, here);
+  };
+
+  /** A new drawing begins where the pointer went down. @param {Point} at  Canvas pixels. @param {Point} here  Turned-picture pixels. */
+  const startDrawing = (at, here) => {
+    const style = drawStyle();
+    const point = toFraction(here);
+    /** @type {Layer} */
+    const layer =
+      shape === 'pen' || shape === 'highlighter'
+        ? { type: 'pen', points: [point], ...style, ...(shape === 'highlighter' ? { width: style.width * 4, opacity: style.opacity * HIGHLIGHT } : {}) }
+        : shape === 'line' || shape === 'arrow'
+          ? { type: shape, from: point, to: point, stroke: style.stroke, width: style.width, opacity: style.opacity }
+          : { type: shape, ...boxLayer(at, at), stroke: style.stroke, width: style.width, fill: style.fill, opacity: style.opacity };
+    gesture = { kind: 'draw', start: at, layer };
+    draft = { ...history.entries[history.index], layers: [...history.entries[history.index].layers, layer] };
+  };
+
+  /**
+   * A rectangle drawn on the screen as a box on the turned picture: turned
+   * back by the straightening, so it stands level on screen.
+   * @param {Point} a  Canvas pixels.
+   * @param {Point} b
+   */
+  const boxLayer = (a, b) => {
+    const size = oriented();
+    const centre = toOriented({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+    const [w, h] = [Math.abs(b.x - a.x) / screenScale(), Math.abs(b.y - a.y) / screenScale()];
+    return { x: (centre.x - w / 2) / size.width, y: (centre.y - h / 2) / size.height, w: w / size.width, h: h / size.height, rotation: cleanRotation(-doc().angle) };
+  };
+
+  /** @param {PointerEvent} event @param {NonNullable<typeof gesture>} current */
+  const layerDrag = (event, current) => {
+    const at = canvasPoint(event);
+    const here = toOriented(at);
+    const size = oriented();
+    if (current.kind === 'layer-move') {
+      draft = withLayer(selected, moveLayer(current.start, here.x - current.from.x, here.y - current.from.y, size));
+    } else if (current.kind === 'layer-scale') {
+      const factor = Math.max(0.05, Math.hypot(here.x - current.anchor.x, here.y - current.anchor.y) / current.distance);
+      draft = withLayer(selected, scaleLayer(current.start, factor, current.anchor, size));
+    } else if (current.kind === 'layer-rotate') {
+      let turn = bearing(current.centre, here) - current.from;
+      // Shift: in steps of 15 degrees, as far as the layer keeps its own angle.
+      if (event.shiftKey && 'rotation' in current.start) turn = Math.round((current.start.rotation + turn) / 15) * 15 - current.start.rotation;
+      draft = withLayer(selected, rotateLayer(current.start, turn, size, measure));
+    } else if (current.kind === 'draw') {
+      const { layer } = current;
+      if (layer.type === 'pen') {
+        // Every position the pointer passed, where the browser keeps them: smoother strokes.
+        const passed = typeof event.getCoalescedEvents === 'function' ? event.getCoalescedEvents() : [];
+        for (const step of passed.length ? passed : [event]) {
+          const point = toFraction(toOriented(canvasPoint(step)));
+          const last = layer.points[layer.points.length - 1];
+          if (Math.hypot((point.x - last.x) * size.width, (point.y - last.y) * size.height) * screenScale() >= 1) layer.points.push(point);
+        }
+      } else if (isLine(layer)) {
+        layer.to = toFraction(here);
+      } else if (layer.type === 'rect' || layer.type === 'ellipse') {
+        Object.assign(layer, boxLayer(current.start, at));
+      }
+      const committed = history.entries[history.index];
+      draft = { ...committed, layers: [...committed.layers, { ...layer }] };
+    }
+    invalidate('screen');
+  };
+
+  /** A finished layer gesture. Drawings too small to see are dropped. @param {NonNullable<typeof gesture>} ended @param {Doc} finished */
+  const finishLayer = (ended, finished) => {
+    if (ended.kind === 'draw') {
+      const layer = finished.layers[finished.layers.length - 1];
+      const tiny = MIN_SCREEN * cssRatio();
+      const frame = layerFrame(layer, oriented(), measure);
+      const shown = Math.max(frame.w, frame.h) * screenScale();
+      if (layer.type !== 'pen' && shown < tiny) {
+        draft = null;
+        invalidate('screen');
+        return;
+      }
+      apply(finished, '', 'screen');
+      selected = finished.layers.length - 1;
+      return;
+    }
+    apply(finished, '', 'screen');
+  };
+
   canvas.addEventListener('pointerdown', (event) => {
     // Only a left button, a pen or a finger: a right-click's release may never reach the canvas.
     if (!image || event.button !== 0) return;
@@ -634,7 +903,13 @@ export function init(root) {
       invalidate('photo');
       return;
     }
-    if (!event.isPrimary || tool !== 'crop') return;
+    if (!event.isPrimary) return;
+    if (objects()) {
+      layerDown(event);
+      invalidate('screen');
+      return;
+    }
+    if (tool !== 'crop') return;
     const at = point(event);
     const box = cropBox();
     const handle = handleAt(box, at, reach(event));
@@ -666,8 +941,11 @@ export function init(root) {
     }
     if (gesture.kind === 'move') {
       draft = placeCrop(moveBox(gesture.start, at.x - gesture.from.x, at.y - gesture.from.y));
-    } else {
+    } else if (gesture.kind === 'resize') {
       draft = placeCrop(dragHandle(cropBox(), gesture.handle, at));
+    } else {
+      layerDrag(event, gesture);
+      return;
     }
     invalidate('screen');
   });
@@ -683,7 +961,9 @@ export function init(root) {
     }
     gesture = null;
     const finished = event.type === 'pointerup' ? draft : null;
-    if (finished) {
+    if (finished && ended.kind !== 'move' && ended.kind !== 'resize') {
+      finishLayer(ended, finished);
+    } else if (finished) {
       apply(finished, '', cropStage());
     } else {
       // An interrupted drag: nothing changes.
@@ -747,6 +1027,8 @@ export function init(root) {
       travel(event.code === 'KeyY' || event.shiftKey ? redo : undo);
     } else if (event.ctrlKey || event.metaKey || event.altKey) {
       return;
+    } else if (objects()) {
+      if (!layerKey(event)) return;
     } else if (event.key in arrows && tool === 'crop') {
       const [x, y] = arrows[/** @type {keyof typeof arrows} */ (event.key)];
       nudge(x, y, event.shiftKey);
@@ -847,6 +1129,290 @@ export function init(root) {
   compare.addEventListener('keyup', (event) => {
     if (event.key === ' ' || event.key === 'Enter') setComparing(false);
   });
+
+  /* ---------- Text and drawings: panel, buttons and keys ---------- */
+
+  const textArea = /** @type {HTMLTextAreaElement} */ (find('text'));
+  const shapeButtons = /** @type {HTMLButtonElement[]} */ ([...root.querySelectorAll('[data-js="editor-shape"]')]);
+  const swatches = /** @type {HTMLButtonElement[]} */ ([...root.querySelectorAll('[data-js="editor-swatch"]')]);
+
+  /**
+   * Sizes and thicknesses are chosen in thousandths of the crop's longer side,
+   * so the same number looks the same whatever the photo's size; layers keep
+   * them as fractions of the turned picture's longer side.
+   */
+  const lengthUnit = () => {
+    const crop = cropSize(doc(), /** @type {ImageBitmap} */ (image));
+    const size = oriented();
+    return Math.max(crop.width, crop.height) / 1000 / Math.max(size.width, size.height);
+  };
+  /** @param {string} name */
+  const numberOf = (name) => Number(input(name).value);
+
+  /** The text settings in the panel, for a new text or the selected one. */
+  const textStyle = () => ({
+    font: /** @type {import('./editor-layers.mjs').FontKey} */ (['site', 'sans', 'serif', 'mono'].includes(input('font').value) ? input('font').value : 'site'),
+    align: /** @type {TextLayer['align']} */ (['start', 'center', 'end'].includes(input('align').value) ? input('align').value : 'center'),
+    size: numberOf('text-size') * lengthUnit(),
+    color: cleanColor(input('text-color').value, '#ffffff'),
+    bold: input('bold').checked,
+    italic: input('italic').checked,
+    opacity: numberOf('text-opacity') / 100,
+    outline: input('outline').checked ? cleanColor(input('outline-color').value, '#000000') : null,
+    background: input('background').checked ? cleanColor(input('background-color').value, '#000000') : null,
+  });
+  /** The drawing settings in the panel. */
+  const drawStyle = () => ({
+    stroke: cleanColor(input('stroke').value, '#e53935'),
+    width: numberOf('stroke-width') * lengthUnit(),
+    fill: input('fill').checked ? cleanColor(input('fill-color').value, '#fdd835') : null,
+    opacity: numberOf('stroke-opacity') / 100,
+  });
+  /** Which properties of a layer each control sets. */
+  /** @type {Record<string, string[]>} */
+  const TEXT_CONTROLS = {
+    font: ['font'], align: ['align'], 'text-size': ['size'], 'text-color': ['color'], bold: ['bold'], italic: ['italic'],
+    'text-opacity': ['opacity'], outline: ['outline'], 'outline-color': ['outline'], background: ['background'], 'background-color': ['background'],
+  };
+  /** @type {Record<string, string[]>} */
+  const DRAW_CONTROLS = { stroke: ['stroke'], 'stroke-width': ['width'], fill: ['fill'], 'fill-color': ['fill'], 'stroke-opacity': ['opacity'] };
+
+  /**
+   * A control changed: the selected layer takes that one setting (the others
+   * stay as they are). With nothing selected, it is kept for the next one.
+   * @param {string} name
+   * @param {boolean} done  False while a slider is still being dragged.
+   */
+  const restyle = (name, done) => {
+    const layer = selectedLayer();
+    if (!image || !layer) {
+      invalidate('screen');
+      return;
+    }
+    const keys = layer.type === 'text' ? TEXT_CONTROLS[name] : DRAW_CONTROLS[name];
+    if (!keys || (layer.type !== 'rect' && layer.type !== 'ellipse' && keys.includes('fill'))) return;
+    /** @type {Record<string, unknown>} */
+    const style = layer.type === 'text' ? textStyle() : drawStyle();
+    const next = /** @type {Layer} */ ({ ...layer, ...Object.fromEntries(keys.map((key) => [key, style[key]])) });
+    if (done) {
+      apply(withLayer(selected, next), `style:${selected}:${name}`, 'screen');
+    } else {
+      draft = withLayer(selected, next);
+      invalidate('screen');
+    }
+  };
+
+  for (const name of [...Object.keys(TEXT_CONTROLS), ...Object.keys(DRAW_CONTROLS)]) {
+    const control = input(name);
+    const amount = root.querySelector(`[data-js="editor-${name}-number"]`);
+    if (amount instanceof HTMLInputElement) {
+      // A slider with a number beside it: both show the same value.
+      control.addEventListener('input', () => {
+        amount.value = control.value;
+        restyle(name, false);
+      });
+      amount.addEventListener('change', () => {
+        control.value = amount.value;
+        restyle(name, true);
+      });
+    }
+    control.addEventListener('change', () => restyle(name, true));
+  }
+  swatches.forEach((swatch) =>
+    swatch.addEventListener('click', () => {
+      const name = swatch.dataset.for ?? '';
+      input(name).value = swatch.dataset.color ?? '#000000';
+      restyle(name, true);
+    }),
+  );
+  shapeButtons.forEach((other) =>
+    other.addEventListener('click', () => {
+      shape = /** @type {Shape} */ (other.dataset.shape);
+      invalidate('screen');
+    }),
+  );
+  textArea.addEventListener('input', () => {
+    const layer = selectedLayer();
+    // With no text selected, what is typed waits for "Add text".
+    if (layer?.type === 'text') apply(withLayer(selected, { ...layer, text: textArea.value }), `text:${selected}`, 'screen');
+  });
+
+  /** Adds a text in the middle of what is on screen, level on screen, and puts the cursor in its field. */
+  const addText = () => {
+    if (!image) return;
+    const current = history.entries[history.index];
+    const written = textArea.value.trim() ? textArea.value : (textArea.dataset.newText ?? 'Text');
+    /** @type {TextLayer} */
+    const layer = { type: 'text', ...toFraction(toOriented({ x: canvas.width / 2, y: canvas.height / 2 })), text: written, ...textStyle(), rotation: cleanRotation(-current.angle) };
+    apply({ ...current, layers: [...current.layers, layer] }, '', 'screen');
+    selected = current.layers.length;
+    textArea.value = written;
+    textArea.focus();
+    textArea.select();
+  };
+
+  /** Adds the chosen drawing in the middle of what is on screen, for those who can't drag. */
+  const addShape = () => {
+    if (!image) return;
+    const current = history.entries[history.index];
+    const style = drawStyle();
+    const [cx, cy, w, h] = [canvas.width / 2, canvas.height / 2, canvas.width * 0.15, canvas.height * 0.12];
+    const from = toFraction(toOriented({ x: cx - w, y: cy }));
+    const to = toFraction(toOriented({ x: cx + w, y: cy }));
+    /** @type {Layer} */
+    const layer =
+      shape === 'rect' || shape === 'ellipse'
+        ? { type: shape, ...boxLayer({ x: cx - w, y: cy - h }, { x: cx + w, y: cy + h }), ...style }
+        : shape === 'line' || shape === 'arrow'
+          ? { type: shape, from, to, stroke: style.stroke, width: style.width, opacity: style.opacity }
+          : { type: 'pen', points: [from, to], stroke: style.stroke, width: style.width * (shape === 'highlighter' ? 4 : 1), opacity: style.opacity * (shape === 'highlighter' ? HIGHLIGHT : 1) };
+    apply({ ...current, layers: [...current.layers, layer] }, '', 'screen');
+    selected = current.layers.length;
+  };
+
+  /** A layer's angle as the rotation field shows it: a line's direction, a stroke's 0. @param {Layer} layer */
+  const layerAngle = (layer) => {
+    if ('rotation' in layer) return layer.rotation;
+    if (isLine(layer)) {
+      const size = oriented();
+      return bearing({ x: layer.from.x * size.width, y: layer.from.y * size.height }, { x: layer.to.x * size.width, y: layer.to.y * size.height });
+    }
+    return 0;
+  };
+
+  /** Moves the selected layer one step in a direction on screen. @param {number} x  -1, 0 or 1. @param {number} y */
+  const nudgeLayer = (x, y) => {
+    const layer = selectedLayer();
+    if (!layer) return;
+    const step = STEP_SCREEN * cssRatio();
+    const [a, b] = [toOriented({ x: 0, y: 0 }), toOriented({ x: x * step, y: y * step })];
+    apply(withLayer(selected, moveLayer(layer, b.x - a.x, b.y - a.y, oriented())), `layer-move:${selected}`, 'screen');
+  };
+  /** Makes the selected layer larger or smaller about its middle. @param {number} factor */
+  const scaleSelected = (factor) => {
+    const layer = selectedLayer();
+    if (!layer) return;
+    const frame = layerFrame(layer, oriented(), measure);
+    apply(withLayer(selected, scaleLayer(layer, factor, { x: frame.cx, y: frame.cy }, oriented())), `layer-size:${selected}`, 'screen');
+  };
+  const deleteSelected = () => {
+    const current = history.entries[history.index];
+    if (!current.layers[selected]) return;
+    apply({ ...current, layers: current.layers.filter((_, index) => index !== selected) }, '', 'screen');
+    selected = -1;
+  };
+  /** Moves the selected layer one place towards the front (1) or the back (-1). @param {1 | -1} direction */
+  const restack = (direction) => {
+    const current = history.entries[history.index];
+    const other = selected + direction;
+    if (!current.layers[selected] || !current.layers[other]) return;
+    const layers = [...current.layers];
+    [layers[selected], layers[other]] = [layers[other], layers[selected]];
+    apply({ ...current, layers }, '', 'screen');
+    selected = other;
+  };
+
+  for (const [control, x, y] of /** @type {const} */ ([['layer-left', -1, 0], ['layer-right', 1, 0], ['layer-up', 0, -1], ['layer-down', 0, 1]])) {
+    button(control).addEventListener('click', () => nudgeLayer(x, y));
+  }
+  button('layer-smaller').addEventListener('click', () => scaleSelected(1 / 1.1));
+  button('layer-larger').addEventListener('click', () => scaleSelected(1.1));
+  input('layer-rotation').addEventListener('change', () => {
+    const layer = selectedLayer();
+    const wanted = Number(input('layer-rotation').value);
+    if (layer && Number.isFinite(wanted)) apply(withLayer(selected, rotateLayer(layer, wanted - layerAngle(layer), oriented(), measure)), '', 'screen');
+  });
+  button('duplicate').addEventListener('click', () => {
+    const layer = selectedLayer();
+    if (!layer) return;
+    const current = history.entries[history.index];
+    const step = 2 * STEP_SCREEN * cssRatio();
+    const [a, b] = [toOriented({ x: 0, y: 0 }), toOriented({ x: step, y: step })];
+    apply({ ...current, layers: [...current.layers, moveLayer(layer, b.x - a.x, b.y - a.y, oriented())] }, '', 'screen');
+    selected = current.layers.length;
+  });
+  button('forward').addEventListener('click', () => restack(1));
+  button('backward').addEventListener('click', () => restack(-1));
+  button('delete').addEventListener('click', deleteSelected);
+  button('add-text').addEventListener('click', addText);
+
+  /**
+   * Keys for text and drawings, while the photo has the focus. Returns false for keys it doesn't use.
+   * @param {KeyboardEvent} event
+   */
+  const layerKey = (event) => {
+    const arrows = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+    const { layers } = doc();
+    if (event.key in arrows && selectedLayer()) {
+      const [x, y] = arrows[/** @type {keyof typeof arrows} */ (event.key)];
+      // Shift: right and up make it larger, left and down smaller.
+      if (event.shiftKey) scaleSelected(x > 0 || y < 0 ? 1.1 : 1 / 1.1);
+      else nudgeLayer(x, y);
+    } else if ((event.key === 'Delete' || event.key === 'Backspace') && selectedLayer()) {
+      deleteSelected();
+    } else if ((event.key === 'PageDown' || event.key === 'PageUp') && layers.length) {
+      const step = event.key === 'PageDown' ? 1 : -1;
+      selected = selected === -1 ? (step === 1 ? 0 : layers.length - 1) : (selected + step + layers.length) % layers.length;
+      invalidate('screen');
+    } else if (event.key === 'Escape' && selected !== -1) {
+      selected = -1;
+      invalidate('screen');
+    } else if (event.key === 'Enter') {
+      if (tool === 'text') addText();
+      else addShape();
+    } else {
+      return false;
+    }
+    return true;
+  };
+
+  /** Fills the object controls from the selected layer and turns them on or off. */
+  const showObjects = () => {
+    const layer = selectedLayer();
+    const object = /** @type {HTMLElement} */ (find('object'));
+    object.hidden = !objects();
+    const line = /** @type {HTMLElement} */ (find('selected'));
+    line.textContent = (!layer ? line.dataset.none : layer.type === 'text' ? line.dataset.text : line.dataset.drawing) ?? '';
+    for (const name of ['layer-left', 'layer-right', 'layer-up', 'layer-down', 'layer-smaller', 'layer-larger', 'duplicate', 'delete']) button(name).disabled = !layer;
+    button('forward').disabled = !layer || selected === doc().layers.length - 1;
+    button('backward').disabled = !layer || selected === 0;
+    input('layer-rotation').disabled = !layer;
+    shapeButtons.forEach((other) => other.setAttribute('aria-pressed', String(other.dataset.shape === shape)));
+    if (!layer) return;
+    /** @param {string} name @param {string | number | boolean} value */
+    const fill = (name, value) => {
+      const control = input(name);
+      if (control === document.activeElement) return;
+      if (typeof value === 'boolean') control.checked = value;
+      else control.value = String(value);
+      const amount = root.querySelector(`[data-js="editor-${name}-number"]`);
+      if (amount instanceof HTMLInputElement && amount !== document.activeElement) amount.value = String(value);
+    };
+    fill('layer-rotation', Math.round(layerAngle(layer)));
+    const unitLength = lengthUnit();
+    if (layer.type === 'text') {
+      if (textArea !== document.activeElement) textArea.value = layer.text;
+      fill('font', layer.font);
+      fill('align', layer.align);
+      fill('text-size', Math.round(layer.size / unitLength));
+      fill('text-color', layer.color);
+      fill('bold', layer.bold);
+      fill('italic', layer.italic);
+      fill('text-opacity', Math.round(layer.opacity * 100));
+      fill('outline', layer.outline !== null);
+      if (layer.outline) fill('outline-color', layer.outline);
+      fill('background', layer.background !== null);
+      if (layer.background) fill('background-color', layer.background);
+    } else {
+      fill('stroke', layer.stroke);
+      fill('stroke-width', Math.round(layer.width / unitLength));
+      fill('stroke-opacity', Math.round(layer.opacity * 100));
+      if ('fill' in layer) {
+        fill('fill', layer.fill !== null);
+        if (layer.fill) fill('fill-color', layer.fill);
+      }
+    }
+  };
 
   /* ---------- Size ---------- */
 
