@@ -33,7 +33,7 @@ export const TOOLS = [
   { slug: 'browser-check', key: 'browser', icon: 'monitor', notes: 3, ai: 0, requests: true },
   { slug: 'link-cleaner', key: 'links', icon: 'link', notes: 3, ai: 0 },
   { slug: 'image-redaction', key: 'redact', icon: 'marker', notes: 5, ai: 2 },
-  { slug: 'image-editor', key: 'editor', icon: 'sliders', notes: 0, ai: 0, wide: true },
+  { slug: 'image-editor', key: 'editor', icon: 'sliders', notes: 5, ai: 2, wide: true },
   { slug: 'document-metadata', key: 'document', icon: 'file', notes: 4, ai: 1 },
   { slug: 'hidden-characters', key: 'hidden', icon: 'eye', notes: 3, ai: 2 },
   { slug: 'video-metadata', key: 'video', icon: 'film', notes: 5, ai: 1 },

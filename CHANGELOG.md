@@ -3,6 +3,22 @@
 Notable changes to the site's content and behaviour. Each guide also shows the
 date its sources were last checked.
 
+## Unreleased: photo editor (November 2026)
+
+### Tools
+- New photo editor (`/tools/image-editor/`, after Image redaction): crop with
+  free or fixed proportions, straighten, turn, mirror and resize; eleven
+  colour and sharpness sliders and seven filters; text and drawings (pen,
+  highlighter, line, arrow, rectangle, ellipse) that can be moved, resized
+  and turned by pointer or keyboard; saves as JPEG, PNG or WebP (WebP only
+  where the browser can write it). The saved copy is drawn fresh from the
+  photo's pixels, so it has none of the original's hidden data; the preview
+  shows the saved file itself. It offers no blur and points to Image
+  redaction for hiding things.
+- Shared code for the image tools (box geometry, undo history, canvas
+  helpers, zoom) moved out of the image redaction tool; that tool is
+  unchanged.
+
 ## Unreleased: pre-launch audit (November 2026)
 
 ### Content

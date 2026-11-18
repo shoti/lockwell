@@ -884,12 +884,12 @@
       },
       "editor": {
         "title": "Photo editor",
-        "summary": "Crop, straighten, turn and resize a photo, and save it as JPEG, PNG or WebP. It all happens in your browser: the photo is never uploaded.",
-        "description": "Crop, straighten, turn, mirror and resize a photo or screenshot, and convert it to JPEG, PNG or WebP, in your browser. The photo is never uploaded.",
+        "summary": "Crop, straighten, resize and correct a photo, add text or drawings, and save it as JPEG, PNG or WebP. It all happens in your browser: the photo is never uploaded.",
+        "description": "Crop, straighten, resize and correct a photo, add text and drawings, and save it as JPEG, PNG or WebP, in your browser. The photo is never uploaded.",
         "file": "Choose a photo or screenshot",
         "pasteHint": "You can also paste a screenshot or drop a file here.",
-        "canvas": "Your photo. Drag the frame or its edges to crop.",
-        "help": "To crop, drag the frame to move it, or drag its edges and corners to resize it. Use two fingers to move around a zoomed photo. With a keyboard: focus the photo, move the frame with the arrow keys, resize it with Shift and the arrow keys, and remove the crop with Delete. Without dragging: the buttons under Proportions move and resize the frame.",
+        "canvas": "Your photo. What dragging does depends on the tool you chose.",
+        "help": "Choose a tool to see its controls: beside the photo on a large screen, under it on a phone. To crop, drag the frame or its edges; with Text or Draw, tap an item to select it. Use two fingers to move around a zoomed photo. With a keyboard: focus the photo; the arrow keys move the crop frame or the selected item, Shift and the arrow keys resize it, Delete removes it, + and − zoom, and Ctrl+Z (⌘Z on a Mac) undoes. Without dragging: every tool has buttons and fields that do the same.",
         "tools": "Tools",
         "toolCrop": "Crop and turn",
         "toolResize": "Resize",
@@ -1044,7 +1044,14 @@
         "duplicate": "Duplicate",
         "forward": "Bring forward",
         "backward": "Send back",
-        "delete": "Delete"
+        "delete": "Delete",
+        "note1": "The photo is opened and edited in your browser only. It is never uploaded, so it doesn’t reach this site’s server.",
+        "note2": "The saved copy is a new picture drawn from the photo’s pixels, so it carries none of the original’s hidden file data, such as the place, the date or the camera model. What the picture shows can still give these away, and experts can sometimes tell which camera took a photo from faint traces its sensor leaves in the pixels. The copy can include a colour profile and similar details, which describe the picture, not you. The original file on your device still has its hidden data.",
+        "note3": "This editor has no tool for hiding parts of a picture, and no blur: blurred text can sometimes be read back, and blurred faces can sometimes be recognised. To hide a face, a name or a number plate, use Image redaction, which covers them with solid shapes.",
+        "note4": "JPEG suits photos and makes small files, but it drops some detail to do so, and a lower quality drops more. PNG keeps every pixel, so it suits screenshots and text. WebP files are often smaller still, but Safari and most browsers on iPhone and iPad can’t write them, so the option is switched off there. Keep the original if you may need it again.",
+        "note5": "Very large pictures are scaled down to what a browser can handle, and an animated picture keeps only its first frame. The editor works in the standard sRGB colour range: a photo with a wider range of colours is converted, so its most vivid colours may look a little duller.",
+        "ai1": "AI photo editors can do things this tool can’t, such as removing a background or an object, or filling in an edge. To change the picture, the service has to receive it, unless the app says the work is done on your device. If the photo is sent as it is, its hidden data, which can include the place it was taken, goes with it.",
+        "ai2": "What happens to an upload afterwards depends on the service and your settings, so read what it says about keeping files and using them to train models. AI tools also invent detail when they fill in or enlarge a picture, and someone may later take it for the real thing. Cropping, correcting colours and adding text need nothing of the kind: here nothing leaves your device."
       },
       "document": {
         "title": "Document metadata",
