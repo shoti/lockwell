@@ -73,6 +73,8 @@ export const icons = {
   redo: icon('<path d="M16 8h4V4"/><path d="M19.5 8a8 8 0 1 0 1 6"/>'),
   square: icon('<rect x="4.5" y="5.5" width="15" height="13" rx="1.5"/>'),
   circle: icon('<ellipse cx="12" cy="12" rx="8.5" ry="7"/>'),
+  cross: icon('<path d="M6 6l12 12M18 6 6 18"/>'),
+  stamp: icon('<path d="M9 4h6v5l-1 4h4a2 2 0 0 1 2 2v2H4v-2a2 2 0 0 1 2-2h4L9 9V4Z"/><path d="M5 20h14"/>'),
   pen: icon('<path d="m4 20 1-4.5L16.5 4a2.1 2.1 0 0 1 3 3L8 18.5 4 20Z"/><path d="m14.5 6 3 3"/>'),
   crop: icon('<path d="M7 3v14h14"/><path d="M3 7h14v14"/>'),
   sliders: icon('<path d="M4 6h3M11 6h9M4 12h9M17 12h3M4 18h1M9 18h11"/><circle cx="9" cy="6" r="2"/><circle cx="15" cy="12" r="2"/><circle cx="7" cy="18" r="2"/>'),

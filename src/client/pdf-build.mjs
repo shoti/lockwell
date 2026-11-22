@@ -6,7 +6,8 @@
  */
 import { PdfError, openPdf } from './pdf-file.mjs';
 import { SourceCopier, documentLosses, layersOf, newReport, pageDictionary, planFields } from './pdf-copy.mjs';
-import { pageList } from './pdf-pages.mjs';
+import { applyOverlays } from './pdf-overlay.mjs';
+import { normaliseRotation, pageBox, pageList } from './pdf-pages.mjs';
 import { IMAGE_PAGE, imageLayout, imageStream } from './pdf-image.mjs';
 import { PdfWriter, pause } from './pdf-write.mjs';
 import { PdfDict, PdfName, PdfRef, PdfStream, PdfString, formatNumber, textOf } from './pdf-syntax.mjs';
@@ -19,10 +20,11 @@ import { stillThere } from './tool-photo.mjs';
 /** @typedef {import('./pdf-image.mjs').Picture} Picture */
 /** @typedef {import('./pdf-image.mjs').ImagePageOptions} ImagePageOptions */
 /** @typedef {import('./tool-photo.mjs').Findings} Findings */
+/** @typedef {import('./pdf-overlay.mjs').Overlay} Overlay */
 
 /**
  * @typedef {{ source: number, index: number } | { blank: { width: number, height: number } }} PageOrigin
- * @typedef {{ key: number, origin: PageOrigin, turn: 0 | 90 | 180 | 270, overlays?: unknown[] }} PlanPage
+ * @typedef {{ key: number, origin: PageOrigin, turn: 0 | 90 | 180 | 270, overlays?: Overlay[] }} PlanPage
  * @typedef {{ file: PdfFile, pages: PageInfo[] }} PdfSource
  * @typedef {{ picture: Picture, findings: Findings | null }} ImageSource  A picture added by the visitor; `findings`
  *   is what the photo tool found in the original, searched for in the result.
@@ -93,6 +95,7 @@ export async function build({ pages, sources, imagePage = IMAGE_PAGE, id, isCanc
 
   /** Each picture's image object, written once however many pages show it. @type {Map<number, PdfRef>} */
   const images = new Map();
+  let signed = false;
   for (let i = 0; i < pages.length; i += 1) {
     const page = pages[i];
     let dict;
@@ -116,6 +119,10 @@ export async function build({ pages, sources, imagePage = IMAGE_PAGE, id, isCanc
       if (!info) throw new PdfError('buildFailed', `no page ${page.origin.index} in source ${page.origin.source}`);
       dict = pageDictionary(copier, info, page.turn, firstCopies.has(page));
       await copier.drain(isCancelled);
+    }
+    if (page.overlays?.length) {
+      await applyOverlays(writer, dict, shownPageOf(page, sources, imagePage), page.overlays);
+      if (page.overlays.some((overlay) => overlay.type === 'ink' || overlay.type === 'picture')) signed = true;
     }
     dict.set('Parent', tree);
     writer.set(pageRefs[i], dict);
@@ -142,6 +149,7 @@ export async function build({ pages, sources, imagePage = IMAGE_PAGE, id, isCanc
   }
   if (layers) report.kept.add('layers');
   if (images.size > 0) report.kept.add('pictures');
+  if (signed) report.warnings.add('signaturePicture');
   const findings = [...images.keys()].flatMap((num) => /** @type {ImageSource} */ (sources.get(num)).findings ?? []);
   await checkResult(bytes, { pages: pages.length, secrets: secretsOf([...copiers.values()].map((copier) => copier.file)), findings });
   return {
@@ -155,6 +163,22 @@ function sourceOf(sources, num) {
   const source = sources.get(num);
   if (!source || 'picture' in source) throw new PdfError('buildFailed', `no PDF source ${num}`);
   return source;
+}
+
+/**
+ * The page as the visitor saw it when placing overlays: its visible box in user space and its total rotation.
+ * @param {PlanPage} page @param {Map<number, PdfSource | ImageSource>} sources @param {ImagePageOptions} imagePage
+ * @returns {import('./pdf-overlay.mjs').ShownPage}
+ */
+function shownPageOf(page, sources, imagePage) {
+  if ('blank' in page.origin) return { box: [0, 0, page.origin.blank.width, page.origin.blank.height], rotate: page.turn };
+  const source = sources.get(page.origin.source);
+  if (source && 'picture' in source) {
+    const { width, height } = imageLayout(source.picture, imagePage);
+    return { box: [0, 0, width, height], rotate: page.turn };
+  }
+  const info = sourceOf(sources, page.origin.source).pages[page.origin.index];
+  return { box: pageBox(info).box, rotate: normaliseRotation(info.rotate + page.turn) };
 }
 
 /** @param {Map<number, PdfSource | ImageSource>} sources @param {number} num */

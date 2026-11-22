@@ -17,7 +17,7 @@ import { PdfDict, PdfError, PdfName, PdfRef, PdfStream, PdfString, isName, textO
  * expect to travel. `warnings`: said before saving and in the result.
  * @typedef {'bookmarks' | 'pageLabels' | 'articles' | 'structure' | 'scripts' | 'attachments' | 'encryption'} Dropped
  * @typedef {'pictures' | 'comments' | 'fields' | 'layers'} Kept  'pictures': added without their details (pdf-build.mjs).
- * @typedef {'signatures' | 'annotationsOnce'} Warning
+ * @typedef {'signatures' | 'annotationsOnce' | 'signaturePicture'} Warning  'signaturePicture': a drawn or photographed signature was added (pdf-build.mjs).
  * @typedef {{ dropped: Set<Dropped>, kept: Set<Kept>, warnings: Set<Warning>, linksRemoved: number }} Report
  */
 

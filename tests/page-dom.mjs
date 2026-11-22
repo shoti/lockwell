@@ -40,6 +40,8 @@ export class PageElement extends FakeEventTarget {
     this.dir = '';
     this.dateTime = '';
     this.className = '';
+    /** @type {{ width: number, height: number } | undefined} A canvas's size once set. */
+    this.size = undefined;
     /** @type {PageElement | null} */
     this.parent = null;
     /** @type {(PageElement | string)[]} */
@@ -72,6 +74,23 @@ export class PageElement extends FakeEventTarget {
   closest(selector) {
     for (let at = /** @type {PageElement | null} */ (this); at; at = at.parent) if (at.matches(selector)) return at;
     return null;
+  }
+
+  /** A canvas's size: its attribute until set, as in a real DOM. */
+  get width() {
+    return this.size?.width ?? Number(this.getAttribute('width') ?? 0);
+  }
+
+  set width(value) {
+    this.size = { width: Number(value), height: this.height };
+  }
+
+  get height() {
+    return this.size?.height ?? Number(this.getAttribute('height') ?? 0);
+  }
+
+  set height(value) {
+    this.size = { width: this.width, height: Number(value) };
   }
 
   /** No layout here: every element is a 100 × 140 box at the origin. */

@@ -1522,12 +1522,118 @@ const PDF_MESSAGES = ['added', 'addedOne', 'unsupported', 'pictureUnsupported', 
 /** What a saved PDF leaves behind, kept and warns about (pdf-copy.mjs, plan §6.5), in the order listed. */
 const PDF_DROPPED = ['bookmarks', 'pageLabels', 'articles', 'structure', 'scripts', 'attachments', 'encryption'];
 const PDF_KEPT = ['pictures', 'comments', 'fields', 'layers'];
-const PDF_WARNINGS = ['signatures', 'annotationsOnce'];
+const PDF_WARNINGS = ['signatures', 'annotationsOnce', 'signaturePicture'];
 /** How a saved result is cut into files (pdf-build.mjs `splitPages`). */
 const PDF_MAKE = ['all', 'selected', 'ranges', 'every', 'single', 'source'];
 /** Pages made from pictures (pdf-image.mjs `imageLayout`). */
 const PDF_PICTURE_SIZES = ['fit', 'a4', 'letter'];
 const PDF_PICTURE_MARGINS = [['0', 'none'], ['5', 'small'], ['10', 'large']];
+
+/** What the stage can put on a page, and how each item is named in the item list. */
+const PDF_ITEMS = ['ink', 'picture', 'text', 'tick', 'cross', 'stamp'];
+const PDF_FONTS = ['site', 'serif', 'cursive'];
+const PDF_INKS = ['black', 'blue'];
+const PDF_PLACES = ['bottomLeft', 'centre', 'bottomRight'];
+
+/**
+ * The sign-and-stamp stage (plan §7): one page large, what can be added, the chosen item's settings.
+ * @param {Ctx} ctx @param {(key: string) => string} s
+ * @param {(name: string, icon: SafeHtml, label: string) => SafeHtml} action
+ * @param {(name: string, icon: SafeHtml, label: string) => SafeHtml} iconAction
+ * @param {(key: string, tool: string, route: string) => SafeHtml} onward
+ */
+function pdfStage(ctx, s, action, iconAction, onward) {
+  /** @param {string} key */
+  const g = (key) => s(`stage.${key}`);
+  return html`<section class="pdf__stage" data-js="pdf-stage" aria-labelledby="pdf__stage-title" hidden>
+            <h2 class="file-report__title" id="pdf__stage-title" data-js="pdf-stage-title" data-template="${g('title')}"></h2>
+            <div class="tool__actions" role="group" aria-label="${g('add')}">
+              ${action('add-ink', icons.pen, g('ink'))}
+              <label class="button button--ghost button--small" for="pdf__ink-photo" data-js="pdf-add-photo">${icons.image}<span>${g('photo')}</span></label>
+              <input class="visually-hidden" type="file" id="pdf__ink-photo" accept="image/*" data-js="pdf-ink-photo">
+              ${action('add-mine', icons.edit, g('mine'))}
+              <button class="button button--ghost button--small" type="button" data-js="pdf-add-text" data-text="${g('textDefault')}">${icons.type}<span>${g('text')}</span></button>
+              ${action('add-date', icons.calendar, g('date'))}
+              ${action('add-tick', icons.check, g('tick'))}
+              ${action('add-cross', icons.cross, g('cross'))}
+              <button class="button button--ghost button--small" type="button" data-js="pdf-add-stamp" data-text="${g('stampText')}">${icons.stamp}<span>${g('stamp')}</span></button>
+            </div>
+            <p class="facts__why" data-js="pdf-stage-blocked" hidden>${g('noReadBack')}</p>
+            <div class="pdf__pad" data-js="pdf-pad" hidden>
+              <p class="field__label" id="pdf__pad-label">${g('padLabel')}</p>
+              <canvas class="pdf__pad-canvas" data-js="pdf-pad-canvas" width="600" height="200" aria-labelledby="pdf__pad-label" aria-describedby="pdf__pad-hint"></canvas>
+              <p class="facts__why" id="pdf__pad-hint">${g('padHint')}</p>
+              <div class="tool__actions">
+                <button class="button button--small" type="button" data-js="pdf-pad-use">${g('padUse')}</button>
+                <button class="button button--ghost button--small" type="button" data-js="pdf-pad-clear">${g('padClear')}</button>
+                <button class="button button--ghost button--small" type="button" data-js="pdf-pad-close">${g('close')}</button>
+              </div>
+              <p class="facts__why">${g('session')}</p>
+            </div>
+            <div class="pdf__pad" data-js="pdf-ink" hidden>
+              <p class="field__label" id="pdf__ink-label">${g('inkLabel')}</p>
+              <canvas class="pdf__pad-canvas" data-js="pdf-ink-canvas" width="600" height="200" aria-labelledby="pdf__ink-label"></canvas>
+              <label class="field__label" for="pdf__ink-threshold">${g('threshold')}</label>
+              <input class="range" type="range" id="pdf__ink-threshold" min="40" max="240" step="5" value="160" data-js="pdf-ink-threshold">
+              <p class="facts__why" role="status" data-js="pdf-ink-status" data-none="${g('inkNone')}"></p>
+              <div class="tool__actions">
+                <button class="button button--small" type="button" data-js="pdf-ink-use">${g('padUse')}</button>
+                <button class="button button--ghost button--small" type="button" data-js="pdf-ink-close">${g('close')}</button>
+              </div>
+              <p class="facts__why">${g('session')}</p>
+            </div>
+            <div class="tool__actions" role="group" aria-label="${g('zoom')}">
+              ${iconAction('zoom-out', icons.minus, g('zoomOut'))}
+              ${iconAction('zoom-in', icons.plus, g('zoomIn'))}
+            </div>
+            <div class="pdf__view" data-js="pdf-view" data-zoom="1">
+              <canvas class="pdf__view-page" data-js="pdf-view-page" width="100" height="141"></canvas>
+              <canvas class="pdf__view-items" data-js="pdf-view-items" width="100" height="141" tabindex="0" aria-label="${g('canvasLabel')}"></canvas>
+            </div>
+            <p class="facts__why" data-js="pdf-view-outline" hidden>${g('noPreview')}</p>
+            <div class="pdf__props" data-js="pdf-props" hidden>
+              <div class="field">
+                <label class="field__label" for="pdf__item">${g('item')}</label>
+                <select class="select" id="pdf__item" data-js="pdf-item"${PDF_ITEMS.map((key) => html` data-${key}="${g(`items.${key}`)}"`)}></select>
+              </div>
+              <div class="field" data-js="pdf-prop-text">
+                <label class="field__label" for="pdf__item-text">${g('textLabel')}</label>
+                <textarea class="textarea" id="pdf__item-text" rows="2" spellcheck="false" data-js="pdf-item-text"></textarea>
+              </div>
+              <fieldset class="field" data-js="pdf-prop-font">
+                <legend class="field__label">${g('font')}</legend>
+                ${PDF_FONTS.map((key, i) => radio('pdf-item-font', `pdf__item-font-${key}`, key, 'pdf-item-font', g(`fonts.${key}`), i === 0))}
+                ${option('pdf__item-bold', 'pdf-item-bold', g('bold'), false)}
+              </fieldset>
+              <fieldset class="field" data-js="pdf-prop-color">
+                <legend class="field__label">${g('color')}</legend>
+                ${PDF_INKS.map((key, i) => radio('pdf-item-color', `pdf__item-color-${key}`, key, 'pdf-item-color', g(`colors.${key}`), i === 0))}
+              </fieldset>
+              <div class="field" data-js="pdf-prop-opacity">
+                <label class="field__label" for="pdf__item-opacity">${g('opacity')}</label>
+                <input class="range" type="range" id="pdf__item-opacity" min="10" max="100" step="5" value="100" data-js="pdf-item-opacity">
+              </div>
+              <div class="tool__actions" role="group" aria-label="${g('itemActions')}">
+                ${iconAction('item-turn-left', icons.rotateLeft, g('turnLeft'))}
+                ${iconAction('item-turn-right', icons.rotateRight, g('turnRight'))}
+                ${iconAction('item-smaller', icons.minus, g('smaller'))}
+                ${iconAction('item-larger', icons.plus, g('larger'))}
+                ${iconAction('item-duplicate', icons.duplicate, g('duplicate'))}
+                ${iconAction('item-remove', icons.trash, g('remove'))}
+              </div>
+              <div class="tool__actions" role="group" aria-label="${g('place')}">
+                ${PDF_PLACES.map((key) => html`<button class="button button--ghost button--small" type="button" data-js="pdf-place" data-place="${key}">${g(`places.${key}`)}</button>`)}
+              </div>
+              <button class="button button--ghost button--small" type="button" data-js="pdf-item-every" data-done="${g('everyDone')}">${g('every')}</button>
+            </div>
+            <p class="tool__status" role="status" data-js="pdf-stage-status"></p>
+            <p class="facts__why" data-js="pdf-not-digital" hidden>${g('notDigital')}</p>
+            ${onward('stage.liftOff', 'redact', '/tools/image-redaction/')}
+            <div class="tool__actions">
+              <button class="button" type="button" data-js="pdf-stage-done">${icons.check}<span>${g('done')}</span></button>
+            </div>
+          </section>`;
+}
 
 /** @param {Ctx} ctx */
 function pdfPanel(ctx) {
@@ -1595,6 +1701,7 @@ function pdfPanel(ctx) {
             ${iconAction('rotate-right', icons.rotateRight, s('rotateRight'))}
             ${iconAction('duplicate', icons.duplicate, s('duplicate'))}
             ${iconAction('blank', icons.pagePlus, s('blank'))}
+            ${iconAction('sign', icons.pen, s('sign'))}
             ${iconAction('remove', icons.trash, s('remove'))}
           </div>
           <div class="pdf__row pdf__position">
@@ -1603,6 +1710,7 @@ function pdfPanel(ctx) {
             <button class="button button--ghost button--small" type="button" data-js="pdf-position-move">${s('positionButton')}</button>
           </div>
           <p class="tool__status" role="status" data-js="pdf-status" data-template="${s('status')}" data-template-one="${s('statusOne')}" data-moved="${s('moved')}" data-moved-many="${s('movedMany')}"></p>
+          ${pdfStage(ctx, s, action, iconAction, onward)}
           <ol class="pdf__cards" data-js="pdf-cards" data-size="3" aria-label="${s('cards')}" aria-describedby="pdf__help"></ol>
           <template data-js="pdf-card-template">
             <li class="pdf__card" data-js="pdf-card" tabindex="-1">
@@ -1623,6 +1731,7 @@ function pdfPanel(ctx) {
                       ${menuAction('move-end', icons.toEnd, s('moveEnd'))}
                       ${menuAction('duplicate', icons.duplicate, s('duplicate'))}
                       ${menuAction('blank', icons.pagePlus, s('blank'))}
+                      ${menuAction('sign', icons.pen, s('sign'))}
                       ${menuAction('remove', icons.trash, s('remove'))}
                     </div>
                   </details>

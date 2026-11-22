@@ -3312,6 +3312,65 @@
     display: block;
   }
 
+  /* Sign and stamp: the page large, with what is added drawn on a second canvas above it. */
+  .pdf__stage:not([hidden]) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3);
+    padding: var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+  }
+
+  /* Zoomed, the page is wider than the view, which scrolls; the canvases are drawn again at the new size. */
+  .pdf__view {
+    display: grid;
+    justify-content: safe center;
+    max-block-size: 85vh;
+    padding: var(--space-1);
+    overflow: auto;
+  }
+
+  .pdf__view > canvas {
+    grid-area: 1 / 1;
+    display: block;
+    inline-size: 100%;
+    block-size: auto;
+  }
+
+  .pdf__view[data-zoom="1"] { grid-template-columns: minmax(0, 1fr); }
+  .pdf__view[data-zoom="1.5"] { grid-template-columns: 150%; }
+  .pdf__view[data-zoom="2"] { grid-template-columns: 200%; }
+  .pdf__view[data-zoom="3"] { grid-template-columns: 300%; }
+  .pdf__view[data-zoom="4"] { grid-template-columns: 400%; }
+
+  .pdf__view-page {
+    background: #ffffff;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .pdf__view-items {
+    touch-action: none;
+  }
+
+  .pdf__pad:not([hidden]),
+  .pdf__props:not([hidden]) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-2);
+  }
+
+  .pdf__pad-canvas {
+    display: block;
+    inline-size: 100%;
+    block-size: auto;
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-sm);
+    background: #ffffff;
+    touch-action: none;
+  }
+
   /* In a narrow card the grip and the menu wrap below the checkbox. */
   .pdf__card-bar {
     display: flex;

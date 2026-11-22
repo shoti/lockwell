@@ -12,7 +12,9 @@ import { build, interleave, parseRanges, splitPages } from './pdf-build.mjs';
 import { PdfError, openPdf } from './pdf-file.mjs';
 import { IMAGE_PAGE, imageLayout, jpegPicture, pngPicture } from './pdf-image.mjs';
 import { pageBox, pageList } from './pdf-pages.mjs';
-import { decodePicture, drawPicturePage, rasterPicture, thumbnailOf } from './pdf-raster.mjs';
+import { decodePicture, drawOverlays, drawPicturePage, rasterPicture, thumbnailOf } from './pdf-raster.mjs';
+import { initStage } from './pdf-stage.mjs';
+import { turnOverlays } from './pdf-overlay.mjs';
 import { PdfDict, PdfName, PdfStream } from './pdf-syntax.mjs';
 import { closePreview, drawPage, openPreview } from './pdf-view.mjs';
 import { PdfWriter } from './pdf-write.mjs';
@@ -65,9 +67,17 @@ export function movePages(pages, keys, to) {
   return out;
 }
 
-/** @param {PlanPage[]} pages @param {Set<number>} keys @param {90 | -90} delta */
-export function rotatePages(pages, keys, delta) {
-  return pages.map((page) => (keys.has(page.key) ? { ...page, turn: /** @type {PlanPage['turn']} */ ((((page.turn + delta) % 360) + 360) % 360) } : page));
+/**
+ * Turns pages a quarter; what was added to a page turns with it.
+ * @param {PlanPage[]} pages @param {Set<number>} keys @param {90 | -90} delta
+ * @param {(page: PlanPage) => { width: number, height: number }} [sizeOf]  The page's size as shown before the turn.
+ */
+export function rotatePages(pages, keys, delta, sizeOf) {
+  return pages.map((page) => {
+    if (!keys.has(page.key)) return page;
+    const turned = { ...page, turn: /** @type {PlanPage['turn']} */ ((((page.turn + delta) % 360) + 360) % 360) };
+    return page.overlays?.length && sizeOf ? { ...turned, overlays: turnOverlays(page.overlays, delta, sizeOf(page)) } : turned;
+  });
 }
 
 /**
@@ -253,7 +263,58 @@ export function init(root) {
   /** @param {PlanPage} page */
   const isImagePage = (page) => 'source' in page.origin && sources.get(page.origin.source)?.kind === 'image';
   /** What a card was drawn for: picture pages also depend on the page settings. @param {PlanPage} page */
-  const drawKey = (page) => (isImagePage(page) ? `${page.turn}:${size}:${imagePage.size}:${imagePage.margin}` : `${page.turn}:${size}`);
+  const drawKey = (page) => `${isImagePage(page) ? `${page.turn}:${size}:${imagePage.size}:${imagePage.margin}` : `${page.turn}:${size}`}${overlayKey(page)}`;
+  /** Each list of overlays a number, so a card is drawn again when what is on it changed. @type {WeakMap<object, number>} */
+  const overlayIds = new WeakMap();
+  let nextOverlayId = 1;
+  /** @param {PlanPage} page */
+  const overlayKey = (page) => {
+    if (!page.overlays?.length) return '';
+    let id = overlayIds.get(page.overlays);
+    if (!id) {
+      id = nextOverlayId++;
+      overlayIds.set(page.overlays, id);
+    }
+    return `:o${id}`;
+  };
+
+  /**
+   * Draws a page as shown, without what was added to it, `width` CSS pixels wide. False when it cannot be shown.
+   * @param {PlanPage} page @param {HTMLCanvasElement} canvas @param {number} width @param {number} ratio
+   * @param {(task: { cancel: () => void } | null) => void} [onTask]  Gets the drawing while it runs, to cancel it.
+   */
+  const drawPlain = async (page, canvas, width, ratio, onTask) => {
+    if ('blank' in page.origin) {
+      const shown = shownSize(page);
+      [canvas.width, canvas.height] = [Math.max(1, Math.round(width * ratio)), Math.max(1, Math.round((width * ratio * shown.height) / shown.width))];
+      const context = typeof canvas.getContext === 'function' ? canvas.getContext('2d') : null;
+      if (context) {
+        context.fillStyle = '#ffffff';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+      }
+      return Boolean(context);
+    }
+    const source = sources.get(page.origin.source);
+    if (!source) return false;
+    if (source.kind === 'image') {
+      if (!source.thumb) return false;
+      drawPicturePage(canvas, source.thumb, imageLayout(source.picture, imagePage), { width, turn: page.turn, ratio });
+      return true;
+    }
+    const preview = await (source.preview ?? null);
+    if (!preview) {
+      if (!previewsUnavailable) {
+        previewsUnavailable = true;
+        say('noPreview');
+      }
+      return false;
+    }
+    const task = drawPage(preview, page.origin.index, canvas, { width, turn: page.turn, ratio });
+    onTask?.(task);
+    const ok = await task.done;
+    onTask?.(null);
+    return ok;
+  };
 
   /** @param {PlanPage} page */
   const cardFor = (page) => {
@@ -302,38 +363,21 @@ export function init(root) {
       if (!page || !card) continue;
       const wanted = drawKey(page);
       if (card.drawn === wanted) continue;
-      if ('blank' in page.origin) {
-        card.drawn = wanted;
-        continue;
-      }
-      const source = sources.get(page.origin.source);
-      if (!source) continue;
-      const ratio = Math.min(2, globalThis.devicePixelRatio || 1);
-      if (source.kind === 'image') {
-        card.element.classList.toggle('is-outline', !source.thumb);
-        if (source.thumb) drawPicturePage(card.canvas, source.thumb, imageLayout(source.picture, imagePage), { width: card.canvas.clientWidth || CARD_REM[size - 1] * 16, turn: page.turn, ratio });
+      if ('blank' in page.origin && !page.overlays?.length) {
         card.drawn = wanted;
         continue;
       }
       drawing += 1;
-      const { index } = page.origin;
       (async () => {
-        const preview = await (source.preview ?? null);
-        if (!preview) {
-          card.element.classList.add('is-outline');
-          if (!previewsUnavailable) {
-            previewsUnavailable = true;
-            say('noPreview');
-          }
-          return;
-        }
+        const ratio = Math.min(2, globalThis.devicePixelRatio || 1);
         const width = card.canvas.clientWidth || CARD_REM[size - 1] * 16;
-        const task = drawPage(preview, index, card.canvas, { width, turn: page.turn, ratio });
-        card.task = task;
-        const ok = await task.done;
-        card.task = null;
+        const ok = await drawPlain(page, card.canvas, width, ratio, (task) => {
+          card.task = task;
+        });
         card.element.classList.toggle('is-outline', !ok);
-        if (ok) card.drawn = wanted;
+        if (!ok) return;
+        if (page.overlays?.length) drawOverlays(/** @type {CanvasRenderingContext2D} */ (card.canvas.getContext('2d')), page.overlays, card.canvas.width, card.canvas.height);
+        card.drawn = wanted;
       })().finally(() => {
         drawing -= 1;
         pump();
@@ -420,12 +464,13 @@ export function init(root) {
     button('redo').disabled = history.index === history.entries.length - 1;
     button('smaller').disabled = size === 1;
     button('larger').disabled = size === CARD_REM.length;
-    for (const name of ['select-all', 'select-none', 'move-start', 'move-left', 'move-right', 'move-end', 'rotate-left', 'rotate-right', 'duplicate', 'blank', 'remove', 'position-move', 'range-select', 'reverse', 'interleave']) {
+    for (const name of ['select-all', 'select-none', 'move-start', 'move-left', 'move-right', 'move-end', 'rotate-left', 'rotate-right', 'duplicate', 'blank', 'sign', 'remove', 'position-move', 'range-select', 'reverse', 'interleave']) {
       button(name).disabled = list.length === 0;
     }
     input('position').max = String(Math.max(1, list.length));
     button('create').disabled = busy || list.length === 0;
     button('cancel').disabled = !busy;
+    if (stage.openKey !== null) stage.refresh();
   };
 
   /** @param {PlanPage[]} next @param {string} [tag] */
@@ -480,7 +525,7 @@ export function init(root) {
       }
       case 'rotate-left':
       case 'rotate-right':
-        change(rotatePages(list, keys, action === 'rotate-left' ? -90 : 90), `rotate:${[...keys].join(',')}`);
+        change(rotatePages(list, keys, action === 'rotate-left' ? -90 : 90, shownSize), `rotate:${[...keys].join(',')}`);
         return;
       case 'duplicate':
         change(duplicatePages(list, keys, key));
@@ -490,6 +535,9 @@ export function init(root) {
         return;
       case 'remove':
         change(removePages(list, keys));
+        return;
+      case 'sign':
+        stage.open(list[firstIndex].key);
         return;
       default:
     }
@@ -504,7 +552,7 @@ export function init(root) {
       : fill(status.dataset.movedMany ?? '', { count: keys.size, to: to + 1 });
   };
 
-  for (const name of ['move-start', 'move-left', 'move-right', 'move-end', 'rotate-left', 'rotate-right', 'duplicate', 'blank', 'remove']) {
+  for (const name of ['move-start', 'move-left', 'move-right', 'move-end', 'rotate-left', 'rotate-right', 'duplicate', 'blank', 'sign', 'remove']) {
     button(name).addEventListener('click', () => act(name, targets()));
   }
   button('position-move').addEventListener('click', () => {
@@ -806,6 +854,10 @@ export function init(root) {
     });
   }
 
+  /* ----- Sign and stamp ----- */
+
+  const stage = initStage(root, { pages, change, shown: shownSize, drawPage: drawPlain, selected: () => selected, lang });
+
   /* ----- Starting again ----- */
 
   const restart = find('restart');
@@ -818,6 +870,7 @@ export function init(root) {
   });
   button('restart-yes').addEventListener('click', () => {
     restart.hidden = true;
+    stage.reset();
     for (const source of sources.values()) letGo(source);
     sources.clear();
     for (const card of cardViews.values()) card.task?.cancel();

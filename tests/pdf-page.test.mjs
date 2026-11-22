@@ -123,7 +123,7 @@ function open(lang) {
 }
 
 /** The names the module looks up: find('…'), button('…'), input('…'), and the card parts. */
-const SOURCE = readFileSync(new URL('../src/client/tool-pdf.mjs', import.meta.url), 'utf8');
+const SOURCE = ['tool-pdf', 'pdf-stage'].map((name) => readFileSync(new URL(`../src/client/${name}.mjs`, import.meta.url), 'utf8')).join('\n');
 const NAMES = new Set([...SOURCE.matchAll(/\b(?:find|input|button)\('([a-z-]+)'/g)].map((match) => match[1]));
 const LISTED = [...SOURCE.matchAll(/for \(const name of \[([^\]]+)\]\)/g)].flatMap((match) => [...match[1].matchAll(/'([a-z-]+)'/g)].map((m) => m[1]));
 
@@ -522,6 +522,145 @@ describe('PDF tools page: pictures', () => {
       await page.add(webp, 'sticker.webp', 'image/webp');
       assert.ok(page.said('pictureUnsupported'));
       assert.equal(page.cards().length, 0);
+    } finally {
+      page.restore();
+    }
+  });
+});
+
+describe('PDF tools page: sign and stamp', () => {
+  /** The content stream added to a saved page: the last of its Contents. @param {Uint8Array} bytes @param {number} [at] */
+  const drawn = async (bytes, at = 0) => {
+    const file = await openPdf(bytes);
+    const contents = pageList(file)[at].dict.get('Contents');
+    if (!Array.isArray(contents)) return '';
+    const stream = /** @type {import('../src/client/pdf-syntax.mjs').PdfStream} */ (file.resolve(contents[contents.length - 1]));
+    return Buffer.from(await file.decode(stream)).toString('latin1');
+  };
+  /** @param {ReturnType<typeof open>} page @param {string} name */
+  const stagePart = (page, name) => page.part(name);
+  /** @param {ReturnType<typeof open>} page @param {Record<string, unknown>} event */
+  const key = (page, event) => stagePart(page, 'view-items').dispatchEvent({ type: 'keydown', preventDefault() {}, ...event });
+
+  it('opens a page large, adds a tick, moves, resizes and turns it by keys, and saves it as page content', async () => {
+    const page = open('en');
+    try {
+      await page.add(simplePdf(3));
+      page.check(1);
+      page.press('sign');
+      assert.equal(stagePart(page, 'stage').hidden, false);
+      assert.equal(stagePart(page, 'stage-title').textContent, 'Sign and stamp: page 2');
+      await until(() => stagePart(page, 'view-outline').hidden === false, 'the outline note: no preview in Node, placement still works');
+      page.press('add-tick');
+      assert.equal(stagePart(page, 'props').hidden, false);
+      assert.deepEqual(stagePart(page, 'item').children.map((option) => option.textContent), ['Tick 1']);
+      page.press('create');
+      const before = await drawn((await page.saved()).bytes, 1);
+      assert.match(before, /^Q\n/);
+      assert.match(before, /0 0 0 RG [\d.]+ w 1 J 1 j/);
+      key(page, { code: 'ArrowRight', shiftKey: true });
+      key(page, { code: 'Equal' });
+      key(page, { code: 'KeyR' });
+      page.press('create');
+      const after = await drawn((await page.saved()).bytes, 1);
+      assert.notEqual(after, before, 'moved, bigger and turned');
+      page.press('undo');
+      page.press('undo');
+      page.press('undo');
+      page.press('create');
+      assert.equal(await drawn((await page.saved()).bytes, 1), before, 'each key is one step of the board\'s undo');
+      assert.equal(await drawn((await page.saved()).bytes, 0), '', 'other pages are untouched');
+      page.press('stage-done');
+      assert.equal(stagePart(page, 'stage').hidden, true);
+    } finally {
+      page.restore();
+    }
+  });
+
+  it('draws a signature on the pad, keeps it for this tab only, and warns that it is not a digital signature', async () => {
+    const page = open('en');
+    try {
+      await page.add(simplePdf(2));
+      page.check(0);
+      page.press('sign');
+      assert.equal(stagePart(page, 'add-mine').disabled, true, 'no signature made yet');
+      page.press('add-ink');
+      assert.equal(stagePart(page, 'pad').hidden, false);
+      const pad = stagePart(page, 'pad-canvas');
+      pad.dispatchEvent({ type: 'pointerdown', button: 0, pointerId: 1, clientX: 10, clientY: 50 });
+      for (const [x, y] of [[30, 20], [50, 80], [70, 30], [90, 60]]) pad.dispatchEvent({ type: 'pointermove', pointerId: 1, clientX: x, clientY: y });
+      pad.dispatchEvent({ type: 'pointerup', pointerId: 1 });
+      page.press('pad-use');
+      assert.equal(stagePart(page, 'pad').hidden, true);
+      assert.equal(stagePart(page, 'not-digital').hidden, false);
+      assert.equal(stagePart(page, 'add-mine').disabled, false);
+      page.press('create');
+      const { bytes } = await page.saved();
+      assert.match(await drawn(bytes, 0), /(\n[\d.]+ [\d.]+ l){4,}/, 'the signature is a vector path');
+      const warnings = page.tool.querySelectorAll('[data-js="pdf-warning-item"]').filter((item) => !item.hidden).map((item) => item.dataset.key);
+      assert.deepEqual(warnings, ['signaturePicture']);
+      page.press('restart-ask');
+      page.press('restart-yes');
+      await page.add(simplePdf(1));
+      page.check(0);
+      page.press('sign');
+      assert.equal(stagePart(page, 'add-mine').disabled, true, '"Start again" forgets the signature');
+    } finally {
+      page.restore();
+    }
+  });
+
+  it('puts an item on every selected page, at the same place', async () => {
+    const page = open('en');
+    try {
+      await page.add(simplePdf(4));
+      for (const i of [0, 2, 3]) page.check(i);
+      page.press('sign');
+      page.press('add-cross');
+      page.press('item-every');
+      assert.equal(stagePart(page, 'stage-status').textContent, 'Added to 2 pages.');
+      page.press('create');
+      const { bytes } = await page.saved();
+      const streams = await Promise.all([0, 1, 2, 3].map((at) => drawn(bytes, at)));
+      assert.deepEqual(streams.map((text) => text !== ''), [true, false, true, true]);
+      assert.equal(streams[2], streams[0], 'same place on pages of the same size');
+    } finally {
+      page.restore();
+    }
+  });
+
+  it('turns what was added together with its page', async () => {
+    const page = open('en');
+    try {
+      await page.add(simplePdf(1));
+      page.check(0);
+      page.press('sign');
+      page.press('add-tick');
+      const [place] = page.tool.querySelectorAll('[data-js="pdf-place"]').filter((button) => button.dataset.place === 'bottomRight');
+      place.click();
+      page.press('create');
+      const flat = await drawn((await page.saved()).bytes, 0);
+      page.press('rotate-right');
+      page.press('create');
+      const turned = await drawn((await page.saved()).bytes, 0);
+      // The page turned a quarter: in user space (unchanged by /Rotate) the tick is drawn where it was.
+      const numbers = (/** @type {string} */ text) => (text.match(/-?[\d.]+/g) ?? []).map(Number);
+      const close = numbers(flat).every((n, i) => Math.abs(n - numbers(turned)[i]) < 0.01);
+      assert.ok(close, `${flat} vs ${turned}`);
+    } finally {
+      page.restore();
+    }
+  });
+
+  it('says why text, dates, stamps and photos are unavailable when the browser blocks reading pictures', async () => {
+    const page = open('ka');
+    try {
+      await page.add(simplePdf(1));
+      page.check(0);
+      page.press('sign');
+      assert.equal(stagePart(page, 'stage-blocked').hidden, false);
+      for (const name of ['add-text', 'add-date', 'add-stamp']) assert.equal(stagePart(page, name).disabled, true, name);
+      assert.equal(stagePart(page, 'add-tick').disabled, false);
     } finally {
       page.restore();
     }
