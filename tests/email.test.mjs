@@ -9,7 +9,11 @@ import { readFile } from 'node:fs/promises';
 import { describe, it } from 'node:test';
 import { parseReceived } from '../src/client/mail-auth.mjs';
 import { STEPS, splitMessage } from '../src/client/mail-parse.mjs';
-import { FINDINGS, domainsInName, exampleMessages, inspectMessage, organisationOf, trustBoundary, verdictOf } from '../src/client/tool-email.mjs';
+import { CfbError } from '../src/client/cfb.mjs';
+import {
+  FINDINGS, MAX_ATTACHMENTS, countRemoteImages, domainsInName, exampleMessages, headersFromMsg, inspectMessage, organisationOf, readBody, trustBoundary, verdictOf,
+} from '../src/client/tool-email.mjs';
+import { cfb, latin1, utf16le } from './build-files.mjs';
 import { ALL_MESSAGES, MICROSOFT_AUTH, RFC8601_B2, RFC8601_B5, RFC8601_B6 } from './mail-fixtures.mjs';
 
 /**
@@ -158,9 +162,9 @@ describe('findings', () => {
   });
 
   it('nameHidden', () => {
-    const hidden = finding(message({ from: '"Bank‮gnp.exe" <ana@example.com>' }), 'nameHidden');
+    const hidden = finding(message({ from: '"Bank\u202Egnp.exe" <ana@example.com>' }), 'nameHidden');
     assert.ok(hidden?.values[0].includes('⟨U+202E⟩'));
-    assert.ok(finding(message({ subject: 'Pay​ now' }), 'nameHidden'));
+    assert.ok(finding(message({ subject: 'Pay\u200B now' }), 'nameHidden'));
   });
 
   it('severalFrom', () => {
@@ -272,6 +276,81 @@ describe('findings', () => {
   it('has a test above for every finding', async () => {
     const source = await readFile(new URL(import.meta.url), 'utf8');
     for (const key of Object.keys(FINDINGS)) assert.ok(source.includes(`'${key}'`), key);
+  });
+});
+
+describe('the whole message', () => {
+  /** @param {string} type @param {string} content @param {string} [extra] */
+  const part = (type, content, extra = '') => `--b\nContent-Type: ${type}\n${extra}\n${content}\n`;
+  /** @param {...string} parts */
+  const whole = (...parts) => message({ fields: `MIME-Version: 1.0\nContent-Type: multipart/mixed; boundary=b\n\n${parts.join('')}--b--\n` });
+
+  it('judges the links with the link checker, including words that name another site', () => {
+    const text = whole(part('text/html; charset=utf-8', '<p>Sign in at <a href="https://tbc-login.pages.dev/auth">www.tbcbank.ge</a> or <a href="https://example.com/help">help</a>.</p>'));
+    const report = inspectMessage(text);
+    assert.equal(report.body?.linksTotal, 2);
+    assert.deepEqual(report.body?.links.map((link) => [link.url, link.warnings > 0]), [['https://tbc-login.pages.dev/auth', true], ['https://example.com/help', false]]);
+    assert.ok(!report.findings.some((entry) => entry.key === 'riskyAttachment'));
+  });
+
+  it('finds links in a plain-text part too', () => {
+    assert.equal(inspectMessage(whole(part('text/plain', 'See https://example.org/page and https://example.net/'))).body?.linksTotal, 2);
+  });
+
+  it('judges attachment names with the attachment checker’s name check: riskyAttachment', () => {
+    const text = whole(
+      part('text/plain', 'Invoice attached.'),
+      part('application/pdf; name="Invoice\u202Efdp.exe"', 'TVo=', 'Content-Transfer-Encoding: base64\nContent-Disposition: attachment\n'),
+      part('application/octet-stream', 'x', 'Content-Disposition: attachment; filename="report.pdf.js"\n'),
+      part('image/png', 'iVBORw0KGgo=', 'Content-Transfer-Encoding: base64\nContent-Disposition: attachment; filename="photo.png"\n'),
+    );
+    const report = inspectMessage(text);
+    assert.deepEqual(report.body?.attachments.map((file) => [file.name, file.risky]), [['Invoice\u202Efdp.exe', true], ['report.pdf.js', true], ['photo.png', false]]);
+    assert.deepEqual(report.findings.find((entry) => entry.key === 'riskyAttachment')?.values, ['Invoice⟨RLO⟩fdp.exe', 'report.pdf.js']);
+    assert.equal(report.body?.attachmentsTotal, 3);
+  });
+
+  it('counts pictures loaded from the internet: remoteImages', () => {
+    const text = whole(part('text/html', '<img src="https://track.example.net/p.gif" width=1><IMG alt="" SRC = \'http://example.com/a.png\'><img src="cid:logo">'));
+    assert.deepEqual(finding(text, 'remoteImages')?.values, ['2']);
+    assert.equal(countRemoteImages('<img src="data:image/png;base64,AAAA">'), 0);
+  });
+
+  it('lists at most MAX_ATTACHMENTS files and says when part of the body wasn’t read', () => {
+    const files = Array.from({ length: MAX_ATTACHMENTS + 3 }, (_, i) => `--b\nContent-Type: image/gif; name=a${i}.gif\n\nx\n`).join('');
+    const body = readBody(splitMessage(`From: a@example.com\nContent-Type: multipart/mixed; boundary=b\n\n${files}--b--\n`).fields, `${files}--b--\n`);
+    assert.equal(body.attachments.length, MAX_ATTACHMENTS);
+    assert.equal(body.attachmentsTotal, MAX_ATTACHMENTS + 3);
+    assert.equal(body.unread, false);
+  });
+
+  it('reads hostile HTML in linear time: unclosed links and pictures', () => {
+    for (const html of ['<a href="https://example.com/">'.repeat(30_000), '<img src="https://example.com/"'.repeat(30_000), '<a'.repeat(200_000)]) {
+      const text = whole(part('text/html', html));
+      const started = performance.now();
+      inspectMessage(text);
+      assert.ok(performance.now() - started < 3000, html.slice(0, 10));
+    }
+  });
+
+  it('gives no body for headers alone', () => {
+    assert.equal(inspectMessage(message()).body, null);
+  });
+});
+
+describe('headersFromMsg (.msg files)', () => {
+  const headers = exampleMessages()[1];
+  it('reads the transport headers stream, Unicode (001F) or 8-bit (001E)', () => {
+    assert.equal(headersFromMsg(cfb([{ path: '__substg1.0_0037001F', data: utf16le('Subject') }, { path: '__substg1.0_007D001F', data: utf16le(`${headers}\0`) }])), headers);
+    assert.equal(headersFromMsg(cfb([{ path: '__substg1.0_007D001E', data: latin1(`${headers}\0`) }])), headers);
+  });
+
+  it('says a message holds none (a draft), a file isn’t a compound file, or throws for a damaged one', () => {
+    assert.equal(headersFromMsg(cfb([{ path: '__substg1.0_0037001F', data: utf16le('Draft') }])), '');
+    assert.equal(headersFromMsg(cfb([{ path: 'Attach/__substg1.0_007D001F', data: utf16le(headers) }])), '', 'only the message’s own stream counts');
+    assert.equal(headersFromMsg(latin1(headers)), null);
+    const damaged = cfb([{ path: '__substg1.0_007D001F', data: utf16le(headers) }]).slice(0, 600);
+    assert.throws(() => headersFromMsg(damaged), CfbError);
   });
 });
 

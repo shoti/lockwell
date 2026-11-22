@@ -10,14 +10,17 @@
  * "safe" and never says "phishing": a pass ties a message to a mailbox, not to a person (RFC 8601 §7.2).
  * Sources and choices: docs/research/tool-email-headers.md, docs/tools-plan/email-headers.md.
  */
+import { isCfb, readCfb } from './cfb.mjs';
+import { RISKY_EXTENSIONS, checkName } from './file-name.mjs';
 import { INTERNAL, ipClass, parseIp } from './ip.mjs';
+import { anchorsFromHtml } from './link-text.mjs';
 import { parseArcSets, parseAuthResults, parseDkimSignature, parsePairs, parseReceived, parseSpamStatus } from './mail-auth.mjs';
-import { decodeWords, fieldsNamed, parseAddresses, parseDate, parseMessageIds, splitMessage } from './mail-parse.mjs';
-import { CONTROL, oneLine } from './metadata-text.mjs';
+import { decodeWords, fieldsNamed, parseAddresses, parseDate, parseMessageIds, readMime, splitMessage } from './mail-parse.mjs';
+import { CONTROL, decodeText, oneLine } from './metadata-text.mjs';
 import { receiveFiles } from './files.mjs';
 import { fillInto, fillText } from './fill.mjs';
 import { siteOf } from './site.mjs';
-import { inspectLink, linkParts, unicodeHost } from './tool-check.mjs';
+import { inspectLink, inspectText, unicodeHost } from './tool-check.mjs';
 import { TLDS } from './top-level-domains.mjs';
 
 /** @typedef {import('./mail-parse.mjs').Field} Field */
@@ -84,6 +87,7 @@ export const FINDINGS = /** @type {const} */ ({
   replyElsewhere: 'warn',
   nameIsAddress: 'warn',
   lookalikeDomain: 'warn',
+  riskyAttachment: 'warn',
   nameHidden: 'warn',
   severalFrom: 'warn',
   filterSaidSpam: 'warn',
@@ -111,6 +115,7 @@ export const FINDINGS = /** @type {const} */ ({
   senderAddress: 'info',
   messageIdElsewhere: 'info',
   encryptedInTransit: 'info',
+  remoteImages: 'info',
 });
 
 /**
@@ -332,7 +337,23 @@ export function trustBoundary(fields, received) {
  * @property {number} unparsed  Lines in the header block that aren't fields.
  * @property {number} notRead  Fields beyond the limit.
  * @property {{ sent: number | null, received: number | null }} dates
+ * @property {Body | null} body  What the message body holds, when the whole message was given.
+ *
+ * @typedef {object} Body
+ * @property {{ url: string, warnings: number }[]} links  At most MAX_BODY_LINKS, judged by the link checker.
+ * @property {number} linksTotal
+ * @property {{ name: string, type: string, size: number, risky: boolean }[]} attachments  At most MAX_ATTACHMENTS.
+ * @property {number} attachmentsTotal
+ * @property {number} remoteImages  Pictures the HTML loads from the internet.
+ * @property {boolean} unread  Part of the body wasn't read (too large, nested too deeply, too many parts).
  */
+
+/** Links listed from the body (the link checker's own limit). */
+export const MAX_BODY_LINKS = 10;
+/** Attached files listed; the rest are counted. */
+export const MAX_ATTACHMENTS = 50;
+/** HTML read for links and pictures, at most (characters). */
+const MAX_HTML = 1024 * 1024;
 
 /** Delays below this are clock differences between servers (plan §9.3). */
 const CLOCK_SLACK = 5 * 60_000;
@@ -353,6 +374,7 @@ const emptyReport = (status) => ({
   unparsed: 0,
   notRead: 0,
   dates: { sent: null, received: null },
+  body: null,
 });
 
 /**
@@ -578,10 +600,108 @@ export function inspectMessage(text) {
   const messageDomain = parseMessageIds(one('message-id'))[0]?.domain ?? '';
   if (messageDomain && identity.site && organisationOf(messageDomain) !== identity.site) found.add('messageIdElsewhere', [messageDomain.toLowerCase()]);
 
+  /* The body: links, attached files, remote pictures */
+  if (message.hasBody) {
+    report.body = readBody(fields, message.body);
+    const risky = report.body.attachments.filter((attachment) => attachment.risky).map((attachment) => checkName(attachment.name).visible);
+    if (risky.length) found.add('riskyAttachment', risky);
+    if (report.body.remoteImages) found.add('remoteImages', [String(report.body.remoteImages)]);
+  }
+
   if (received.size === 0 || !from) found.add('partial');
   report.findings = found.list;
   report.verdict = verdictOf(report.findings);
   return report;
+}
+
+/**
+ * The links of an HTML text: each "<a …>…</a>", found in one pass that jumps past each closing tag, so a page of
+ * unclosed links costs no more than its length. Returned as HTML holding only those links.
+ * @param {string} html
+ */
+function linkHtml(html) {
+  const opening = /<a\b/gi;
+  const closing = /<\/a\s*>/gi;
+  /** @type {string[]} */
+  const out = [];
+  for (let match = opening.exec(html); match; match = opening.exec(html)) {
+    closing.lastIndex = match.index;
+    const end = closing.exec(html);
+    if (!end) break;
+    out.push(html.slice(match.index, end.index + end[0].length));
+    opening.lastIndex = end.index + end[0].length;
+  }
+  return out.join('\n');
+}
+
+/**
+ * Pictures an HTML text loads from the internet: "<img … src=http…>", one pass.
+ * @param {string} html
+ */
+export function countRemoteImages(html) {
+  let count = 0;
+  const opening = /<img\b/gi;
+  for (let match = opening.exec(html); match; match = opening.exec(html)) {
+    const end = html.indexOf('>', match.index);
+    if (end === -1) break;
+    if (/\bsrc\s*=\s*["']?\s*https?:/i.test(html.slice(match.index, end))) count += 1;
+    opening.lastIndex = end + 1;
+  }
+  return count;
+}
+
+/**
+ * Reads the body of a whole message: its links (judged by the link checker), its attached files (names judged by the
+ * attachment checker's name check) and its remote pictures. Content is not inspected: the visitor is sent to the
+ * attachment checker with the saved file.
+ * @param {Field[]} fields
+ * @param {string} text
+ * @returns {Body}
+ */
+export function readBody(fields, text) {
+  const mime = readMime(fields, text);
+  const plain = mime.parts.filter((part) => part.type === 'text/plain' && part.text).map((part) => part.text).join('\n');
+  const html = mime.parts.filter((part) => part.type === 'text/html' && part.text).map((part) => part.text).join('\n').slice(0, MAX_HTML);
+  const anchors = linkHtml(html);
+  // The link checker pairs a link's words with the text around it; a message without a plain part gives it the words.
+  const words = [plain, ...anchorsFromHtml(anchors).map((anchor) => anchor.text)].join('\n');
+  const judged = words.trim() || anchors ? inspectText(words, anchors) : null;
+  const links = judged?.status === 'ok' ? judged.links.map((link) => ({ url: link.url, warnings: link.warnings.length })) : [];
+  const files = mime.parts.filter((part) => part.name || part.disposition === 'attachment' || !part.type.startsWith('text/'));
+  const attachments = files.slice(0, MAX_ATTACHMENTS).map((part) => {
+    const name = checkName(part.name);
+    return { name: part.name, type: part.type, size: part.size, risky: RISKY_EXTENSIONS.has(name.extension) || name.bait !== '' || name.bidi || name.padded };
+  });
+  return {
+    links: links.slice(0, MAX_BODY_LINKS),
+    linksTotal: judged?.status === 'ok' ? judged.total : 0,
+    attachments,
+    attachmentsTotal: files.length,
+    remoteImages: countRemoteImages(html),
+    unread: mime.textCut || mime.tooDeep || mime.total > mime.parts.length,
+  };
+}
+
+/* ---------- Message files ---------- */
+
+/** Outlook keeps the headers it received in PidTagTransportMessageHeaders (0x007D), UTF-16 (001F) or 8-bit (001E): research §12. */
+const MSG_HEADERS = ['__substg1.0_007d001f', '__substg1.0_007d001e'];
+
+/**
+ * The received headers of an Outlook message file (.msg), or "" when it holds none (a message never sent, such as a
+ * draft). null when the bytes are not a compound file.
+ * @param {Uint8Array} bytes
+ * @returns {string | null}
+ * @throws {import('./cfb.mjs').CfbError} for a damaged file.
+ */
+export function headersFromMsg(bytes) {
+  if (!isCfb(bytes)) return null;
+  const file = readCfb(bytes);
+  const stream = MSG_HEADERS.map((name) => file.entries.find((entry) => entry.type === 'stream' && !entry.path.includes('/') && entry.name.toLowerCase() === name)).find(Boolean);
+  if (!stream) return '';
+  const data = file.read(stream, MAX_FILE);
+  const text = stream.name.toLowerCase().endsWith('001f') ? new TextDecoder('utf-16le').decode(data) : decodeText(data);
+  return text.replace(/\0+$/, '');
 }
 
 /* ---------- Examples ---------- */
@@ -862,6 +982,47 @@ export function showReport(root, report) {
   }
   part('findings').hidden = report.findings.length === 0;
 
+  /* Links and attachments */
+  const body = report.body;
+  part('body').hidden = !body || (body.linksTotal === 0 && body.attachmentsTotal === 0 && !body.unread);
+  if (body) {
+    part('links').hidden = body.linksTotal === 0;
+    fillInto(part('links-title'), part('links-title').dataset.template, { n: String(body.linksTotal) });
+    const linkList = part('links-list');
+    linkList.replaceChildren(...body.links.map((link) => {
+      const item = document.createElement('li');
+      item.dataset.state = link.warnings ? 'warn' : 'ok';
+      const address = code(link.url);
+      address.className = 'verdict__address';
+      const judged = document.createElement('span');
+      judged.className = 'facts__why';
+      judged.textContent = link.warnings ? fillText(linkList.dataset.warn, { n: String(link.warnings) }) : (linkList.dataset.ok ?? '');
+      item.append(address, ' ', judged);
+      return item;
+    }));
+    const linksMore = part('links-more');
+    linksMore.hidden = body.linksTotal <= body.links.length;
+    fillInto(linksMore, linksMore.dataset.template, { n: String(body.linksTotal - body.links.length) });
+    part('attachments').hidden = body.attachmentsTotal === 0;
+    fillInto(part('attachments-title'), part('attachments-title').dataset.template, { n: String(body.attachmentsTotal) });
+    const fileList = part('attachments-list');
+    fileList.replaceChildren(...body.attachments.map((file) => {
+      const item = document.createElement('li');
+      item.dataset.state = file.risky ? 'warn' : 'ok';
+      const name = code(file.name ? checkName(file.name).visible : (fileList.dataset.unnamed ?? ''));
+      const facts = document.createElement('span');
+      facts.className = 'facts__why';
+      const size = file.size < 1024 ? fillText(fileList.dataset.bytes, { n: String(file.size) }) : file.size < 1024 * 1024 ? fillText(fileList.dataset.kb, { n: String(Math.round(file.size / 1024)) }) : fillText(fileList.dataset.mb, { n: (file.size / 1024 / 1024).toFixed(1) });
+      facts.textContent = `${file.type} · ${size} · ${(file.risky ? fileList.dataset.risky : fileList.dataset.ok) ?? ''}`;
+      item.append(name, ' ', facts);
+      return item;
+    }));
+    const filesMore = part('attachments-more');
+    filesMore.hidden = body.attachmentsTotal <= body.attachments.length;
+    fillInto(filesMore, filesMore.dataset.template, { n: String(body.attachmentsTotal - body.attachments.length) });
+    part('body-unread').hidden = !body.unread;
+  }
+
   /* Every header */
   const headers = part('headers');
   const headerTemplate = /** @type {HTMLTemplateElement} */ (part('header-template'));
@@ -925,7 +1086,14 @@ export function init(root) {
       return;
     }
     try {
-      input.value = new TextDecoder('utf-8').decode(await chosen.arrayBuffer());
+      const bytes = new Uint8Array(await chosen.arrayBuffer());
+      const fromMsg = headersFromMsg(bytes);
+      if (fromMsg === '') {
+        report.hidden = true;
+        say('msgNoHeaders');
+        return;
+      }
+      input.value = fromMsg ?? new TextDecoder('utf-8').decode(bytes);
       run();
     } catch (error) {
       console.error('[lockwell] Could not read the chosen message file.', error);

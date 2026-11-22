@@ -840,13 +840,13 @@ function attachmentPanel(ctx) {
  * wordings some of them have (Finding.variant).
  */
 const EMAIL_FINDINGS = /** @type {const} */ ([
-  ['dmarcFail', 'warn', []], ['spoofedSender', 'warn', []], ['replyElsewhere', 'warn', ['free']], ['nameIsAddress', 'warn', []], ['lookalikeDomain', 'warn', ['script']],
+  ['dmarcFail', 'warn', []], ['spoofedSender', 'warn', []], ['replyElsewhere', 'warn', ['free']], ['nameIsAddress', 'warn', []], ['lookalikeDomain', 'warn', ['script']], ['riskyAttachment', 'warn', []],
   ['nameHidden', 'warn', []], ['severalFrom', 'warn', []], ['filterSaidSpam', 'warn', []], ['dkimLength', 'warn', []], ['arcBroken', 'warn', []],
   ['noChecks', 'note', ['claimed', 'none']], ['partial', 'note', []], ['spfFail', 'note', []], ['spfSoftfail', 'note', []], ['dkimFail', 'note', []],
   ['freeMailbox', 'note', []], ['signedByOther', 'note', []], ['fakeReply', 'note', []], ['dateOdd', 'note', ['future', 'old']], ['slowHop', 'note', []],
   ['backwards', 'note', []], ['plainHop', 'note', []], ['privateOrigin', 'note', []], ['forwarded', 'note', []], ['oldDkim', 'note', []],
   ['bulkSender', 'info', []], ['mailingList', 'info', []], ['autoReply', 'info', []], ['software', 'info', []], ['senderAddress', 'info', []],
-  ['messageIdElsewhere', 'info', []], ['encryptedInTransit', 'info', []],
+  ['messageIdElsewhere', 'info', []], ['encryptedInTransit', 'info', []], ['remoteImages', 'info', []],
 ]);
 
 /** Result words the analyzer explains, per method (KNOWN_RESULTS in tool-email.mjs). */
@@ -899,7 +899,7 @@ function emailPanel(ctx) {
         <span class="facts__why">${t('tools.example')}:</span>
         ${[1, 2, 3].map((n) => html`<button class="button button--ghost button--small" type="button" data-js="email-example" data-example="${n - 1}">${icons.eye}<span>${s(`example${n}`)}</span></button>`)}
       </div>
-      <p class="tool__message" role="status" data-js="email-message" data-empty="${s('messages.empty')}" data-not-headers="${s('messages.notHeaders')}" data-too-large="${s('messages.tooLarge')}" data-read-failed="${s('messages.readFailed')}"></p>
+      <p class="tool__message" role="status" data-js="email-message" data-empty="${s('messages.empty')}" data-not-headers="${s('messages.notHeaders')}" data-too-large="${s('messages.tooLarge')}" data-read-failed="${s('messages.readFailed')}" data-msg-no-headers="${s('messages.msgNoHeaders')}"></p>
       <div class="email" data-js="email-report" hidden>
         <article class="verdict email__verdict" data-js="email-verdict-card">
           <p class="verdict__summary" data-js="email-verdict" data-warn="${s('verdicts.warn')}" data-unchecked="${s('verdicts.unchecked')}" data-none="${s('verdicts.none')}"></p>
@@ -964,6 +964,23 @@ function emailPanel(ctx) {
           <ul class="findings">
             ${EMAIL_FINDINGS.map(([key, level, variants]) => html`<li data-finding="${key}" data-level="${level}" hidden><strong class="email__level">${s(`levels.${level}`)}</strong> <span data-js="email-finding-text" data-template="${s(`findings.${key}`)}"${variants.map((variant) => html` data-${variant}="${s(`findings.${key}${variant[0].toUpperCase()}${variant.slice(1)}`)}"`)}></span></li>`)}
           </ul>
+        </section>
+
+        <section class="file-report__group" data-js="email-body" aria-labelledby="email__body" hidden>
+          <h3 class="file-report__title" id="email__body">${s('body.title')}</h3>
+          <p class="facts__why" data-js="email-body-unread" hidden>${s('body.unread')}</p>
+          <div class="email__body-part" data-js="email-links" hidden>
+            <p class="field__label" data-js="email-links-title" data-template="${s('body.linksTitle')}"></p>
+            <ul class="findings" data-js="email-links-list" data-ok="${s('body.linkOk')}" data-warn="${s('body.linkWarn')}"></ul>
+            <p class="facts__why" data-js="email-links-more" data-template="${s('body.more')}" hidden></p>
+            <p class="facts__why">${s('body.linksHint')} <a href="${ctx.url('/tools/link-checker/')}">${t('tools.items.check.title')}</a></p>
+          </div>
+          <div class="email__body-part" data-js="email-attachments" hidden>
+            <p class="field__label" data-js="email-attachments-title" data-template="${s('body.attachmentsTitle')}"></p>
+            <ul class="findings" data-js="email-attachments-list" data-risky="${s('body.attachmentRisky')}" data-ok="${s('body.attachmentOk')}" data-unnamed="${s('body.unnamed')}" data-bytes="${s('body.bytes')}" data-kb="${s('body.kb')}" data-mb="${s('body.mb')}"></ul>
+            <p class="facts__why" data-js="email-attachments-more" data-template="${s('body.more')}" hidden></p>
+            <p class="facts__why">${s('body.attachmentsHint')} <a href="${ctx.url('/tools/attachment-checker/')}">${t('tools.items.attachment.title')}</a></p>
+          </div>
         </section>
 
         <p class="facts__why email__next">${s('next')} <a href="${ctx.url('/guides/phishing/#pause')}">${s('nextPause')}</a> · <a href="${ctx.url('/guides/phishing/#report')}">${s('nextReport')}</a> · <a href="${ctx.url('/tools/link-checker/')}">${t('tools.items.check.title')}</a> · <a href="${ctx.url('/tools/attachment-checker/')}">${t('tools.items.attachment.title')}</a> · <a href="${ctx.url('/guides/sensitive-email/#what-email-reveals')}">${s('nextReveals')}</a></p>

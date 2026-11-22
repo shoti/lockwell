@@ -265,47 +265,42 @@ function headerStart(lines) {
 }
 
 /**
- * Finds the header block in pasted text or a message file, unfolds its fields (RFC 5322 §2.2.3) and keeps the body.
- * @param {string} input
- * @returns {Message}
+ * Reads the fields of a header block from `start` up to the empty line that ends it (or `end`), unfolding them.
+ * @param {string[]} lines
+ * @param {number} start
+ * @param {number} end
+ * @returns {{ fields: Field[], unparsed: string[], notRead: number, end: number }}  end: the index of the empty line.
  */
-export function splitMessage(input) {
-  /** @type {Message} */
-  const message = { fields: [], unparsed: [], body: '', hasBody: false, notRead: 0, tooLarge: false, cleaned: { quoted: false, indented: false, mbox: false, before: 0 } };
-  if (input.length > MAX_TEXT) {
-    message.tooLarge = true;
-    return message;
-  }
-  const lines = input.replace(/^﻿/, '').replace(/\r\n?/g, '\n').split('\n');
-  message.cleaned = { ...cleanLines(lines), before: 0 };
-  const start = headerStart(lines);
-  if (start === -1) return message;
-  message.cleaned.before = lines.slice(0, start).filter((line) => !isBlank(line)).length;
-
+function readHeaderBlock(lines, start, end) {
+  /** @type {Field[]} */
+  const fields = [];
+  /** @type {string[]} */
+  const unparsed = [];
+  let notRead = 0;
   /** @type {{ name: string, parts: string[], length: number, cut: boolean } | null} */
   let current = null;
   const finish = () => {
     if (!current) return;
-    if (message.fields.length < MAX_FIELDS) {
+    if (fields.length < MAX_FIELDS) {
       const value = current.parts.join('').trim();
-      message.fields.push({ name: current.name, key: current.name.toLowerCase(), value, index: message.fields.length, cut: current.cut });
+      fields.push({ name: current.name, key: current.name.toLowerCase(), value, index: fields.length, cut: current.cut });
     } else {
-      message.notRead += 1;
+      notRead += 1;
     }
     current = null;
   };
   let i = start;
-  for (; i < lines.length; i += 1) {
+  for (; i < end; i += 1) {
     STEPS.count += 1;
     const line = lines[i];
     if (isBlank(line)) {
       // A line of only white space followed by a continuation is obsolete folding (RFC 5322 §4.2), not the end.
-      if (line !== '' && current && i + 1 < lines.length && isContinuation(lines[i + 1])) continue;
+      if (line !== '' && current && i + 1 < end && isContinuation(lines[i + 1])) continue;
       break;
     }
     if (isContinuation(line)) {
       if (!current) {
-        message.unparsed.push(line.trim());
+        unparsed.push(line.trim());
         continue;
       }
       if (current.length < MAX_FIELD_LENGTH) {
@@ -321,7 +316,7 @@ export function splitMessage(input) {
     const colon = fieldColon(line);
     finish();
     if (colon === -1) {
-      message.unparsed.push(line.trim());
+      unparsed.push(line.trim());
       continue;
     }
     const value = line.slice(colon + 1);
@@ -329,6 +324,32 @@ export function splitMessage(input) {
     current = { name: line.slice(0, colon).trim(), parts: [piece], length: piece.length, cut: piece.length < value.length };
   }
   finish();
+  return { fields, unparsed, notRead, end: i };
+}
+
+/**
+ * Finds the header block in pasted text or a message file, unfolds its fields (RFC 5322 §2.2.3) and keeps the body.
+ * @param {string} input
+ * @returns {Message}
+ */
+export function splitMessage(input) {
+  /** @type {Message} */
+  const message = { fields: [], unparsed: [], body: '', hasBody: false, notRead: 0, tooLarge: false, cleaned: { quoted: false, indented: false, mbox: false, before: 0 } };
+  if (input.length > MAX_TEXT) {
+    message.tooLarge = true;
+    return message;
+  }
+  const lines = input.replace(/^\ufeff/, '').replace(/\r\n?/g, '\n').split('\n');
+  message.cleaned = { ...cleanLines(lines), before: 0 };
+  const start = headerStart(lines);
+  if (start === -1) return message;
+  message.cleaned.before = lines.slice(0, start).filter((line) => !isBlank(line)).length;
+
+  const block = readHeaderBlock(lines, start, lines.length);
+  message.fields = block.fields;
+  message.unparsed = block.unparsed;
+  message.notRead = block.notRead;
+  const i = block.end;
   const body = lines.slice(i + 1);
   message.hasBody = i < lines.length && body.some((line) => !isBlank(line));
   message.body = message.hasBody ? body.join('\n') : '';
@@ -767,4 +788,167 @@ export function parseParams(text) {
     if (!(name in params)) params[name] = paramValue.includes('=?') ? decodeWords(paramValue).text : paramValue;
   }
   return { value, params };
+}
+
+/* ---------- The message body (RFC 2045, RFC 2046, RFC 2183) ---------- */
+
+/** Parts nested deeper than this are not opened. */
+export const MAX_MIME_DEPTH = 10;
+/** Parts read at most; the rest are counted. */
+export const MAX_PARTS = 1000;
+/** Text decoded from all text parts together, at most (characters). */
+const MAX_BODY_TEXT = 4 * 1024 * 1024;
+
+/**
+ * @typedef {object} MimePart
+ * @property {string} type  Lowercase, e.g. "text/plain", "application/pdf".
+ * @property {string} name  The file name, decoded ("" when there is none).
+ * @property {string} disposition  Lowercase: "attachment", "inline" or "".
+ * @property {number} size  Bytes after decoding (worked out from the encoded length for base64).
+ * @property {string} text  The decoded text of a text/plain or text/html part that isn't an attachment, else "".
+ * @property {boolean} broken  Its transfer encoding or character set couldn't be decoded.
+ *
+ * @typedef {object} MimeReport
+ * @property {MimePart[]} parts  Leaf parts, in order.
+ * @property {number} total  Leaf parts found, including those beyond MAX_PARTS.
+ * @property {boolean} tooDeep  Parts nested deeper than MAX_MIME_DEPTH were left out.
+ * @property {boolean} textCut  More text than MAX_BODY_TEXT: the rest was not read.
+ */
+
+/**
+ * Bytes of quoted-printable text (RFC 2045 §6.7): "=XX" bytes, "=" at a line end joins lines, the rest as written
+ * (UTF-8 for anything beyond ASCII, as raw 8-bit text arrives here already decoded).
+ * @param {string} text
+ */
+export function quotedPrintableBytes(text) {
+  /** @type {number[]} */
+  const out = [];
+  const encoder = new TextEncoder();
+  for (let i = 0; i < text.length; i += 1) {
+    STEPS.count += 1;
+    const char = text[i];
+    if (char === '=') {
+      if (text[i + 1] === '\n') {
+        i += 1;
+        continue;
+      }
+      if (/^[0-9a-f]{2}$/i.test(text.slice(i + 1, i + 3))) {
+        out.push(parseInt(text.slice(i + 1, i + 3), 16));
+        i += 2;
+        continue;
+      }
+    }
+    const code = char.charCodeAt(0);
+    if (code < 0x80) out.push(code);
+    else out.push(...encoder.encode(char));
+  }
+  return Uint8Array.from(out);
+}
+
+/**
+ * The decoded size of a base64 range without decoding it.
+ * @param {string[]} lines
+ * @param {number} start
+ * @param {number} end
+ */
+function base64Size(lines, start, end) {
+  let count = 0;
+  for (let i = start; i < end; i += 1) {
+    STEPS.count += 1;
+    const line = lines[i].trim();
+    count += line.replace(/=+$/, '').length;
+  }
+  return Math.floor((count * 3) / 4);
+}
+
+/**
+ * Walks a message body and lists its parts: multipart/* by boundary, message/rfc822 into the attached message, and
+ * the leaves with their names, sizes and (for text) decoded text. Nothing is rendered: HTML is read only as text.
+ * A boundary that never closes runs to the end; parts deeper than MAX_MIME_DEPTH or beyond MAX_PARTS are counted.
+ * @param {Field[]} fields  The header fields of the message (Content-Type, Content-Transfer-Encoding, …).
+ * @param {string} body
+ * @returns {MimeReport}
+ */
+export function readMime(fields, body) {
+  const lines = body.replace(/\r\n?/g, '\n').split('\n');
+  /** @type {MimeReport} */
+  const report = { parts: [], total: 0, tooDeep: false, textCut: false };
+  let textLeft = MAX_BODY_TEXT;
+  /** @type {{ fields: Field[], start: number, end: number, depth: number }[]} */
+  const stack = [{ fields, start: 0, end: lines.length, depth: 0 }];
+  /** @param {Field[]} list @param {string} key */
+  const value = (list, key) => list.find((field) => field.key === key)?.value ?? '';
+  while (stack.length) {
+    STEPS.count += 1;
+    const node = /** @type {{ fields: Field[], start: number, end: number, depth: number }} */ (stack.pop());
+    const contentType = parseParams(value(node.fields, 'content-type'));
+    const type = (contentType.value || 'text/plain').toLowerCase();
+    const disposition = parseParams(value(node.fields, 'content-disposition'));
+    if (type.startsWith('multipart/') || type === 'message/rfc822') {
+      if (node.depth >= MAX_MIME_DEPTH) {
+        report.tooDeep = true;
+        continue;
+      }
+    }
+    if (type.startsWith('multipart/') && contentType.params.boundary) {
+      const open = `--${contentType.params.boundary}`;
+      /** @type {[number, number][]} */
+      const ranges = [];
+      let partStart = -1;
+      for (let i = node.start; i < node.end; i += 1) {
+        STEPS.count += 1;
+        const line = lines[i].trimEnd();
+        if (line !== open && line !== `${open}--`) continue;
+        if (partStart !== -1) ranges.push([partStart, i]);
+        partStart = line === open ? i + 1 : -1;
+        if (line !== open) break;
+      }
+      if (partStart !== -1) ranges.push([partStart, node.end]);
+      // In reverse, so the stack hands them out in order.
+      for (const [start, end] of ranges.reverse()) {
+        const block = readHeaderBlock(lines, start, end);
+        stack.push({ fields: block.fields, start: Math.min(block.end + 1, end), end, depth: node.depth + 1 });
+      }
+      continue;
+    }
+    if (type === 'message/rfc822') {
+      const block = readHeaderBlock(lines, node.start, node.end);
+      stack.push({ fields: block.fields, start: Math.min(block.end + 1, node.end), end: node.end, depth: node.depth + 1 });
+      continue;
+    }
+    report.total += 1;
+    if (report.parts.length >= MAX_PARTS) continue;
+    const encoding = value(node.fields, 'content-transfer-encoding').trim().toLowerCase();
+    const name = disposition.params.filename ?? contentType.params.name ?? '';
+    const kind = disposition.value.toLowerCase();
+    const isText = (type === 'text/plain' || type === 'text/html') && kind !== 'attachment' && !name;
+    /** @type {MimePart} */
+    const part = { type, name, disposition: kind, size: 0, text: '', broken: false };
+    if (encoding === 'base64') part.size = base64Size(lines, node.start, node.end);
+    if (isText && textLeft > 0) {
+      const raw = lines.slice(node.start, node.end).join('\n');
+      /** @type {Uint8Array | null} */
+      let bytes = null;
+      if (encoding === 'base64') bytes = base64Bytes(raw.replace(/[\s]+/g, ''));
+      else if (encoding === 'quoted-printable') bytes = quotedPrintableBytes(raw);
+      if (bytes === null && (encoding === 'base64')) {
+        part.broken = true;
+      } else {
+        const charset = contentType.params.charset ?? 'utf-8';
+        const text = bytes ? decodeCharset(bytes, charset) : raw;
+        if (text === null) part.broken = true;
+        part.text = (text ?? new TextDecoder('latin1').decode(/** @type {Uint8Array} */ (bytes))).slice(0, textLeft);
+        textLeft -= part.text.length;
+        if (textLeft <= 0) report.textCut = true;
+        if (!part.size) part.size = bytes ? bytes.length : raw.length;
+      }
+    } else if (isText) {
+      report.textCut = true;
+    }
+    if (!part.size && encoding !== 'base64') {
+      for (let i = node.start; i < node.end; i += 1) part.size += lines[i].length + 1;
+    }
+    report.parts.push(part);
+  }
+  return report;
 }

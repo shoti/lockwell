@@ -6,7 +6,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
-  MAX_FIELDS, MAX_FIELD_LENGTH, MAX_TEXT, STEPS, decodeWords, fieldsNamed, parseAddresses, parseDate, parseMessageIds, parseParams, splitMessage, tokenize,
+  MAX_FIELDS, MAX_FIELD_LENGTH, MAX_MIME_DEPTH, MAX_PARTS, MAX_TEXT, STEPS, decodeWords, fieldsNamed, parseAddresses, parseDate, parseMessageIds, parseParams,
+  quotedPrintableBytes, readMime, splitMessage, tokenize,
 } from '../src/client/mail-parse.mjs';
 import {
   ALL_MESSAGES, MICROSOFT_ARRIVAL, RFC2047_COMMENT, RFC2047_HEADERS, RFC2047_TABLE, RFC5322_A11, RFC5322_A12, RFC5322_A13, RFC5322_A4, RFC5322_A5, RFC5322_A61,
@@ -72,7 +73,7 @@ describe('splitMessage', () => {
   it('removes a byte order mark, an mbox "From " line, ">" quoting and a common indent', () => {
     const quoted = RFC5322_A4.split('\n').map((line) => (line ? `> ${line}` : '>')).join('\n');
     const indented = RFC5322_A4.split('\n').map((line) => (line ? `    ${line}` : '')).join('\n');
-    const mbox = `﻿From jdoe@node.example Fri Nov 21 09:55:06 1997\n${RFC5322_A4}`;
+    const mbox = `\ufeffFrom jdoe@node.example Fri Nov 21 09:55:06 1997\n${RFC5322_A4}`;
     const expected = fields(RFC5322_A4);
     assert.deepEqual(splitMessage(quoted).fields, expected);
     assert.equal(splitMessage(quoted).cleaned.quoted, true);
@@ -288,6 +289,98 @@ describe('parseParams (RFC 2045, RFC 2231)', () => {
 
   it('keeps an unquoted value that contains "=" (boundaries)', () => {
     assert.equal(parseParams('multipart/mixed; boundary=----=_Part_1').params.boundary, '----=_Part_1');
+  });
+});
+
+/** A message with a body, read the way the analyzer reads one. @param {string} text */
+const mime = (text) => {
+  const message = splitMessage(text);
+  return readMime(message.fields, message.body);
+};
+const b64 = (/** @type {string} */ text) => Buffer.from(text).toString('base64');
+
+describe('readMime (RFC 2045, 2046, 2183)', () => {
+  it('reads a plain message without MIME fields as one text part', () => {
+    assert.deepEqual(mime('From: a@example.com\nSubject: x\n\nHello.\n').parts.map(({ type, text }) => [type, text]), [['text/plain', 'Hello.\n']]);
+  });
+
+  it('walks nested multiparts and decodes base64 and quoted-printable text in its character set', () => {
+    const text = `From: a@example.com
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="outer"
+
+preamble, ignored
+--outer
+Content-Type: multipart/alternative; boundary=inner
+
+--inner
+Content-Type: text/plain; charset=windows-1251
+Content-Transfer-Encoding: quoted-printable
+
+=CF=F0=E8=E2=E5=F2, a long line=
+ joined
+--inner
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: base64
+
+${b64('<p>გამარჯობა</p>')}
+--inner--
+--outer
+Content-Type: application/pdf; name="report.pdf"
+Content-Disposition: attachment; filename*=utf-8''%E1%83%90.pdf
+Content-Transfer-Encoding: base64
+
+${b64('%PDF-1.4 fake')}
+--outer--
+epilogue, ignored
+`;
+    const read = mime(text);
+    assert.deepEqual(read.parts.map(({ type, name, disposition }) => [type, name, disposition]), [
+      ['text/plain', '', ''],
+      ['text/html', '', ''],
+      ['application/pdf', 'ა.pdf', 'attachment'],
+    ]);
+    assert.equal(read.parts[0].text.trim(), 'Привет, a long line joined');
+    assert.equal(read.parts[1].text.trim(), '<p>გამარჯობა</p>');
+    assert.equal(read.parts[2].size, 13);
+    assert.equal(read.parts[2].text, '', 'an attachment is not read as text');
+    assert.deepEqual([read.total, read.tooDeep, read.textCut], [3, false, false]);
+  });
+
+  it('reads an attached message (message/rfc822) and a boundary that never closes', () => {
+    const text = 'From: a@example.com\nContent-Type: multipart/mixed; boundary=b\n\n--b\nContent-Type: message/rfc822\n\nFrom: c@example.org\nContent-Type: text/plain\n\nInner text\n--b\nContent-Type: image/png; name=x.png\nContent-Transfer-Encoding: base64\n\niVBORw0KGgo=\n';
+    assert.deepEqual(mime(text).parts.map(({ type, name, text: body }) => [type, name, body.trim()]), [['text/plain', '', 'Inner text'], ['image/png', 'x.png', '']]);
+  });
+
+  it('marks text it can’t decode as broken', () => {
+    const read = mime('From: a@example.com\nContent-Type: text/plain; charset=x-unknown\nContent-Transfer-Encoding: base64\n\naGk=\n');
+    assert.equal(read.parts[0].broken, true);
+    assert.equal(mime('From: a@example.com\nContent-Transfer-Encoding: base64\n\n!!!not base64\n').parts[0].broken, true);
+  });
+
+  it('stops at its limits: nesting depth and number of parts', () => {
+    let deep = 'From: a@example.com\nContent-Type: multipart/mixed; boundary=b0\n\n';
+    for (let i = 1; i <= MAX_MIME_DEPTH + 5; i += 1) deep += `--b${i - 1}\nContent-Type: multipart/mixed; boundary=b${i}\n\n`;
+    assert.equal(mime(deep).tooDeep, true);
+    const many = `From: a@example.com\nContent-Type: multipart/mixed; boundary=b\n\n${'--b\nContent-Type: image/gif; name=a.gif\n\nx\n'.repeat(MAX_PARTS + 20)}--b--\n`;
+    const read = mime(many);
+    assert.equal(read.parts.length, MAX_PARTS);
+    assert.equal(read.total, MAX_PARTS + 20);
+  });
+
+  it('decodes quoted-printable soft breaks and bytes', () => {
+    assert.equal(new TextDecoder().decode(quotedPrintableBytes('a=3Db=\nc=E1=83=90 d=')), 'a=bcა d=');
+  });
+
+  it('reads a deep or endless body in linear time', () => {
+    const endless = `From: a@example.com\nContent-Type: multipart/mixed; boundary=b\n\n${'--b\nContent-Type: multipart/mixed; boundary=b\n\n'.repeat(20_000)}`;
+    STEPS.count = 0;
+    mime(endless);
+    assert.ok(STEPS.count / endless.length < 12 * MAX_MIME_DEPTH, String(STEPS.count / endless.length));
+    const lines = `From: a@example.com\nContent-Type: multipart/mixed; boundary=b\n\n--b\n\n${'x\n'.repeat(500_000)}`;
+    STEPS.count = 0;
+    mime(lines);
+    assert.ok(STEPS.count / lines.length < 12);
   });
 });
 

@@ -11,6 +11,7 @@ import { join } from 'node:path';
 import { after, before, describe, it } from 'node:test';
 import { build } from '../src/build/build.mjs';
 import { CHECK_METHODS, FINDINGS, KNOWN_RESULTS, exampleMessages, init } from '../src/client/tool-email.mjs';
+import { cfb, utf16le } from './build-files.mjs';
 import { FakeEventTarget, installDom } from './fake-dom.mjs';
 
 const ENTITIES = /** @type {Record<string, string>} */ ({ amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'", '#x27': "'" });
@@ -318,6 +319,63 @@ describe('email header analyzer page', () => {
   });
 });
 
+describe('email header analyzer page: whole messages and files', () => {
+  /** Drops a file and waits until the page has dealt with it. @param {ReturnType<typeof open>} page @param {File} file @param {() => boolean} done */
+  async function drop(page, file, done) {
+    page.tool.dispatchEvent({ type: 'drop', preventDefault() {}, dataTransfer: { files: [file] } });
+    for (let i = 0; i < 200 && !done(); i += 1) await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+
+  it('shows the links and attached files of a whole message', () => {
+    const page = open('en');
+    try {
+      const { tool, part } = page;
+      part('input').value = `${exampleMessages()[1].replace('Content-Type: text/plain; charset=utf-8', 'Content-Type: multipart/mixed; boundary=b')}
+--b
+Content-Type: text/html
+
+<p>Pay here: <a href="https://tbc-login.pages.dev/pay">tbcbank.ge</a></p><img src="https://track.example.net/o.gif">
+--b
+Content-Type: application/octet-stream
+Content-Disposition: attachment; filename="transfer.pdf.exe"
+
+x
+--b--
+`;
+      part('check').click();
+      assert.equal(part('body').hidden, false);
+      assert.equal(part('links-title').textContent, 'Links in the message: 1');
+      assert.equal(part('links-list').children[0].dataset.state, 'warn');
+      assert.match(part('links-list').children[0].textContent, /^https:\/\/tbc-login\.pages\.dev\/pay Warning signs from the link checker: \d+\.$/);
+      assert.equal(part('attachments-title').textContent, 'Attached files: 1');
+      assert.match(part('attachments-list').children[0].textContent, /^transfer\.pdf\.exe application\/octet-stream · 2 bytes · its name says it can run a program/);
+      assert.equal(part('links-more').hidden, true);
+      assert.ok(shownFindings(tool).includes('riskyAttachment'));
+      assert.ok(shownFindings(tool).includes('remoteImages'));
+      part('input').value = exampleMessages()[0];
+      part('check').click();
+      assert.equal(part('body').hidden, true, 'headers alone: no body section');
+    } finally {
+      page.restore();
+    }
+  });
+
+  it('reads a dropped Outlook .msg file, and says so when it holds no headers', async () => {
+    const page = open('en');
+    try {
+      const headers = exampleMessages()[0];
+      await drop(page, new File([cfb([{ path: '__substg1.0_007D001F', data: utf16le(`${headers}\0`) }])], 'Notice.msg'), () => !page.part('report').hidden);
+      assert.equal(page.part('report').hidden, false);
+      assert.equal(page.part('input').value, headers);
+      await drop(page, new File([cfb([{ path: '__substg1.0_0037001F', data: utf16le('Draft') }])], 'Draft.msg'), () => page.part('message').textContent !== '');
+      assert.equal(page.part('report').hidden, true);
+      assert.match(page.part('message').textContent, /^This Outlook file holds no received headers\./);
+    } finally {
+      page.restore();
+    }
+  });
+});
+
 describe('email header analyzer page content', () => {
   for (const lang of /** @type {const} */ (['en', 'ka'])) {
     it(`has every label, finding, meaning and message in ${lang}`, () => {
@@ -342,7 +400,7 @@ describe('email header analyzer page content', () => {
         assert.ok(one('[data-js="email-check-method"]').getAttribute(`data-${method}`), `${lang} method ${method}`);
         for (const result of KNOWN_RESULTS[method]) assert.ok(meaning.getAttribute(`data-${method}-${result}`), `${lang} meaning ${method} ${result}`);
       }
-      for (const message of ['empty', 'not-headers', 'too-large', 'read-failed']) assert.ok(one('[data-js="email-message"]').getAttribute(`data-${message}`), `${lang} message ${message}`);
+      for (const message of ['empty', 'not-headers', 'too-large', 'read-failed', 'msg-no-headers']) assert.ok(one('[data-js="email-message"]').getAttribute(`data-${message}`), `${lang} message ${message}`);
       for (const verdict of ['warn', 'unchecked', 'none']) assert.ok(one('[data-js="email-verdict"]').getAttribute(`data-${verdict}`), `${lang} verdict ${verdict}`);
       for (const name of ['public', 'private', 'documentation', 'link-local', 'unique-local', 'six-to-four', 'invalid']) {
         const attribute = name === 'invalid' ? 'data-invalid' : `data-class-${name}`;

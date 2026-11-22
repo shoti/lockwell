@@ -622,7 +622,8 @@
           "empty": "Paste the headers first, or choose a saved message.",
           "notHeaders": "This doesn’t look like email headers. Copy the message’s original or source view, not the text you see when you read it.",
           "tooLarge": "This is too large to check here: the limit is about 2 MB of pasted text or a 25 MB file.",
-          "readFailed": "The file couldn’t be read."
+          "readFailed": "The file couldn’t be read.",
+          "msgNoHeaders": "This Outlook file holds no received headers. That happens with messages that were never sent, such as drafts."
         },
         "verdicts": {
           "warn": "This message has warning signs: {n}. Don’t reply, click or pay until you’ve checked with the sender in another way.",
@@ -821,7 +822,9 @@
           "software": "The sender’s mail program named itself: {value}.",
           "senderAddress": "The message has an X-Originating-IP header with the address {value}. The name suggests the sender’s own connection, but none of the mail services we checked documents it, and the sending side can write anything there.",
           "messageIdElsewhere": "The message ID was made at {value}, not at the sender’s domain. Mail services do this for their customers; it is only a hint.",
-          "encryptedInTransit": "The last step to your provider was encrypted ({value})."
+          "encryptedInTransit": "The last step to your provider was encrypted ({value}).",
+          "riskyAttachment": "An attached file’s name says it can run a program, or hides its real ending: {value}. Don’t open it; if you weren’t expecting it, ask the sender in another way.",
+          "remoteImages": "Pictures loaded from the internet: {value}. Pictures like these can be used to tell the sender whether you opened the message."
         },
         "next": "What to do next:",
         "nextPause": "Stop before you act",
@@ -836,7 +839,24 @@
         "note4": "What it can’t do: it makes no requests, so it can’t look anything up in DNS, verify a signature or check a sender’s reputation. It believes only the lines your own provider wrote at the top of the message; everything below them came with the message and could be invented. It works out organisations from a list built into the site, while the current DMARC standard (RFC 9989, May 2026) looks them up in DNS, so the two can differ; your provider’s own DMARC result is used wherever there is one. How each mail provider writes its headers wasn’t checked against real mail.",
         "note5": "If a message worries you, don’t reply, click or pay. Contact the sender in a way you already know, not with the details in the message, and report it to your mail provider. The links under the report lead to the steps.",
         "ai1": "A chatbot can read headers and explain them. Pasting them gives the company behind it your address, your contacts’ addresses and details of the networks the message passed through.",
-        "ai2": "A confident wrong answer about a scam is costly. This tool applies fixed rules, shows which lines it believes and why, and says what it can’t tell."
+        "ai2": "A confident wrong answer about a scam is costly. This tool applies fixed rules, shows which lines it believes and why, and says what it can’t tell.",
+        "body": {
+          "title": "Links and attachments",
+          "unread": "Part of the message body wasn’t read: it is too large, or nested too deeply.",
+          "linksTitle": "Links in the message: {n}",
+          "linkOk": "No warning signs from the link checker.",
+          "linkWarn": "Warning signs from the link checker: {n}.",
+          "more": "And {n} more.",
+          "linksHint": "To see the warnings, paste a link into the",
+          "attachmentsTitle": "Attached files: {n}",
+          "attachmentRisky": "its name says it can run a program, or hides its real ending",
+          "attachmentOk": "nothing odd in the name; the file itself wasn’t checked",
+          "unnamed": "(no name)",
+          "bytes": "{n} bytes",
+          "kb": "{n} KB",
+          "mb": "{n} MB",
+          "attachmentsHint": "To check a file itself, save it and open it in the"
+        }
       },
       "browser": {
         "title": "What your browser reveals",
