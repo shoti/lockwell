@@ -436,6 +436,23 @@ describe('PDF tools page: saving', () => {
     }
   });
 
+  it('offers picture levels only where the browser lets the page read pictures, and always saves without loss', async () => {
+    const page = open('en');
+    try {
+      assert.equal(page.part('compress-blocked').hidden, true, 'nothing is said before a file arrives');
+      await page.add(simplePdf(2));
+      assert.equal(page.part('compress-blocked').hidden, false, 'Node cannot read a canvas back: the reason is shown');
+      const levels = page.tool.querySelectorAll('[data-js="pdf-compress"]');
+      assert.deepEqual(levels.map((radio) => [radio.value, radio.disabled]), [['none', false], ['good', true], ['small', true], ['fit', true]]);
+      assert.equal(page.part('fit').disabled, true);
+      page.press('create');
+      await page.saved();
+      assert.equal(page.part('pictures-line').hidden, true, 'no count when pictures were left as they are');
+    } finally {
+      page.restore();
+    }
+  });
+
   it('stops when cancelled and offers nothing', async () => {
     const page = open('en');
     try {

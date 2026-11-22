@@ -12,7 +12,8 @@ import { build, interleave, parseRanges, splitPages } from './pdf-build.mjs';
 import { PdfError, openPdf } from './pdf-file.mjs';
 import { IMAGE_PAGE, imageLayout, jpegPicture, pngPicture } from './pdf-image.mjs';
 import { pageBox, pageList } from './pdf-pages.mjs';
-import { decodePicture, drawOverlays, drawPicturePage, rasterPicture, thumbnailOf } from './pdf-raster.mjs';
+import { FIT_STEPS, LEVELS } from './pdf-compress.mjs';
+import { createRecoder, decodePicture, drawOverlays, drawPicturePage, rasterPicture, thumbnailOf } from './pdf-raster.mjs';
 import { initStage } from './pdf-stage.mjs';
 import { turnOverlays } from './pdf-overlay.mjs';
 import { PdfDict, PdfName, PdfStream } from './pdf-syntax.mjs';
@@ -748,6 +749,7 @@ export function init(root) {
     let list;
     try {
       bytes = new Uint8Array(await read());
+      if (sources.size === 0) checkPictureLevels();
       if (isPicture(bytes, type)) return addPicture(name, bytesSize, bytes);
       file = await openPdf(bytes);
       list = pageList(file);
@@ -894,6 +896,15 @@ export function init(root) {
       input('every').disabled = make() !== 'every';
     });
   }
+  const compressRadios = /** @type {HTMLInputElement[]} */ ([...root.querySelectorAll('[data-js="pdf-compress"]')]);
+  const compression = () => compressRadios.find((radio) => radio.checked)?.value ?? 'none';
+  for (const radio of compressRadios) radio.addEventListener('change', () => (input('fit').disabled = compression() !== 'fit'));
+  /** Picture levels need the canvas read back (plan §6.7); asked once, when the first file arrives. */
+  const checkPictureLevels = () => {
+    if (readBack === null) readBack = canReadBack();
+    find('compress-blocked').hidden = readBack;
+    for (const radio of compressRadios) radio.disabled = !readBack && radio.value !== 'none';
+  };
 
   /** @returns {SplitRule | null} */
   const rule = () => {
@@ -942,6 +953,9 @@ export function init(root) {
     if (!chosen) return;
     const groups = splitPages(pages(), chosen);
     if (groups.length === 0) return say('nothingSelected');
+    const level = compression();
+    const limit = Number(input('fit').value) * 1024 * 1024;
+    if (level === 'fit' && !(limit > 0)) return say('badFit');
     busy = true;
     cancelled = false;
     clearResult();
@@ -953,8 +967,22 @@ export function init(root) {
     const results = [];
     try {
       const inputs = new Map([...sources].map(([id, source]) => [id, source.kind === 'pdf' ? { file: source.file, pages: source.pages } : { picture: source.picture, findings: source.findings }]));
+      const recode = level !== 'none' && readBack ? createRecoder() : null;
       for (const [i, group] of groups.entries()) {
-        results.push(await build({ pages: group, sources: inputs, imagePage, isCancelled: () => cancelled, onProgress: (done, total) => { progress.value = (i + done / total) / groups.length; } }));
+        /** @param {import('./pdf-compress.mjs').Level | null} step @param {number} share  Of this file's progress. */
+        const once = (step, share = 1) => build({
+          pages: group, sources: inputs, imagePage, compress: step && recode ? { level: step, recode } : null, isCancelled: () => cancelled,
+          onProgress: (done, total) => { progress.value = (i + (done / total) * share) / groups.length; },
+        });
+        if (level === 'good' || level === 'small') results.push(await once(LEVELS[level]));
+        else if (level === 'fit' && recode) results.push(await fitUnder(once, limit));
+        else results.push(await once(null));
+      }
+      const missed = level === 'fit' && results.some((item) => item.bytes.length > limit);
+      if (missed) {
+        await showResult(results, groups);
+        say('notUnder', { size: sizeText(Math.max(...results.map((item) => item.bytes.length))), limit: sizeText(limit) });
+        return;
       }
     } catch (error) {
       const code = error instanceof PdfError ? error.code : 'buildFailed';
@@ -970,6 +998,30 @@ export function init(root) {
   });
 
   /**
+   * The best result under a size (plan §6.7): without loss first; then the best level, then the smallest, then
+   * halving between the two, so never more than five builds. Pictures are decoded again for each build, one at a
+   * time, which keeps memory to one picture.
+   * @param {(step: import('./pdf-compress.mjs').Level | null, share?: number) => Promise<{ bytes: Uint8Array, report: import('./pdf-build.mjs').Result }>} once
+   * @param {number} limit  Bytes.
+   */
+  const fitUnder = async (once, limit) => {
+    const lossless = await once(null, 0.2);
+    if (lossless.bytes.length <= limit) return lossless;
+    const best = await once(FIT_STEPS[0], 0.4);
+    if (best.bytes.length <= limit) return best;
+    let fits = await once(FIT_STEPS[FIT_STEPS.length - 1], 0.6);
+    if (fits.bytes.length > limit) return fits;
+    let [low, high] = [0, FIT_STEPS.length - 1];
+    while (high - low > 1) {
+      const middle = Math.floor((low + high) / 2);
+      const tried = await once(FIT_STEPS[middle], 0.8);
+      if (tried.bytes.length <= limit) [high, fits] = [middle, tried];
+      else low = middle;
+    }
+    return fits;
+  };
+
+  /**
    * @param {{ bytes: Uint8Array, report: import('./pdf-build.mjs').Result }[]} results
    * @param {PlanPage[][]} groups
    */
@@ -982,6 +1034,13 @@ export function init(root) {
     const line = find('result-line');
     const pagesCount = groups.reduce((sum, group) => sum + group.length, 0);
     line.textContent = fill(line.dataset[results.length > 1 ? 'many' : pagesCount === 1 ? 'onePage' : 'one'] ?? '', { files: results.length, pages: pagesCount, size: sizeText(total), before: sizeText(before) });
+    const counted = results.map((item) => item.report.pictures).filter((count) => count !== null);
+    const picturesLine = find('pictures-line');
+    picturesLine.hidden = counted.length === 0;
+    picturesLine.textContent = fill(picturesLine.dataset.template ?? '', {
+      done: counted.reduce((sum, count) => sum + (count?.done ?? 0), 0),
+      left: counted.reduce((sum, count) => sum + Object.values(count?.left ?? {}).reduce((a, b) => a + b, 0), 0),
+    });
     const dropped = new Set(results.flatMap((item) => item.report.dropped));
     const kept = new Set(results.flatMap((item) => item.report.kept));
     const warnings = new Set(results.flatMap((item) => item.report.warnings));

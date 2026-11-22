@@ -1466,6 +1466,8 @@
           "pictureUnsupported": "{name} is a picture this browser cannot open. Save it as JPEG or PNG and add it again.",
           "blocked": "{name} was not added: this browser does not let the page read pictures, and this kind of picture needs it. JPEG photos and simple PNG pictures can still be added.",
           "resized": "{name} was larger than this browser can handle, so the picture was made smaller.",
+          "badFit": "Write a size in megabytes, for example 5.",
+          "notUnder": "The smallest this tool could make is {size}, more than {limit}. It is offered anyway.",
           "damaged": "{name} is damaged and could not be opened.",
           "tooLarge": "{name} is too large for this device. The limit here is {limit}.",
           "tooMany": "The board holds up to {limit} pages, so {name} was not added.",
@@ -1616,6 +1618,16 @@
         },
         "rangesLabel": "Ranges",
         "everyLabel": "Pages in each file",
+        "compressLabel": "Pictures inside the PDF",
+        "compress": {
+          "none": "Leave them as they are",
+          "good": "Good: smaller, still sharp on screen (about 150 dpi)",
+          "small": "Small: for email and chat (about 100 dpi)",
+          "fit": "As good as fits under a size"
+        },
+        "fitLabel": "Size limit, in MB",
+        "compressNote": "Saving always leaves out what is not needed, without any loss. Making pictures smaller loses some detail, and their colour profiles are dropped.",
+        "compressBlocked": "This browser does not let the page read pictures, so the pictures inside cannot be made smaller here. Saving still leaves out what is not needed.",
         "name": "File name",
         "create": "Create the PDF",
         "cancel": "Cancel",
@@ -1623,6 +1635,7 @@
         "resultOne": "{pages} pages, {size} (the originals: {before})",
         "resultOnePage": "1 page, {size} (the originals: {before})",
         "resultMany": "{files} files, {pages} pages in all, {size} (the originals: {before})",
+        "picturesLine": "Pictures made smaller: {done}. Left as they were: {left}.",
         "metadataGone": "The author, the software and the dates of the originals are not in the new file.",
         "droppedHeading": "Not carried over",
         "dropped": {

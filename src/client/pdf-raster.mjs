@@ -221,3 +221,86 @@ export function drawOverlays(context, overlays, width, height) {
     context.restore();
   }
 }
+
+/* ---------- Making pictures inside a PDF smaller ---------- */
+
+/**
+ * The recoder pdf-compress.mjs uses: decodes one picture with the browser, scales it down, encodes it as JPEG, and
+ * scales its soft mask the same way without loss; then lets everything go. Pictures are decoded one at a time, so a
+ * long scan never holds more than one in memory.
+ * @returns {import('./pdf-compress.mjs').Recoder}
+ */
+export function createRecoder() {
+  return async (job) => {
+    /** @type {ImageBitmap} */
+    let bitmap;
+    try {
+      if (job.kind === 'jpeg') {
+        // A PDF viewer ignores a JPEG's EXIF orientation; without the block, the browser decodes it as stored too.
+        const clean = jpegForPdf(job.data) ?? job.data;
+        bitmap = await createImageBitmap(new Blob([/** @type {Uint8Array<ArrayBuffer>} */ (clean)], { type: 'image/jpeg' }));
+      } else {
+        bitmap = await createImageBitmap(new ImageData(toRgba(job.data, job.colors, job.width * job.height), job.width, job.height));
+      }
+    } catch (error) {
+      console.warn('[lockwell] A picture inside the PDF could not be decoded; it is left as it is.', error);
+      return null;
+    }
+    /** @type {HTMLCanvasElement[]} */
+    const made = [];
+    try {
+      if (bitmap.width !== job.width || bitmap.height !== job.height) return null;
+      const { width, height } = job.target;
+      const smaller = width < bitmap.width || height < bitmap.height ? downscale(bitmap, width, height) : null;
+      if (smaller) made.push(smaller);
+      const canvas = document.createElement('canvas');
+      made.push(canvas);
+      [canvas.width, canvas.height] = [width, height];
+      /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d')).drawImage(smaller ?? bitmap, 0, 0, width, height);
+      const data = jpegForPdf(new Uint8Array(await (await encode(canvas, 'image/jpeg', job.quality)).arrayBuffer()));
+      if (!data) return null;
+      const mask = job.mask ? await scaleGray(job.mask, width, height) : null;
+      return { data, width, height, mask };
+    } finally {
+      bitmap.close();
+      for (const canvas of made) release(canvas);
+    }
+  };
+}
+
+/**
+ * 8-bit samples (grey or RGB) as opaque RGBA.
+ * @param {Uint8Array} data @param {1 | 3} colors @param {number} pixels
+ */
+export function toRgba(data, colors, pixels) {
+  const rgba = new Uint8ClampedArray(pixels * 4);
+  for (let i = 0; i < pixels; i += 1) {
+    if (colors === 1) rgba.set([data[i], data[i], data[i], 255], i * 4);
+    else rgba.set([data[i * 3], data[i * 3 + 1], data[i * 3 + 2], 255], i * 4);
+  }
+  return rgba;
+}
+
+/**
+ * A soft mask scaled to a picture's new size, still 8-bit grey.
+ * @param {import('./pdf-compress.mjs').Gray} mask @param {number} width @param {number} height
+ * @returns {Promise<import('./pdf-compress.mjs').Gray>}
+ */
+async function scaleGray(mask, width, height) {
+  const bitmap = await createImageBitmap(new ImageData(toRgba(mask.data, 1, mask.width * mask.height), mask.width, mask.height));
+  const smaller = width < mask.width || height < mask.height ? downscale(bitmap, width, height) : null;
+  const canvas = document.createElement('canvas');
+  [canvas.width, canvas.height] = [width, height];
+  try {
+    const context = /** @type {CanvasRenderingContext2D} */ (canvas.getContext('2d', { willReadFrequently: true }));
+    context.drawImage(smaller ?? bitmap, 0, 0, width, height);
+    const rgba = context.getImageData(0, 0, width, height).data;
+    const data = new Uint8Array(width * height);
+    for (let i = 0; i < data.length; i += 1) data[i] = rgba[i * 4];
+    return { width, height, data };
+  } finally {
+    bitmap.close();
+    if (smaller) release(smaller);
+    release(canvas);
+  }
+}

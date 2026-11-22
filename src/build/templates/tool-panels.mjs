@@ -1518,7 +1518,7 @@ function encryptPanel(ctx) {
 
 /** Content some tools show above their controls, readable without JavaScript. */
 /** Messages the PDF tools' message line can show. */
-const PDF_MESSAGES = ['added', 'addedOne', 'unsupported', 'pictureUnsupported', 'blocked', 'resized', 'damaged', 'tooLarge', 'tooMany', 'locked', 'repaired', 'noPreview', 'buildFailed', 'nothingSelected', 'cancelled', 'badRanges', 'badEvery', 'badPosition', 'saved', 'busy'];
+const PDF_MESSAGES = ['added', 'addedOne', 'unsupported', 'pictureUnsupported', 'blocked', 'resized', 'badFit', 'notUnder', 'damaged', 'tooLarge', 'tooMany', 'locked', 'repaired', 'noPreview', 'buildFailed', 'nothingSelected', 'cancelled', 'badRanges', 'badEvery', 'badPosition', 'saved', 'busy'];
 /** What a saved PDF leaves behind, kept and warns about (pdf-copy.mjs, plan §6.5), in the order listed. */
 const PDF_DROPPED = ['bookmarks', 'pageLabels', 'articles', 'structure', 'scripts', 'attachments', 'encryption'];
 const PDF_KEPT = ['pictures', 'comments', 'fields', 'layers'];
@@ -1527,6 +1527,8 @@ const PDF_WARNINGS = ['signatures', 'annotationsOnce', 'signaturePicture'];
 const PDF_MAKE = ['all', 'selected', 'ranges', 'every', 'single', 'source'];
 /** Pages made from pictures (pdf-image.mjs `imageLayout`). */
 const PDF_PICTURE_SIZES = ['fit', 'a4', 'letter'];
+/** How much the pictures inside are made smaller (pdf-compress.mjs). */
+const PDF_COMPRESS = ['none', 'good', 'small', 'fit'];
 const PDF_PICTURE_MARGINS = [['0', 'none'], ['5', 'small'], ['10', 'large']];
 
 /** What the stage can put on a page, and how each item is named in the item list. */
@@ -1772,6 +1774,16 @@ function pdfPanel(ctx) {
             <label class="field__label" for="pdf__every">${s('everyLabel')}</label>
             <input class="input pdf__number" type="number" inputmode="numeric" id="pdf__every" min="1" step="1" value="2" data-js="pdf-every" disabled>
           </div>
+          <fieldset class="field">
+            <legend class="field__label">${s('compressLabel')}</legend>
+            ${PDF_COMPRESS.map((key, i) => radio('pdf-compress', `pdf__compress-${key}`, key, 'pdf-compress', s(`compress.${key}`), i === 0))}
+          </fieldset>
+          <div class="pdf__row">
+            <label class="field__label" for="pdf__fit">${s('fitLabel')}</label>
+            <input class="input pdf__number" type="number" inputmode="decimal" id="pdf__fit" min="0.1" step="0.1" value="5" data-js="pdf-fit" disabled>
+          </div>
+          <p class="facts__why">${s('compressNote')}</p>
+          <p class="facts__why" data-js="pdf-compress-blocked" hidden>${s('compressBlocked')}</p>
           <div class="field">
             <label class="field__label" for="pdf__name">${s('name')}</label>
             <input class="input" type="text" id="pdf__name" autocomplete="off" spellcheck="false" translate="no" data-js="pdf-name">
@@ -1783,6 +1795,7 @@ function pdfPanel(ctx) {
           <progress class="pdf__progress" max="1" value="0" data-js="pdf-progress" aria-label="${s('progress')}" hidden></progress>
           <div class="pdf__result" data-js="pdf-result" hidden>
             <canvas class="pdf__result-canvas" width="100" height="141" aria-hidden="true" data-js="pdf-result-canvas"></canvas>
+            <p data-js="pdf-pictures-line" data-template="${s('picturesLine')}" hidden></p>
             <p data-js="pdf-result-line" data-one-page="${s('resultOnePage')}" data-one="${s('resultOne')}" data-many="${s('resultMany')}"></p>
             <p class="facts__why">${s('metadataGone')}</p>
             <div data-js="pdf-dropped" hidden>

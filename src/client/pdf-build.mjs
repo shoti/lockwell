@@ -6,7 +6,8 @@
  */
 import { PdfError, openPdf } from './pdf-file.mjs';
 import { SourceCopier, documentLosses, layersOf, newReport, pageDictionary, planFields } from './pdf-copy.mjs';
-import { applyOverlays } from './pdf-overlay.mjs';
+import { compressImages } from './pdf-compress.mjs';
+import { applyOverlays, shownSize } from './pdf-overlay.mjs';
 import { normaliseRotation, pageBox, pageList } from './pdf-pages.mjs';
 import { IMAGE_PAGE, imageLayout, imageStream } from './pdf-image.mjs';
 import { PdfWriter, pause } from './pdf-write.mjs';
@@ -28,7 +29,9 @@ import { stillThere } from './tool-photo.mjs';
  * @typedef {{ file: PdfFile, pages: PageInfo[] }} PdfSource
  * @typedef {{ picture: Picture, findings: Findings | null }} ImageSource  A picture added by the visitor; `findings`
  *   is what the photo tool found in the original, searched for in the result.
- * @typedef {{ pages: number, size: number, dropped: string[], kept: string[], warnings: string[], linksRemoved: number }} Result
+ * @typedef {{ pages: number, size: number, dropped: string[], kept: string[], warnings: string[], linksRemoved: number,
+ *   pictures: import('./pdf-compress.mjs').PictureCount | null }} Result  `pictures`: when pictures were made smaller.
+ * @typedef {{ level: import('./pdf-compress.mjs').Level, recode: import('./pdf-compress.mjs').Recoder }} Compress
  */
 
 /** Information-dictionary entries read as the sources' known secrets (plan §6.9). */
@@ -39,11 +42,11 @@ const MIN_SECRET = 4;
 /**
  * Builds one PDF.
  * @param {{ pages: PlanPage[], sources: Map<number, PdfSource | ImageSource>, imagePage?: ImagePageOptions,
- *   id?: Uint8Array, isCancelled?: () => boolean, onProgress?: (done: number, total: number) => void }} job
+ *   compress?: Compress | null, id?: Uint8Array, isCancelled?: () => boolean, onProgress?: (done: number, total: number) => void }} job
  * @returns {Promise<{ bytes: Uint8Array, report: Result }>}
  * @throws {PdfError}  `locked` for an encrypted source (until milestone 7), `cancelled`, `buildFailed`.
  */
-export async function build({ pages, sources, imagePage = IMAGE_PAGE, id, isCancelled = () => false, onProgress }) {
+export async function build({ pages, sources, imagePage = IMAGE_PAGE, compress = null, id, isCancelled = () => false, onProgress }) {
   if (pages.length === 0) throw new PdfError('buildFailed', 'no pages');
   const writer = new PdfWriter();
   const pageRefs = pages.map(() => writer.reserve());
@@ -139,6 +142,10 @@ export async function build({ pages, sources, imagePage = IMAGE_PAGE, id, isCanc
   if (layers) catalog.set('OCProperties', layers);
   const root = writer.add(catalog);
 
+  const pictures = compress
+    ? await compressImages(writer, pages.map((page, i) => ({ ref: pageRefs[i], ...shownSize(shownPageOf(page, sources, imagePage)) })), compress.level, compress.recode, isCancelled)
+    : null;
+  if (isCancelled()) throw new PdfError('cancelled');
   const bytes = await writer.write({ root, id, isCancelled });
   const report = newReport();
   for (const copier of copiers.values()) {
@@ -154,7 +161,7 @@ export async function build({ pages, sources, imagePage = IMAGE_PAGE, id, isCanc
   await checkResult(bytes, { pages: pages.length, secrets: secretsOf([...copiers.values()].map((copier) => copier.file)), findings });
   return {
     bytes,
-    report: { pages: pages.length, size: bytes.length, dropped: [...report.dropped].sort(), kept: [...report.kept].sort(), warnings: [...report.warnings].sort(), linksRemoved: report.linksRemoved },
+    report: { pages: pages.length, size: bytes.length, dropped: [...report.dropped].sort(), kept: [...report.kept].sort(), warnings: [...report.warnings].sort(), linksRemoved: report.linksRemoved, pictures },
   };
 }
 
