@@ -124,6 +124,68 @@ Date: Mon, 16 Nov 2026 09:00:00 +0000
   });
 });
 
+describe('trustBoundary: forgeries from the sending side (review E1–E3)', () => {
+  const claimed = (/** @type {string} */ text) => inspectMessage(text).checks.filter((check) => !check.trusted).map((check) => `${check.method}=${check.result}`);
+  const tail = 'From: Bank <security@bank.example>\nTo: you@inbox.test\nSubject: Verify your account\nDate: Mon, 16 Nov 2026 09:00:00 +0000\nMessage-ID: <1@bank.example>\n';
+
+  it('stops at the hand-off: a forged results field and a forged line "by" the provider below it are claimed (E1)', () => {
+    const text = message({
+      results: 'spf=softfail smtp.mailfrom=x@evil.example; dkim=none',
+      from: 'Bank <security@bank.example>',
+      handoff: 'from out.evil.example (out.evil.example [203.0.113.9]) by mx.inbox.test with ESMTPS id 1; Mon, 16 Nov 2026 09:00:01 +0000',
+      below: 'Authentication-Results: mx.inbox.test; dkim=pass header.d=bank.example; dmarc=pass header.from=bank.example\nReceived: from mail.bank.example (mail.bank.example [192.0.2.77]) by mx.inbox.test with ESMTPS id 9; Mon, 16 Nov 2026 08:59:59 +0000\n',
+    });
+    const report = inspectMessage(text);
+    assert.equal(report.verdict, 'warn');
+    assert.deepEqual(report.identity.signedBy, []);
+    assert.equal(report.identity.handoff?.from, 'out.evil.example');
+    assert.deepEqual(claimed(text), ['dkim=pass', 'dmarc=pass']);
+  });
+
+  const gmail = `Delivered-To: you@gmail.example
+Received: by 2002:a05:7300:5a0b:b0:1a2:3b4c:5d6e with SMTP id x11csp1; Mon, 16 Nov 2026 01:02:03 -0800
+Received: from out.evil.example (out.evil.example. [203.0.113.9]) by mx.google.com with ESMTPS id abc123 for <you@gmail.example>; Mon, 16 Nov 2026 01:02:02 -0800
+Received-SPF: softfail (google.com: domain of transitioning x@evil.example does not designate 203.0.113.9 as permitted sender) client-ip=203.0.113.9;
+Authentication-Results: mx.google.com; spf=softfail smtp.mailfrom=x@evil.example; dmarc=none header.from=bank.example
+`;
+
+  it('reads Gmail’s order: the hand-off above the results, nothing below them believed (E2)', () => {
+    const honest = inspectMessage(gmail + 'Received: from [198.51.100.2] by out.evil.example with ESMTPSA id 2; Mon, 16 Nov 2026 01:02:00 -0800\n' + tail);
+    assert.equal(honest.identity.handoff?.from, 'out.evil.example', 'the sender’s own submission hop is not the hand-off');
+    assert.ok(honest.route.filter((hop) => hop.trusted).every((hop) => hop.by === 'mx.google.com' || hop.by.startsWith('2002:')));
+    const forged = gmail + 'Received: from relay.evil.example by out.evil.example with ESMTPS id 3; Mon, 16 Nov 2026 01:02:01 -0800\nAuthentication-Results: mx.google.com; dkim=pass header.d=bank.example header.s=s1\nReceived: from [198.51.100.2] by smtp.evil.example with ESMTPSA id 2; Mon, 16 Nov 2026 01:02:00 -0800\n' + tail;
+    assert.equal(inspectMessage(forged).verdict, 'warn');
+    assert.deepEqual(claimed(forged), ['dkim=pass']);
+  });
+
+  it('believes a results field without a writer’s name only above the hand-off, as Microsoft writes it (E3)', () => {
+    const base = (/** @type {string} */ results) => `Received: from out.evil.example (out.evil.example [203.0.113.9]) by mx.smallisp.example with ESMTP id 1; Mon, 16 Nov 2026 09:12:31 +0000
+${results}
+Received: from [198.51.100.2] by out.evil.example with ESMTPSA id 2; Mon, 16 Nov 2026 09:12:30 +0000
+${tail}`;
+    for (const forged of ['Authentication-Results: mx; spf=pass smtp.mailfrom=bank.example; dkim=pass header.d=bank.example; dmarc=pass header.from=bank.example', 'Authentication-Results: spf=pass (sender IP is 203.0.113.9) smtp.mailfrom=bank.example; dkim=pass (signature was verified) header.d=bank.example;dmarc=pass action=none header.from=bank.example;compauth=pass reason=100']) {
+      const report = inspectMessage(base(forged));
+      assert.equal(report.verdict, 'unchecked', forged);
+      assert.ok(report.checks.every((check) => !check.trusted));
+    }
+    const microsoft = `Received: from SA1PR12MB0001.namprd12.prod.outlook.com (2603:10b6:806:1::1) by MN2PR12MB0002.namprd12.prod.outlook.com with HTTPS; Mon, 16 Nov 2026 09:12:33 +0000
+Received: from BN9PR03CA0001.namprd03.prod.outlook.com (2603:10b6:408:1::2) by SA1PR12MB0001.namprd12.prod.outlook.com (2603:10b6:806:1::1) with Microsoft SMTP Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id 15.20.1; Mon, 16 Nov 2026 09:12:32 +0000
+Authentication-Results: spf=pass (sender IP is 192.0.2.25) smtp.mailfrom=example.com; dkim=pass (signature was verified) header.d=example.com;dmarc=pass action=none header.from=example.com;compauth=pass reason=100
+Received-SPF: Pass (protection.outlook.com: domain of example.com designates 192.0.2.25 as permitted sender) receiver=protection.outlook.com; client-ip=192.0.2.25; helo=mail.example.com; pr=C
+Received: from mail.example.com (192.0.2.25) by BN8NAM11FT001.mail.protection.outlook.com (10.13.1.1) with Microsoft SMTP Server id 15.20.1 via Frontend Transport; Mon, 16 Nov 2026 09:12:31 +0000
+From: Friend <friend@example.com>
+To: you@contoso.example
+Subject: Lunch?
+Date: Mon, 16 Nov 2026 09:12:29 +0000
+Message-ID: <abc@example.com>
+`;
+    const report = inspectMessage(microsoft);
+    assert.equal(report.verdict, 'none');
+    assert.ok(report.checks.length > 0 && report.checks.every((check) => check.trusted));
+    assert.equal(report.identity.handoff?.from, 'mail.example.com');
+  });
+});
+
 describe('findings', () => {
   it('stays quiet on an ordinary message from one person to another', () => {
     assert.deepEqual(keys(message()), ['encryptedInTransit']);
@@ -137,6 +199,33 @@ describe('findings', () => {
     assert.ok(spoofed.includes('spoofedSender'));
     assert.ok(!spoofed.includes('dmarcFail'));
     assert.ok(!keys(message({ results: 'spf=pass smtp.mailfrom=x@other.example.net; dmarc=bestguesspass header.from=example.com' })).includes('spoofedSender'));
+  });
+
+  it('replyElsewhere is not excused by a List-Id line the sender wrote; a real list’s shape is (review E4)', () => {
+    const [, scam] = exampleMessages();
+    const added = scam.replace('To: you@inbox.test', 'List-Id: <updates.post.example.net>\nTo: you@inbox.test');
+    assert.ok(keys(added).includes('replyElsewhere'));
+    const free = message({
+      results: 'spf=pass smtp.mailfrom=boss@gmail.com; dkim=pass header.d=gmail.com; dmarc=pass header.from=gmail.com',
+      from: 'Boss <boss@gmail.com>',
+      fields: 'Reply-To: desk@other.example.net\nList-Id: <team.gmail.com>\n',
+    });
+    assert.ok(keys(free).includes('replyElsewhere'), 'a free mailbox is never a list');
+    const toList = message({
+      results: 'spf=pass smtp.mailfrom=ana@example.com; dkim=pass header.d=lists.example.org; dkim=pass header.d=example.com; dmarc=pass header.from=example.com',
+      fields: 'Reply-To: friends@lists.example.org\nList-Id: Friends <friends.lists.example.org>\n',
+    });
+    assert.ok(!keys(toList).includes('replyElsewhere'), 'replies to a list that signed the post');
+    const unsigned = message({ fields: 'Reply-To: friends@lists.example.org\nList-Id: Friends <friends.lists.example.org>\n' });
+    assert.ok(keys(unsigned).includes('replyElsewhere'), 'no signature of the list: the List-Id is only the sender’s word');
+  });
+
+  it('an unreadable Reply-To is shown as written and still warns (review E14)', () => {
+    for (const field of ['Reply-To: <g.beridze.director@post.example.net\n', 'Reply-To: g.beridze.director@post.example.net.\n']) {
+      const found = finding(message({ fields: field }), 'replyElsewhere');
+      assert.ok(found, field);
+      assert.ok(found.values.some((value) => value.includes('g.beridze.director@post.example.net')), field);
+    }
   });
 
   it('replyElsewhere, and its free-mailbox wording', () => {

@@ -237,13 +237,36 @@ const hasControls = (text) => new RegExp(CONTROL.source, 'u').test(text);
 /** The host that wrote a Received line: the first word of its "by" clause. @param {Received} line */
 const byHost = (line) => (line.by.split(' ')[0] ?? '').toLowerCase();
 
+/** A host given by name, not by address and not a bare word (Gmail's own internal lines start "by 2002:…"). @param {string} host */
+const namedHost = (host) => host.includes('.') && !parseIp(host.replace(/^\[|\]$/g, ''));
+
+/**
+ * Whether the server that handed this line's message over sits outside the provider's organisations: the line is then
+ * where the provider took the message in, and every line below it came with the message.
+ *
+ * A hop from a private or loopback address, or a line that names no sending side at all, is inside. Below the
+ * provider's results (`strict`) only the name the provider looked up for the address counts besides: the sending
+ * side writes its own name (HELO) and can choose the provider's (RFC 8601 B.5 shows such an inside hop). Above the
+ * results, both names decide.
+ * @param {Received} line @param {Set<string>} receiver @param {boolean} strict
+ */
+function fromOutside(line, receiver, strict) {
+  if (line.ip && INTERNAL.has(ipClass(line.ip))) return false;
+  if (!line.from && !line.fromAddress) return false;
+  const names = (strict ? [line.reverse] : [line.from, line.reverse]).map((name) => name.toLowerCase().replace(/\.$/, '')).filter(namedHost);
+  if (names.length === 0) return strict || Boolean(line.ip);
+  return names.some((name) => !receiver.has(organisationOf(name)));
+}
+
 /**
  * Finds the fields the visitor's provider wrote. Each server adds its lines on top, so the provider's own are the top
- * ones: the topmost Authentication-Results and everything above it, then everything down to the lowest Received line
- * written by the same organisation, the one where it took the message in (research §2, §4; plan §5.3).
+ * ones: the topmost Authentication-Results and everything above it (research §2, §4; plan §5.3). Below it the trust
+ * goes on only as far as the provider's hand-off line, the one where it took the message in from outside, and only
+ * when that line has not already been seen above the results (Gmail writes it above, Microsoft below).
  *
- * A results field whose named writer belongs to none of the organisations whose Received lines sit above it is not
- * the receiver's: it came with the message, and nothing it says is believed.
+ * A results field is the receiver's when its named writer belongs to one of the organisations whose Received lines sit
+ * above it. A field that names no writer, or a single word, is believed only when the provider's hand-off line sits
+ * below it, as Microsoft writes it: anywhere else it could come with the message (review E1–E3).
  * @param {Field[]} fields
  * @param {Map<number, Received>} received  Parsed Received lines by field index.
  * @returns {Trust}
@@ -251,37 +274,51 @@ const byHost = (line) => (line.by.split(' ')[0] ?? '').toLowerCase();
 export function trustBoundary(fields, received) {
   const top = fields.findIndex((field) => field.key === 'authentication-results');
   const authservId = top === -1 ? '' : parseAuthResults(fields[top].value).authservId;
-  /** @type {Set<string>} */
-  const receiver = new Set();
   const lines = [...received.entries()].sort(([a], [b]) => a - b);
   const above = top === -1 ? [] : lines.filter(([index]) => index < top);
-  const below = lines.filter(([index]) => index > top);
-  for (const [, line] of above) receiver.add(organisationOf(byHost(line)));
-  // Received lines above the results that name their host by name, not by address (Gmail's own start "by 2002:…").
-  const named = above.map(([, line]) => byHost(line)).filter((host) => host.includes('.') && !parseIp(host));
+  /** @type {Set<string>} */
+  const receiver = new Set();
+  const named = above.map(([, line]) => byHost(line)).filter(namedHost);
+  for (const host of named) receiver.add(organisationOf(host));
   const ownId = organisationOf(authservId);
-  const receiverResults = top !== -1 && (!authservId.includes('.') || named.length === 0 || named.some((host) => organisationOf(host) === ownId));
-  if (receiverResults && authservId.includes('.')) receiver.add(ownId);
-  // The line right below the receiver's own results, or the topmost line when there are none, is the provider's.
-  const first = (top === -1 ? lines : below)[0];
-  if (first && (top === -1 || receiverResults)) receiver.add(organisationOf(byHost(first[1])));
+  const dotted = authservId.includes('.');
+  const namesReceiver = top !== -1 && dotted && (named.length === 0 || named.some((host) => organisationOf(host) === ownId));
+  if (namesReceiver) receiver.add(ownId);
+  // No results at all: the topmost Received line is the provider's.
+  if (top === -1 && lines[0] && namedHost(byHost(lines[0][1]))) receiver.add(organisationOf(byHost(lines[0][1])));
   receiver.delete('');
-  // The provider's own Received lines run down from the top; the lowest one is where it took the message in, and
-  // everything below it came with the message, even above the next server's line.
-  let lastOwn = -1;
-  for (const [index, line] of top === -1 ? lines : below) {
-    if (!receiver.has(organisationOf(byHost(line)))) break;
-    lastOwn = index;
+  /** @param {Received} line */
+  const own = (line) => !namedHost(byHost(line)) || receiver.has(organisationOf(byHost(line)));
+
+  let handoff = top === -1 ? -1 : (above.find(([, line]) => fromOutside(line, receiver, false))?.[0] ?? -1);
+  let last = top;
+  if (handoff === -1) {
+    for (const [index, line] of top === -1 ? lines : lines.filter(([at]) => at > top)) {
+      if (!own(line)) break;
+      last = index;
+      if (fromOutside(line, receiver, top !== -1)) {
+        handoff = index;
+        break;
+      }
+    }
   }
-  let boundary = lastOwn + 1;
-  if (lastOwn === -1) {
-    // No Received line of the provider's below its results (only part of the headers was pasted): believe the
-    // results and any further results fields of the same writer directly under them.
-    boundary = top + 1;
-    while (top !== -1 && fields[boundary]?.key === 'authentication-results' && parseAuthResults(fields[boundary].value).authservId === authservId) boundary += 1;
-    if (top === -1) boundary = 0;
+  let boundary = last + 1;
+  if (top !== -1 && last === top) {
+    // Nothing of the provider's below its results (Gmail's order, or only part of the headers was pasted): its
+    // further results fields directly under them still count, never anything after another kind of field.
+    while (fields[boundary]?.key === 'authentication-results' && parseAuthResults(fields[boundary].value).authservId === authservId) boundary += 1;
   }
+  const receiverResults = top !== -1 && (dotted ? namesReceiver : handoff > top);
   return { top, authservId, receiverResults, boundary, receiver };
+}
+
+/**
+ * The domain a List-Id names: the part in angle brackets, or the whole value (RFC 2919 §2).
+ * @param {string} value
+ */
+export function listDomain(value) {
+  const inside = /<([^<>]*)>/.exec(value)?.[1] ?? value;
+  return inside.trim().toLowerCase().replace(/\.$/, '');
 }
 
 /* ---------- The report ---------- */
@@ -427,10 +464,15 @@ export function inspectMessage(text) {
   identity.raw = from && from.bad ? from.raw : '';
   identity.domain = from ? domainOf(from.domain) : '';
   identity.site = organisationOf(identity.domain);
-  const replyList = parseAddresses(one('reply-to')).filter((item) => !item.bad);
-  identity.replyTo = replyList.map((item) => item.address).join(', ');
+  const replyField = one('reply-to');
+  const replyItems = parseAddresses(replyField);
+  const replyList = replyItems.filter((item) => !item.bad);
+  // An address that doesn't read is shown as written and never counts as the sender's own (review E14).
+  const replyUnread = replyItems.filter((item) => item.bad).map((item) => oneLine(item.raw));
+  if (replyItems.length === 0 && replyField.trim()) replyUnread.push(oneLine(replyField));
+  identity.replyTo = [...replyList.map((item) => item.address), ...replyUnread].join(', ');
   const replySites = replyList.map((item) => organisationOf(item.domain));
-  identity.replySame = replyList.length ? replySites.every((site) => site === identity.site) : null;
+  identity.replySame = replyList.length || replyUnread.length ? replyUnread.length === 0 && replySites.every((site) => site === identity.site) : null;
   const returnPath = parseAddresses(one('return-path')).find((item) => !item.bad);
   identity.returnPath = returnPath?.address ?? '';
   identity.returnSame = returnPath ? organisationOf(returnPath.domain) === identity.site : null;
@@ -490,8 +532,13 @@ export function inspectMessage(text) {
   /* The sender's identity */
   if (fromFields.length > 1 || (fromList.length > 1 && !identity.sender)) found.add('severalFrom', fromFields.flatMap((field) => parseAddresses(field.value).map((item) => item.address || item.raw)));
   if (identity.replySame === false) {
-    const exempt = identity.list !== '' && replySites.length > 0;
-    if (!exempt) found.add('replyElsewhere', replyList.map((item) => item.address), replySites.some((site) => FREE_MAIL.has(site)) ? 'free' : '');
+    // A mailing list's own shape: the provider recorded a signature of the list's organisation, the From address is
+    // not a free mailbox, and either the list rewrote From to itself or every reply goes to the list. A List-Id line
+    // alone is the sender's word and excuses nothing (review E4).
+    const listSite = organisationOf(listDomain(identity.list));
+    const listSigned = listSite !== '' && dkimPasses.some((row) => organisationOf(row.domain) === listSite);
+    const exempt = listSigned && replyUnread.length === 0 && !FREE_MAIL.has(identity.site) && (identity.site === listSite || replySites.every((site) => site === listSite));
+    if (!exempt) found.add('replyElsewhere', [...replyList.map((item) => item.address), ...replyUnread], replySites.some((site) => FREE_MAIL.has(site)) ? 'free' : '');
   }
   const nameDomains = domainsInName(from?.name ?? '').filter((domain) => organisationOf(domain) !== identity.site);
   if (nameDomains.length) found.add('nameIsAddress', nameDomains);
