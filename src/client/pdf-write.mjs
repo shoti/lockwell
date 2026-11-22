@@ -16,8 +16,20 @@ export const PACK = 100;
 /** Objects handled between pauses, so the page stays responsive and Cancel is seen (plan §8). */
 export const BATCH = 200;
 
-/** Yields to the event loop. */
-export const pause = () => new Promise((resolve) => setTimeout(resolve, 0));
+/** Longest stretch of work between yields: the long-task threshold. */
+export const YIELD_MS = 50;
+let lastYield = 0;
+
+/**
+ * Yields to the event loop when YIELD_MS of work have passed since the last yield, so the page can draw progress and
+ * see Cancel. By time, not on every call: a browser clamps a timer to about 4 ms, so a yield per page made a 500-page
+ * build twice as slow.
+ */
+export async function pause() {
+  if (performance.now() - lastYield < YIELD_MS) return;
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  lastYield = performance.now();
+}
 
 /** @param {string} text  One character per byte. */
 const bytesOf = (text) => {

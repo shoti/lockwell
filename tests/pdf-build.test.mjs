@@ -13,7 +13,7 @@ import { build, checkResult, interleave, parseRanges, secretsOf, splitPages } fr
 import { COUNTS, PdfError, openPdf } from '../src/client/pdf-file.mjs';
 import { pageList } from '../src/client/pdf-pages.mjs';
 import { PdfDict, PdfName, PdfRef, PdfStream, PdfString, textOf } from '../src/client/pdf-syntax.mjs';
-import { PdfWriter } from '../src/client/pdf-write.mjs';
+import { PdfWriter, YIELD_MS, pause } from '../src/client/pdf-write.mjs';
 import { latin1, pdfFile, simplePdf } from './build-files.mjs';
 
 /** @typedef {import('../src/client/pdf-build.mjs').PlanPage} PlanPage */
@@ -136,6 +136,28 @@ describe('PDF writer (plan §6.4)', () => {
       const value = file.get(num);
       assert.ok(!(value instanceof PdfStream) && !(value instanceof PdfRef), `object ${num}`);
     }
+  });
+});
+
+describe('PDF build: pausing', () => {
+  it('yields to the page by time, not on every call: a browser timer costs about 4 ms, so a pause per page doubled a 500-page build', async () => {
+    const real = globalThis.setTimeout;
+    let timers = 0;
+    globalThis.setTimeout = /** @type {typeof setTimeout} */ (/** @type {unknown} */ ((/** @type {() => void} */ run) => {
+      timers += 1;
+      return real(run, 0);
+    }));
+    try {
+      await new Promise((resolve) => real(resolve, YIELD_MS + 5));
+      const start = performance.now();
+      for (let i = 0; i < 500; i += 1) await pause();
+      const elapsed = performance.now() - start;
+      assert.ok(timers >= 1, 'the first pause after a long stretch of work yields');
+      assert.ok(timers <= 1 + Math.ceil(elapsed / YIELD_MS), `${timers} timers in ${Math.round(elapsed)} ms`);
+    } finally {
+      globalThis.setTimeout = real;
+    }
+    assert.equal(YIELD_MS, 50, 'the long-task threshold: the page stays responsive and Cancel is seen');
   });
 });
 
