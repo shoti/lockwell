@@ -20,7 +20,7 @@ The payload copies the chunked layout of [age]: 64 KiB chunks, each with its own
 chunk counter and a last-chunk flag. age describes this as "a STREAM variant from [Online Authenticated-Encryption
 and its Nonce-Reuse Misuse-Resistance][STREAM]". The counter stops chunks from being reordered, repeated or dropped;
 the flag stops a file from being cut off at a chunk boundary. AES-256-GCM takes the place of age's
-ChaCha20-Poly1305, which browsers other than Chrome don't provide. A MAC over the header lets a wrong password be
+ChaCha20-Poly1305, which Web Crypto does not yet offer in every browser. A MAC over the header lets a wrong password be
 reported before any content is read, and authenticates the version and the key-derivation parameters.
 
 ## Layout

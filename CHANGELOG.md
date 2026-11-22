@@ -3,6 +3,25 @@
 Notable changes to the site's content and behaviour. Each guide also shows the
 date its sources were last checked.
 
+## Unreleased: file encryption (November 2026)
+
+### Tools
+- New file and text encryption tool (`/tools/file-encryption/`, in "Before you
+  share" after Document metadata). It locks a text, a file or several files
+  (put in one ZIP archive) with a password in the browser and opens what it
+  locked. The default password is six random words; a typed one gets
+  warnings, never a "strong" label. Every result is opened again and compared
+  with the input before it is offered. Locked text survives chats and mail;
+  large files go straight to a file chosen in the save dialog where the
+  browser has one (no limit of ours), and up to 1 GB elsewhere. Names of
+  opened files are checked like the attachment checker's. Only the browser's
+  own Web Crypto is used (PBKDF2-HMAC-SHA-256, HKDF, AES-256-GCM in 64 KiB
+  chunks); nothing is uploaded.
+- The format is public: `docs/ENCRYPTED-FORMAT.md`, with a test vector, and
+  `scripts/lockbox-open.mjs`, a reference decryptor for Node 22.
+- Saving: an exact-name mode and a "neutral name by default" option in the
+  shared save box.
+
 ## Unreleased: email header analyzer (November 2026)
 
 ### Tools

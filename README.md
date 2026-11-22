@@ -12,8 +12,8 @@ Website: [lockwell.org](https://lockwell.org/)
 - **Articles** that explain in plain language why the steps matter.
 - **In-browser tools**: password and PIN generator, link checker and cleaner,
   photo and document metadata viewer and remover, image redaction, a photo
-  editor, hidden character detector, an email header analyzer, and a "what your
-  browser reveals" check.
+  editor, file and text encryption, hidden character detector, an email header
+  analyzer, and a "what your browser reveals" check.
   Nothing is uploaded.
 - **Private by design.** Progress is saved only in your browser, search runs
   on the page, and there are no third-party requests, enforced by a strict
