@@ -1425,6 +1425,10 @@ function encryptPanel(ctx) {
           <p class="facts__why">${s('ownHint')}</p>
           <p class="facts__why">${s('keyboard')}</p>
         </div>
+        <div class="field">
+          ${option('encrypt__pad', 'encrypt-pad', s('pad'), false)}
+          <p class="facts__why">${s('padHint')}</p>
+        </div>
         <p class="tool__note">${s('noRecovery')}</p>
         <div class="tool__actions">
           <button class="button" type="button" data-js="encrypt-lock-button" disabled>${icons.lock}<span>${s('lock')}</span></button>

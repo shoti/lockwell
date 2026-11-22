@@ -66,8 +66,12 @@ stream is:
 
 1. the **metadata block**,
 2. the **content**,
-3. optional **padding** of zero bytes (version 1 writes none; readers accept it, so a later version can hide the
-   exact size without a new format version).
+3. optional **padding** of zero bytes, so the file's size doesn't give away the content's exact size. A reader
+   doesn't need to know how much there is: it checks that every byte after the content is zero.
+
+The site adds padding only when the visitor chooses "Hide the exact size". It then rounds the length of metadata +
+content up with Padmé ([PURBs], Algorithm 1): with E = ⌊log₂ L⌋ and S = ⌊log₂ E⌋ + 1, the lowest E − S bits of the
+length are set to zero by rounding up. That adds at most 12%, less as files grow (about 1% at a few gigabytes).
 
 Metadata block:
 
@@ -156,8 +160,9 @@ implementation written with Node's own `node:crypto` makes and reads the same fi
 
 ## What the format hides and what it doesn't
 
-Hidden: the content, the file's name and its media type. Not hidden: that the file is a Lockwell file, its
-approximate size, and anything the channel it travels through records (when it was sent, and between whom).
+Hidden: the content, the file's name and its media type, and with padding the exact size. Not hidden: that the file
+is a Lockwell file, its approximate size, and anything the channel it travels through records (when it was sent, and
+between whom).
 
 ## Versions
 
@@ -171,3 +176,4 @@ readers refuse both as "made with a newer version". The test vector above opens 
 [NIST SP 800-38D]: https://csrc.nist.gov/pubs/sp/800/38/d/final
 [age]: https://c2sp.org/age
 [STREAM]: https://eprint.iacr.org/2015/189
+[PURBs]: https://arxiv.org/abs/1806.03160

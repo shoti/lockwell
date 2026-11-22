@@ -492,6 +492,36 @@ describe('file encryption page: large and several files', () => {
     }
   });
 
+  it('hides the exact size when asked: the locked file is Padmé-rounded and opens back to the exact bytes', async () => {
+    const { sealedSize, KIND } = await import('../src/client/lockbox.mjs');
+    const page = open('en');
+    try {
+      await until(() => Boolean(page.part('passphrase').textContent), 'the passphrase');
+      const passphrase = page.part('passphrase').textContent;
+      const content = bytesOf(1_000_000);
+      page.part('pad').checked = true;
+      page.part('file').files = [new File([content], 'scan.pdf', { type: 'application/pdf' })];
+      page.part('file').dispatchEvent({ type: 'change' });
+      await until(() => page.part('lock-button').disabled === false, 'the file');
+      page.part('lock-button').click();
+      await until(() => page.said('locked'), 'locking');
+      const lockedBytes = await page.saved('lock');
+      const meta = { kind: KIND.file, size: content.length, name: 'scan.pdf', type: 'application/pdf' };
+      assert.equal(lockedBytes.length, sealedSize(meta, { pad: true }));
+      assert.ok(lockedBytes.length > sealedSize(meta), 'larger than without padding');
+      page.choose('mode', 'open');
+      page.part('locked-file').files = [new File([lockedBytes], 'scan.pdf.lockwell')];
+      page.part('locked-file').dispatchEvent({ type: 'change' });
+      page.type('open-password', passphrase);
+      page.part('open-button').click();
+      await until(() => page.said('opened'), 'opening');
+      assert.equal(page.part('size').textContent, '977 KB', 'the exact size, from inside');
+      assert.deepEqual(await page.saved('open'), content);
+    } finally {
+      page.restore();
+    }
+  });
+
   it('shows a disguised name with its direction control written out, and warns with a link to the attachment checker', async () => {
     const page = open('en');
     try {

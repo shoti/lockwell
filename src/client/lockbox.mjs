@@ -274,27 +274,56 @@ async function readExactly(read, offset, length) {
 const indices = (from, to) => Array.from({ length: to - from }, (_, i) => from + i);
 
 /**
- * The size of the locked file for a content and its metadata: header, metadata block, content and one tag a chunk.
- * @param {Meta} meta
+ * Padmé (Nikitin et al., "Reducing Metadata Leakage from Encrypted Files and Communication with PURBs", PoPETs 2019,
+ * Algorithm 1): rounds a length up so that its lowest E − S bits are zero, where E = ⌊log2 L⌋ and S = ⌊log2 E⌋ + 1.
+ * A length then shows only roughly how large it is, for at most +11.11% (9 bytes to 10) and less as it grows.
+ * Exact integer arithmetic, so it holds beyond 32 bits.
+ * @param {number} length
  */
-export function sealedSize(meta) {
+export function padme(length) {
+  if (length < 2) return length;
+  const exponent = length.toString(2).length - 1;
+  const zeros = exponent - exponent.toString(2).length;
+  if (zeros <= 0) return length;
+  const step = 2 ** zeros;
+  return Math.ceil(length / step) * step;
+}
+
+/**
+ * The plaintext stream's length: metadata block and content, rounded up by Padmé when the exact size is to be hidden.
+ * @param {Meta} meta
+ * @param {boolean} pad
+ */
+const streamLength = (meta, pad) => {
   const total = encodeMeta(meta).length + meta.size;
+  return pad ? padme(total) : total;
+};
+
+/**
+ * The size of the locked file for a content and its metadata: header, metadata block, content, padding if any, and
+ * one tag a chunk.
+ * @param {Meta} meta
+ * @param {{ pad?: boolean }} [options]
+ */
+export function sealedSize(meta, { pad = false } = {}) {
+  const total = streamLength(meta, pad);
   return HEADER_LENGTH + total + Math.ceil(total / CHUNK) * TAG;
 }
 
 /* ---------- Sealing and opening ---------- */
 
 /**
- * Locks a content: writes the header, then the sealed chunks of (metadata block + content), in order.
- * @param {{ password: string, meta: Meta, read: Read, write: Write, iterations?: number, salt?: Uint8Array<ArrayBuffer> } & StreamOptions} options
- *   `read` gives the content (not the metadata); `salt` is fixed only by tests.
+ * Locks a content: writes the header, then the sealed chunks of (metadata block + content + zero padding), in order.
+ * @param {{ password: string, meta: Meta, read: Read, write: Write, iterations?: number, salt?: Uint8Array<ArrayBuffer>, pad?: boolean } & StreamOptions} options
+ *   `read` gives the content (not the metadata); `salt` is fixed only by tests; `pad` hides the exact size (Padmé).
  * @returns {Promise<number>}  Bytes written.
  */
-export async function seal({ password, meta, read, write, iterations = ITERATIONS, salt = randomSalt(), batch = BATCH, onProgress, isCancelled }) {
+export async function seal({ password, meta, read, write, iterations = ITERATIONS, salt = randomSalt(), pad = false, batch = BATCH, onProgress, isCancelled }) {
   if (!Number.isInteger(iterations) || iterations < MIN_ITERATIONS || iterations > MAX_ITERATIONS) throw new RangeError(`${iterations} iterations is outside ${MIN_ITERATIONS} to ${MAX_ITERATIONS}`);
   if (salt.length !== SALT_LENGTH) throw new RangeError(`The salt must be ${SALT_LENGTH} bytes, not ${salt.length}`);
   const metaBytes = encodeMeta(meta);
-  const total = metaBytes.length + meta.size;
+  const contentEnd = metaBytes.length + meta.size;
+  const total = streamLength(meta, pad);
   const count = Math.ceil(total / CHUNK);
   if (isCancelled?.()) throw new LockboxError('cancelled');
   const { macKey, dataKey } = await deriveKeys(password, salt, iterations);
@@ -309,7 +338,8 @@ export async function seal({ password, meta, read, write, iterations = ITERATION
     const plain = new Uint8Array(end - start);
     if (start < metaBytes.length) plain.set(metaBytes.subarray(start, Math.min(end, metaBytes.length)));
     const from = Math.max(start, metaBytes.length) - metaBytes.length;
-    const to = end - metaBytes.length;
+    // Past the content is padding, already zero in the new buffer.
+    const to = Math.min(end, contentEnd) - metaBytes.length;
     if (to > from) plain.set(await readExactly(read, from, to - from), from + metaBytes.length - start);
     const sealed = await Promise.all(indices(first, last).map((index) => {
       const at = (index - first) * CHUNK;
@@ -412,8 +442,9 @@ export async function openEnds({ password, read, size }) {
   const offset = (count - 1) * CHUNK - length;
   const take = Math.max(0, Math.min(lastPlain.length, meta.size - offset));
   for (let i = take; i < lastPlain.length; i += 1) if (lastPlain[i] !== 0) throw new LockboxError('damaged', 'bytes after the content');
-  if (offset + take !== meta.size) throw new LockboxError('damaged', 'content shorter than its size');
-  return { meta, first, last: { offset, bytes: lastPlain.subarray(0, take) } };
+  // The content ends in this chunk, or (padding) before it; it can't run past the file.
+  if (offset + lastPlain.length < meta.size) throw new LockboxError('damaged', 'content shorter than its size');
+  return { meta, first, last: { offset: Math.min(offset, meta.size), bytes: lastPlain.subarray(0, take) } };
 }
 
 /** @param {Uint8Array<ArrayBuffer>} bytes @returns {Read} */
@@ -432,7 +463,7 @@ function join(parts) {
 
 /**
  * Locks a content held in memory.
- * @param {{ password: string, meta: Omit<Meta, 'size'>, content: Uint8Array<ArrayBuffer>, iterations?: number, salt?: Uint8Array<ArrayBuffer> } & StreamOptions} options
+ * @param {{ password: string, meta: Omit<Meta, 'size'>, content: Uint8Array<ArrayBuffer>, iterations?: number, salt?: Uint8Array<ArrayBuffer>, pad?: boolean } & StreamOptions} options
  */
 export async function sealBytes({ content, meta, ...options }) {
   /** @type {Uint8Array<ArrayBuffer>[]} */

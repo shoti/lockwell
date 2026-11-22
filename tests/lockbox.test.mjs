@@ -32,6 +32,7 @@ import {
   open,
   openBytes,
   openEnds,
+  padme,
   readBytes,
   seal,
   sealBytes,
@@ -411,6 +412,58 @@ describe('lockbox: operation counts', () => {
   it('a source that gives fewer bytes than asked for is a read failure, not a shorter file', async () => {
     const content = pattern(1000);
     await rejectsWith(seal({ password: PASSWORD, meta: { kind: KIND.text, size: 2000, name: '', type: '' }, read: readBytes(content), write: () => {}, iterations: FAST }), 'readFailed');
+  });
+});
+
+/* ---------- Hiding the exact size ---------- */
+
+describe('lockbox: hiding the exact size with Padmé', () => {
+  it('follows the paper\'s Algorithm 1: 9 bytes become 10, powers of two and small lengths stay, never more than +12%', () => {
+    assert.equal(padme(9), 10, 'the PURBs paper\'s own example');
+    assert.equal(padme(8), 8);
+    assert.equal(padme(10), 10);
+    for (const n of [0, 1, 2, 3]) assert.equal(padme(n), n);
+    let worst = 0;
+    for (let n = 2; n < 200_000; n += 1) {
+      const padded = padme(n);
+      assert.ok(padded >= n);
+      worst = Math.max(worst, (padded - n) / n);
+    }
+    // The paper's text gives +11.11% (9 to 10) as the maximum, but its Algorithm 1 pads 129 to 144 (+11.63%:
+    // E = 7, S = 3, four low bits cleared). The abstract's "at most 12%" holds.
+    assert.equal(padme(129), 144);
+    assert.ok(worst < 0.12, `worst overhead ${worst}`);
+    assert.equal(padme(2 ** 40 + 1), 2 ** 40 + 2 ** (40 - 6), 'exact beyond 32 bits: E = 40, S = 6');
+    assert.ok(padme(5 * 2 ** 30) / (5 * 2 ** 30) - 1 < 0.02, 'about 1-2% at gigabytes');
+  });
+
+  it('gives nearby sizes the same locked size, and opens back to the exact content in both implementations', async () => {
+    const meta = { kind: KIND.file, name: 'scan.pdf', type: 'application/pdf' };
+    const a = pattern(1_000_000);
+    const b = pattern(1_010_000, 3);
+    const lockedA = await sealBytes({ password: PASSWORD, meta, content: a, iterations: FAST, pad: true });
+    const lockedB = await sealBytes({ password: PASSWORD, meta, content: b, iterations: FAST, pad: true });
+    assert.equal(lockedA.length, lockedB.length, 'one size bucket');
+    assert.equal(lockedA.length, sealedSize({ ...meta, size: a.length }, { pad: true }));
+    const plainA = await sealBytes({ password: PASSWORD, meta, content: a, iterations: FAST });
+    assert.notEqual(plainA.length, lockedA.length);
+    assert.deepEqual((await openBytes({ password: PASSWORD, bytes: lockedA })).content, a);
+    assert.deepEqual(refRead(lockedB).content, b);
+  });
+
+  it('opens a padded file whose last chunk holds only padding, at its ends too', async () => {
+    // 13 + 8 + 15 = 36 bytes of metadata. The stream ends on a chunk boundary at 2^23 + 64 KiB (129 chunks); Padmé
+    // rounds it up to a multiple of 2^18 (E = 23, S = 5), 132 chunks: the last three chunks are padding only, so the
+    // last chunk starts after the content ends.
+    const meta = { kind: KIND.file, name: 'scan.pdf', type: 'application/pdf' };
+    const content = pattern(2 ** 23 + CHUNK - 36);
+    const locked = await sealBytes({ password: PASSWORD, meta, content, iterations: FAST, pad: true });
+    assert.equal(locked.length, HEADER_LENGTH + 132 * (CHUNK + 16), 'three chunks of padding only');
+    assert.deepEqual((await openBytes({ password: PASSWORD, bytes: locked })).content, content);
+    const ends = await openEnds({ password: PASSWORD, read: readBytes(locked), size: locked.length });
+    assert.equal(ends.meta.size, content.length);
+    assert.deepEqual(ends.last.bytes.length, 0);
+    assert.equal(ends.last.offset, content.length);
   });
 });
 

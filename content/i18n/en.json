@@ -1487,6 +1487,8 @@
         },
         "ownHint": "There’s no strength meter here: a rule can’t tell a password that’s easy to guess from a good one. Six random words made by the page are the better choice.",
         "keyboard": "A password in Georgian or another alphabet works, but whoever opens the file needs a keyboard that can type it.",
+        "pad": "Hide the exact size",
+        "padHint": "Adds up to 12% to the locked file, so its size shows only roughly how large the content is.",
         "noRecovery": "If the password is lost, nobody can open the file, including us. Keep your original until the recipient says it opened.",
         "lock": "Lock",
         "verified": "Checked: the password above opens this result and gives back exactly what you locked.",

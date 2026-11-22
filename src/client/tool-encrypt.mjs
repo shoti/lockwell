@@ -292,6 +292,7 @@ export function init(root) {
   const show = button('password-show');
   const warnings = /** @type {HTMLElement[]} */ ([...part('warnings').querySelectorAll('[data-warning]')]);
   const lockButton = button('lock-button');
+  const pad = input('pad');
   const locked = part('locked');
   const verified = part('verified');
   const armourBox = part('armour-box');
@@ -524,7 +525,7 @@ export function init(root) {
   /** A text: small, so locked and checked in memory, and shown as locked text too. */
   const lockText = async (/** @type {number} */ job) => {
     const content = encoder.encode(text.value);
-    const sealed = await sealBytes({ password: currentPassword(), meta: { kind: KIND.text, name: '', type: '' }, content });
+    const sealed = await sealBytes({ password: currentPassword(), meta: { kind: KIND.text, name: '', type: '' }, content, pad: pad.checked });
     if (job !== ticket) return;
     say('checking');
     // Derived again from the field as it is now, not from the key in hand.
@@ -595,7 +596,7 @@ export function init(root) {
       const blob = handle ? null : blobSink();
       file = handle ? await fileSink(handle) : null;
       const write = file?.write ?? /** @type {ReturnType<typeof blobSink>} */ (blob).write;
-      await seal({ password: currentPassword(), meta: { ...meta, size: source.size }, read: (offset, length) => readRange(source, offset, length), write, onProgress: showProgress, isCancelled: stop });
+      await seal({ password: currentPassword(), meta: { ...meta, size: source.size }, read: (offset, length) => readRange(source, offset, length), write, pad: pad.checked, onProgress: showProgress, isCancelled: stop });
       if (file) await file.finish();
       file = null;
       const result = handle ? await handle.getFile() : /** @type {ReturnType<typeof blobSink>} */ (blob).finish('application/octet-stream');
