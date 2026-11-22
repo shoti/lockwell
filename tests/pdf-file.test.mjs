@@ -304,14 +304,16 @@ describe('PDF file: filters (§7.4)', () => {
 });
 
 describe('PDF file: encryption and limits', () => {
-  it('recognises an encrypted file: its page tree still opens, its streams and object streams are locked', async () => {
+  it('recognises an encrypted file: its page tree still opens, its streams and object streams are locked until unlocked', async () => {
     const plain = pdfFile({ objects: [CATALOG, PAGES, PAGE, { num: 4, stream: { data: 'secret' } }, { num: 5, body: '<< /Filter /Standard /V 1 /R 2 >>' }], trailer: '/Encrypt 5 0 R' });
     const file = await openPdf(plain);
     assert.equal(file.encrypted, true);
     assert.equal(pageList(file).length, 1);
     await rejectsPdf(file.decode(/** @type {PdfStream} */ (file.get(4))), 'locked');
     const packed = pdfFile({ objects: [{ num: 5, body: '<< /Filter /Standard /V 4 /R 4 >>' }], packed: { num: 6, objects: [CATALOG, PAGES, PAGE] }, xref: 'stream', trailer: '/Encrypt 5 0 R' });
-    await rejectsPdf(openPdf(packed), 'locked');
+    const packedFile = await openPdf(packed);
+    assert.equal(packedFile.encrypted, true, 'it opens: the password is asked for next (tests/pdf-crypt.test.mjs)');
+    assert.throws(() => pageList(packedFile), (error) => error instanceof PdfError && error.code === 'locked');
   });
 
   it('refuses a cross-reference stream that claims more objects than the limit', async () => {

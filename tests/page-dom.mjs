@@ -65,6 +65,9 @@ export class PageElement extends FakeEventTarget {
     PageElement.active = this;
   }
 
+  /** Selecting an input's text: nothing to track here. */
+  select() {}
+
   /** @returns {PageElement | null} */
   get parentElement() {
     return this.parent;

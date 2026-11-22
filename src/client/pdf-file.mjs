@@ -3,11 +3,13 @@
  * @file Opening a PDF: the header, the cross-reference data (classic tables, cross-reference streams, hybrid files,
  * chains of updates), object streams, objects read on demand, stream decoding, and a repair scan when the
  * cross-reference data cannot be followed. ISO 32000-1 §7.4–7.5, quoted in docs/research/tool-pdf-toolkit.md §4 and
- * §14. Pure, no DOM; Web streams for Flate (DecompressionStream). Encrypted files are recognised here and read by
- * pdf-crypt.mjs.
+ * §14. Pure, no DOM; Web streams for Flate (DecompressionStream). Encrypted files are recognised here and, once
+ * `unlock` has a password that opens them, decrypted object by object with pdf-crypt.mjs (plan §6.6).
  */
 import { concat } from './bytes.mjs';
-import { Lexer, PdfDict, PdfError, PdfName, PdfRef, PdfStream, isName, isRegular, isSpace, parseObject } from './pdf-syntax.mjs';
+import { authenticate, decrypt, objectKey, passwordBytes, readSecurity } from './pdf-crypt.mjs';
+import { pause } from './pdf-write.mjs';
+import { Lexer, PdfDict, PdfError, PdfName, PdfRef, PdfStream, PdfString, isName, isRegular, isSpace, parseObject } from './pdf-syntax.mjs';
 
 export { PdfError };
 
@@ -38,6 +40,9 @@ export const meter = (limit = LIMITS.total) => ({ used: 0, limit });
  * @typedef {{ type: 'plain', offset: number } | { type: 'packed', stream: number, index: number } | { type: 'free' }} Entry
  * @typedef {{ data: Uint8Array, first: number, pairs: [number, number][] }} Pack
  */
+
+/** Objects decrypted side by side when a file is unlocked. */
+const DECRYPT_BATCH = 256;
 
 /** Bytes searched backwards from the end for "startxref". Files often have junk after %%EOF. */
 const TAIL = 4096;
@@ -72,6 +77,12 @@ export class PdfFile {
     this.repaired = false;
     /** True when the trailer names an encryption dictionary. */
     this.encrypted = false;
+    /** True once a password opened an encrypted file: every object in the cache is then decrypted. */
+    this.unlocked = false;
+    /** The encryption dictionary as read, once `unlock` was called. @type {import('./pdf-crypt.mjs').Security | null} */
+    this.security = null;
+    /** Object streams the repair scan found in an encrypted file: read once it is unlocked. @type {number[]} */
+    this.lockedPacks = [];
     /** Objects that are listed but could not be read: they read as null. */
     this.broken = new Set();
     /** @type {Map<number, import('./pdf-syntax.mjs').PdfObject>} */
@@ -99,10 +110,134 @@ export class PdfFile {
     if (readable) {
       this.encrypted = this.trailer.has('Encrypt');
       await this.loadPacks();
+      if (this.encrypted) return; // the page tree is checked by unlock, once it can be read
       if (this.hasPageTree()) return;
     }
     await this.repair();
+    if (this.encrypted) return;
     if (!this.hasPageTree()) throw new PdfError('damaged', 'no page tree');
+  }
+
+  /* ---------- Encryption (§7.6, plan §6.6) ---------- */
+
+  /**
+   * Opens an encrypted file with a password: the empty one first, as every reader does. On success every object is
+   * read and decrypted into the cache, the object streams are read, and the file behaves as an unencrypted one.
+   * @param {string} password
+   * @returns {Promise<boolean>}  False when the password opens nothing.
+   * @throws {PdfError}  `lockedRevision` or `lockedHandler` for encryption this tool cannot open; `damaged`.
+   */
+  async unlock(password) {
+    if (!this.encrypted || this.unlocked) return true;
+    this.security ??= readSecurity(this.resolve(this.trailer.get('Encrypt')), this.resolve(this.trailer.get('ID')), (v) => this.resolve(v));
+    const security = this.security;
+    let key = null;
+    for (const bytes of passwordBytes(password)) {
+      key = authenticate(security, bytes);
+      if (key) break;
+    }
+    if (!key) return false;
+    await this.decryptAll(key);
+    if (this.hasPageTree()) return true;
+    if (!this.repaired) {
+      await this.repair();
+      await this.decryptAll(key);
+      if (this.hasPageTree()) return true;
+    }
+    throw new PdfError('damaged', 'no page tree');
+  }
+
+  /**
+   * Reads every plain object as it is in the file, then decrypts each with its own key (Algorithm 1) and reads the
+   * object streams from the decrypted data. Not decrypted (§7.6.1, §7.5.7): the encryption dictionary, cross-reference
+   * streams, metadata when /EncryptMetadata is false, and objects inside object streams (the stream was decrypted).
+   * @param {Uint8Array} key
+   */
+  async decryptAll(key) {
+    const encrypt = this.trailer.get('Encrypt');
+    const skip = encrypt instanceof PdfRef ? encrypt.num : -1;
+    this.cache = new Map();
+    this.broken = new Set();
+    this.packs = new Map();
+    this.unlocked = false;
+    /** @type {[number, number, import('./pdf-syntax.mjs').PdfObject][]} */
+    const read = [];
+    for (const [num, entry] of this.entries) {
+      if (entry.type !== 'plain') continue;
+      read.push([num, generationAt(this.bytes, entry.offset), this.get(num)]);
+      await pause(); // by time: a file of 100,000 objects would otherwise hold the page for a second
+    }
+    /** @type {Map<number, import('./pdf-syntax.mjs').PdfObject>} */
+    const decrypted = new Map();
+    // A batch at a time: Web Crypto works on its own threads, so many small strings go much faster side by side.
+    for (let at = 0; at < read.length; at += DECRYPT_BATCH) {
+      const batch = read.slice(at, at + DECRYPT_BATCH);
+      const values = await Promise.all(batch.map(([num, gen, value]) => (num === skip ? value : this.decryptValue(value, num, gen, key))));
+      batch.forEach(([num], i) => decrypted.set(num, values[i]));
+      await pause();
+    }
+    this.cache = decrypted;
+    this.unlocked = true;
+    await this.loadPacks();
+    if (this.repaired) await this.addPacks(this.lockedPacks);
+  }
+
+  /**
+   * One object's strings and stream data decrypted, as a new object; the original is left as it is.
+   * @param {import('./pdf-syntax.mjs').PdfObject} value
+   * @param {number} num @param {number} gen @param {Uint8Array} key
+   * @returns {Promise<import('./pdf-syntax.mjs').PdfObject>}
+   */
+  async decryptValue(value, num, gen, key) {
+    const security = /** @type {import('./pdf-crypt.mjs').Security} */ (this.security);
+    if (value instanceof PdfString) {
+      const method = security.strings;
+      return new PdfString(await decrypt(objectKey(key, num, gen, method), method, value.bytes), value.hex);
+    }
+    if (Array.isArray(value)) {
+      const out = [];
+      for (const item of value) out.push(await this.decryptValue(item, num, gen, key));
+      return out;
+    }
+    if (value instanceof PdfDict) {
+      const out = new PdfDict();
+      for (const [name, item] of value.entries()) out.set(name, await this.decryptValue(item, num, gen, key));
+      return out;
+    }
+    if (value instanceof PdfStream) {
+      if (isName(value.dict.get('Type'), 'XRef')) return value;
+      const dict = /** @type {PdfDict} */ (await this.decryptValue(value.dict, num, gen, key));
+      const method = this.streamMethod(dict);
+      const data = await decrypt(objectKey(key, num, gen, method), method, value.data);
+      return new PdfStream(dict, data);
+    }
+    return value;
+  }
+
+  /**
+   * How a stream is encrypted: by its own Crypt filter, which is then taken out of its filter list (the copy is not
+   * encrypted), or by the file's default for streams (§7.6.5).
+   * @param {PdfDict} dict  Changed in place.
+   * @returns {import('./pdf-crypt.mjs').Method}
+   */
+  streamMethod(dict) {
+    const security = /** @type {import('./pdf-crypt.mjs').Security} */ (this.security);
+    const filters = listOf(this.resolve(dict.get('Filter')));
+    if (filters.length > 0 && isName(this.resolve(filters[0]), 'Crypt')) {
+      const parmsKey = dict.has('DecodeParms') ? 'DecodeParms' : 'DP';
+      const parms = listOf(this.resolve(dict.get(parmsKey)));
+      const parm = this.resolve(parms[0]);
+      const name = parm instanceof PdfDict ? this.resolve(parm.get('Name')) : null;
+      const method = !(name instanceof PdfName) || name.value === 'Identity' ? 'none' : security.filters.get(name.value);
+      if (!method) throw new PdfError('damaged', `crypt filter ${name instanceof PdfName ? name.value : ''} is not defined`);
+      if (filters.length === 1) dict.delete('Filter');
+      else dict.set('Filter', filters.slice(1));
+      if (parms.length <= 1 || parms.slice(1).every((p) => p === null)) dict.delete(parmsKey);
+      else dict.set(parmsKey, parms.slice(1));
+      return method;
+    }
+    if (!security.encryptMetadata && isName(this.resolve(dict.get('Type')), 'Metadata')) return 'none';
+    return security.streams;
   }
 
   /* ---------- Cross-reference sections (§7.5.4–7.5.8) ---------- */
@@ -270,7 +405,7 @@ export class PdfFile {
     const streams = new Set();
     for (const entry of this.entries.values()) if (entry.type === 'packed') streams.add(entry.stream);
     for (const num of streams) {
-      if (this.encrypted) {
+      if (this.encrypted && !this.unlocked) {
         this.packs.set(num, new PdfError('locked', 'object stream of an encrypted file'));
         continue;
       }
@@ -286,7 +421,7 @@ export class PdfFile {
   /** @param {number} num */
   async readPack(num) {
     const entry = this.entries.get(num);
-    const stream = entry?.type === 'plain' ? this.readAt(entry.offset, num) : null;
+    const stream = entry?.type !== 'plain' ? null : this.unlocked ? this.get(num) : this.readAt(entry.offset, num);
     if (!(stream instanceof PdfStream)) throw new PdfError('damaged', `object stream ${num} is missing`);
     const count = stream.dict.get('N');
     const first = stream.dict.get('First');
@@ -489,20 +624,10 @@ export class PdfFile {
     const trailers = found.sort(([a], [b]) => a - b).map(([, dict]) => dict);
     const encrypt = trailers.findLast((t) => t.has('Encrypt'));
     this.encrypted = Boolean(encrypt);
-    // Objects in object streams, unless a plain copy exists.
-    if (!this.encrypted) {
-      for (const num of packs) {
-        try {
-          const pack = await this.readPack(num);
-          this.packs.set(num, pack);
-          pack.pairs.forEach(([n], index) => {
-            if (!this.entries.has(n)) this.keepRepaired(n, { type: 'packed', stream: num, index });
-          });
-        } catch (error) {
-          if (!(error instanceof PdfError) || error.code === 'tooLarge') throw error;
-        }
-      }
-    }
+    this.unlocked = false;
+    // Objects in object streams, unless a plain copy exists. In an encrypted file, once it is unlocked.
+    if (this.encrypted) this.lockedPacks = packs;
+    else await this.addPacks(packs);
     this.cache = new Map();
     const trailer = new PdfDict();
     const named = trailers.findLast((t) => this.isCatalog(t.get('Root')));
@@ -517,6 +642,24 @@ export class PdfFile {
       if (source) trailer.set(key, /** @type {import('./pdf-syntax.mjs').PdfObject} */ (source.get(key)));
     }
     this.trailer = trailer;
+  }
+
+  /**
+   * The objects of object streams found by the repair scan, unless a plain copy of them exists.
+   * @param {number[]} packs
+   */
+  async addPacks(packs) {
+    for (const num of packs) {
+      try {
+        const pack = await this.readPack(num);
+        this.packs.set(num, pack);
+        pack.pairs.forEach(([n], index) => {
+          if (!this.entries.has(n)) this.keepRepaired(n, { type: 'packed', stream: num, index });
+        });
+      } catch (error) {
+        if (!(error instanceof PdfError) || error.code === 'tooLarge') throw error;
+      }
+    }
   }
 
   /** @param {number} num @param {Entry} entry */
@@ -551,7 +694,7 @@ export class PdfFile {
     else COUNTS.decoded += 1;
     const filters = listOf(this.resolve(stream.dict.get('Filter'))).map((f) => this.resolve(f));
     const parms = listOf(this.resolve(stream.dict.get('DecodeParms') ?? stream.dict.get('DP'))).map((p) => this.resolve(p));
-    if (this.encrypted && !structural && !(filters.length > 0 && isName(filters[0], 'Crypt'))) {
+    if (this.encrypted && !this.unlocked && !structural && !(filters.length > 0 && isName(filters[0], 'Crypt'))) {
       throw new PdfError('locked', 'stream of an encrypted file');
     }
     let data = stream.data;
@@ -589,6 +732,17 @@ export class PdfFile {
     }
     return data;
   }
+}
+
+/**
+ * The generation number in the "num gen obj" header at an offset (0 when it cannot be read).
+ * @param {Uint8Array} bytes @param {number} offset
+ */
+function generationAt(bytes, offset) {
+  const lexer = new Lexer(bytes, offset);
+  lexer.next();
+  const gen = lexer.next();
+  return gen.type === 'number' && Number.isInteger(gen.value) && gen.value >= 0 ? gen.value : 0;
 }
 
 /** @param {import('./pdf-syntax.mjs').PdfObject} value */

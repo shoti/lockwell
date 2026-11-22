@@ -8,10 +8,12 @@ import { byteString } from './bytes.mjs';
 
 /**
  * Why a PDF could not be read or written. `unsupported`: not a PDF, or a feature this tool does not read.
- * `damaged`: the structure is broken beyond repair. `tooLarge`: over one of the limits. `locked`: encrypted.
- * `wrongPassword`: the password does not open it. `cancelled`: the visitor stopped it. `buildFailed`: a file we
+ * `damaged`: the structure is broken beyond repair. `tooLarge`: over one of the limits. `locked`: encrypted and not
+ * opened with its password yet. `lockedRevision`: encrypted with a revision this tool does not read (5 and 6, AES-256).
+ * `lockedHandler`: encrypted with a security handler other than the password one. `wrongPassword`: the password does
+ * not open it. `cancelled`: the visitor stopped it. `buildFailed`: a file we
  * wrote did not pass the check before it is offered (plan §6.9).
- * @typedef {'unsupported' | 'damaged' | 'tooLarge' | 'locked' | 'wrongPassword' | 'cancelled' | 'buildFailed'} PdfErrorCode
+ * @typedef {'unsupported' | 'damaged' | 'tooLarge' | 'locked' | 'lockedRevision' | 'lockedHandler' | 'wrongPassword' | 'cancelled' | 'buildFailed'} PdfErrorCode
  */
 export class PdfError extends Error {
   /** @param {PdfErrorCode} code @param {string} [detail]  For developers; never shown. */

@@ -725,6 +725,68 @@ export function init(root) {
 
   /* ----- Adding files ----- */
 
+  /* ----- Locked files (plan §6.6) ----- */
+
+  const passwordNote = find('password');
+  const passwordInput = input('password-input');
+  const passwordShow = button('password-show');
+  const passwordWrong = find('password-wrong');
+  /** Answers the question being asked, if any: a password to try, or null to skip the file. @type {((typed: string | null) => void) | null} */
+  let answerPassword = null;
+
+  passwordShow.addEventListener('click', () => {
+    const showing = passwordShow.getAttribute('aria-pressed') !== 'true';
+    passwordShow.setAttribute('aria-pressed', String(showing));
+    passwordInput.type = showing ? 'text' : 'password';
+    const label = passwordShow.querySelector('span');
+    if (label) label.textContent = (showing ? passwordShow.dataset.hide : passwordShow.dataset.show) ?? '';
+  });
+
+  /**
+   * Asks for the password of an encrypted file until one opens it or the visitor skips the file.
+   * @param {import('./pdf-file.mjs').PdfFile} file @param {string} name
+   * @returns {Promise<string | null>}  The password that opened it, or null when skipped.
+   * @throws {PdfError}  What opening the file found once the password was right (`damaged`, for one).
+   */
+  const askPassword = (file, name) =>
+    new Promise((resolve, reject) => {
+      const title = find('password-title');
+      title.textContent = fill(title.dataset.text ?? '', { name });
+      passwordInput.value = '';
+      passwordWrong.hidden = true;
+      passwordNote.hidden = false;
+      passwordInput.focus();
+      /** @param {() => void} settle */
+      const done = (settle) => {
+        answerPassword = null;
+        passwordInput.value = '';
+        passwordNote.hidden = true;
+        if (passwordNote.contains(document.activeElement)) input('file').focus();
+        settle();
+      };
+      let trying = false;
+      answerPassword = async (typed) => {
+        if (typed === null) return done(() => resolve(null));
+        if (trying) return;
+        trying = true;
+        try {
+          if (await file.unlock(typed)) return done(() => resolve(typed));
+          passwordWrong.hidden = false;
+          passwordInput.select();
+        } catch (error) {
+          done(() => reject(error));
+        } finally {
+          trying = false;
+        }
+      };
+    });
+  button('password-open').addEventListener('click', () => answerPassword?.(passwordInput.value));
+  button('password-skip').addEventListener('click', () => answerPassword?.(null));
+  passwordInput.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') answerPassword?.(passwordInput.value);
+    else if (event.key === 'Escape') answerPassword?.(null);
+  });
+
   /** @param {File[]} files */
   const addFiles = async (files) => {
     if (busy) return say('busy');
@@ -747,23 +809,27 @@ export function init(root) {
     let bytes;
     let file;
     let list;
+    /** The password that opened it, for the previews only; never kept with the source. @type {string | null} */
+    let password = '';
     try {
       bytes = new Uint8Array(await read());
       if (sources.size === 0) checkPictureLevels();
       if (isPicture(bytes, type)) return addPicture(name, bytesSize, bytes);
       file = await openPdf(bytes);
+      if (file.encrypted && !(await file.unlock(''))) password = await askPassword(file, name);
+      if (password === null) return say('locked', { name });
       list = pageList(file);
     } catch (error) {
       if (!(error instanceof PdfError)) {
         console.error('[lockwell] A PDF could not be opened.', error);
         return say('damaged', { name });
       }
-      return say(error.code === 'unsupported' ? 'unsupported' : error.code === 'tooLarge' ? 'tooLarge' : error.code === 'locked' ? 'locked' : 'damaged', { name, limit: sizeText(fileLimit) });
+      const known = ['unsupported', 'tooLarge', 'locked', 'lockedRevision', 'lockedHandler'];
+      return say(known.includes(error.code) ? error.code : 'damaged', { name, limit: sizeText(fileLimit) });
     }
-    if (file.encrypted) return say('locked', { name });
     if (pages().length + list.length > BOARD_LIMIT) return say('tooMany', { name, limit: BOARD_LIMIT });
     const id = nextSource++;
-    sources.set(id, { kind: 'pdf', id, name, size: bytesSize, bytes, file, pages: list, preview: openPreview(bytes) });
+    sources.set(id, { kind: 'pdf', id, name, size: bytesSize, bytes, file, pages: list, preview: openPreview(bytes, password ? { password } : {}) });
     const added = list.map((_, index) => ({ key: key(), origin: { source: id, index }, turn: /** @type {const} */ (0) }));
     if (!input('name').value) input('name').value = baseName(name);
     change([...pages(), ...added]);
@@ -872,6 +938,7 @@ export function init(root) {
   });
   button('restart-yes').addEventListener('click', () => {
     restart.hidden = true;
+    answerPassword?.(null);
     stage.reset();
     for (const source of sources.values()) letGo(source);
     sources.clear();

@@ -3161,6 +3161,25 @@
   .pdf__board,
   .pdf__save,
   .pdf__pick,
+  .pdf__password:not([hidden]) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3);
+  }
+
+  .pdf__password-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    max-inline-size: 32rem;
+  }
+
+  .pdf__password-row .input {
+    flex: 1 1 14rem;
+    width: auto;
+    font-family: var(--font-mono);
+  }
+
   .pdf__pictures:not([hidden]) {
     display: grid;
     grid-template-columns: minmax(0, 1fr);

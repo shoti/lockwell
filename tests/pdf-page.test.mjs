@@ -22,6 +22,7 @@ import { BOARD_LIMIT, examplePdf, init, insertBlanks, interleaveHalves, movePage
 import { readZip } from '../src/client/zip.mjs';
 import { jpegFile, pdfFile, pngFile, simplePdf } from './build-files.mjs';
 import { installDom } from './fake-dom.mjs';
+import * as locked from './pdf-crypt-fixtures.mjs';
 import { PageElement, toolSection } from './page-dom.mjs';
 
 /** @typedef {import('../src/client/pdf-build.mjs').PlanPage} PlanPage */
@@ -135,7 +136,7 @@ describe('PDF tools page: content', () => {
         assert.ok(tool.querySelector(`[data-js="pdf-${name}"]`) ?? tool.querySelector(`[data-js="${name}"]`), `${lang}: pdf-${name}`);
       }
       const message = /** @type {PageElement} */ (tool.querySelector('[data-js="pdf-message"]'));
-      for (const key of ['added', 'addedOne', 'unsupported', 'pictureUnsupported', 'blocked', 'resized', 'damaged', 'tooLarge', 'tooMany', 'locked', 'repaired', 'noPreview', 'buildFailed', 'nothingSelected', 'cancelled', 'badRanges', 'badEvery', 'badPosition', 'saved', 'busy']) {
+      for (const key of ['added', 'addedOne', 'unsupported', 'pictureUnsupported', 'blocked', 'resized', 'damaged', 'tooLarge', 'tooMany', 'locked', 'lockedRevision', 'lockedHandler', 'repaired', 'noPreview', 'buildFailed', 'nothingSelected', 'cancelled', 'badRanges', 'badEvery', 'badPosition', 'saved', 'busy']) {
         assert.ok(message.dataset[key], `${lang}: message ${key}`);
       }
       const units = /** @type {PageElement} */ (tool.querySelector('[data-js="pdf-units"]'));
@@ -284,23 +285,75 @@ describe('PDF tools page: organising', () => {
     }
   });
 
-  it('says why a file is not added: not a PDF, damaged, password-protected; and refuses more than the board holds', async () => {
+  it('says why a file is not added: not a PDF, damaged, locked in a way it cannot open; and refuses more than the board holds', async () => {
     const page = open('en');
     try {
       await page.add(new TextEncoder().encode('just text'), 'notes.pdf');
       assert.ok(page.said('unsupported'));
       await page.add(new TextEncoder().encode('%PDF-1.7\nnothing\n%%EOF'), 'broken.pdf');
       assert.ok(page.said('damaged'));
-      const locked = pdfFile({ objects: [
-        { num: 1, body: '<< /Type /Catalog /Pages 2 0 R >>' },
-        { num: 2, body: '<< /Type /Pages /Kids [3 0 R] /Count 1 >>' },
-        { num: 3, body: '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 10 10] >>' },
-        { num: 4, body: '<< /Filter /Standard /V 1 /R 2 >>' },
-      ], trailer: '/Encrypt 4 0 R' });
-      await page.add(locked, 'secret.pdf');
-      assert.ok(page.said('locked'));
+      await page.add(locked.r6Password, 'new.pdf');
+      assert.ok(page.said('lockedRevision'));
+      const other = Uint8Array.from(String.fromCharCode(...locked.r2Empty).replace('/Filter /Standard', '/Filter /Unknown1'), (c) => c.charCodeAt(0));
+      await page.add(other, 'certificate.pdf');
+      assert.ok(page.said('lockedHandler'));
+      assert.equal(page.part('password').hidden, true, 'no password is asked for either');
       assert.equal(page.cards().length, 0);
       assert.equal(BOARD_LIMIT, 5000);
+    } finally {
+      page.restore();
+    }
+  });
+
+  it('opens a locked file: no question without a user password, asks otherwise, says when it is wrong, lets it be skipped', async () => {
+    const page = open('en');
+    try {
+      await page.add(locked.r4Empty, 'restricted.pdf');
+      assert.equal(page.part('password').hidden, true, 'opened with the empty password, as every reader does');
+      assert.equal(page.cards().length, 1);
+
+      /** @param {Uint8Array} bytes @param {string} name */
+      const drop = async (bytes, name) => {
+        page.part('message').textContent = '';
+        page.part('file').files = [new File([/** @type {Uint8Array<ArrayBuffer>} */ (bytes)], name, { type: 'application/pdf' })];
+        page.part('file').dispatchEvent({ type: 'change' });
+        await until(() => page.part('password').hidden === false, 'the password question');
+      };
+      await drop(locked.r2Password, 'letter.pdf');
+      assert.equal(page.part('password-title').textContent, 'letter.pdf is protected with a password.');
+      assert.equal(PageElement.active, page.part('password-input'), 'the field has focus');
+      assert.equal(page.part('password-wrong').hidden, true);
+      page.part('password-input').value = 'wrong';
+      page.press('password-open');
+      await until(() => page.part('password-wrong').hidden === false, 'the wrong-password line');
+      assert.equal(page.cards().length, 1);
+      page.press('password-show');
+      assert.equal(page.part('password-input').type, 'text');
+      assert.equal(page.part('password-show').getAttribute('aria-pressed'), 'true');
+      page.part('password-input').value = locked.OWNER_PASSWORD;
+      page.part('password-input').dispatchEvent({ type: 'keydown', key: 'Enter' });
+      await until(() => page.cards().length === 2, 'the unlocked page');
+      assert.equal(page.part('password').hidden, true);
+      assert.equal(page.part('password-input').value, '', 'the password is not left in the field');
+      assert.ok(page.said('addedOne'));
+
+      await drop(locked.r3Password, 'other.pdf');
+      page.part('password-input').dispatchEvent({ type: 'keydown', key: 'Escape' });
+      await until(() => page.said('locked'), 'the skipped file');
+      assert.equal(page.part('password').hidden, true);
+      assert.equal(page.cards().length, 2);
+
+      await drop(locked.r4Password, 'third.pdf');
+      page.press('password-skip');
+      await until(() => page.said('locked'), 'the skipped file');
+
+      page.press('create');
+      const { bytes } = await page.saved();
+      const copy = await openPdf(bytes);
+      assert.equal(copy.encrypted, false);
+      assert.equal(pageList(copy).length, 2);
+      const item = page.tool.querySelectorAll('[data-js="pdf-dropped-item"]').find((li) => li.dataset.key === 'encryption');
+      assert.equal(item?.hidden, false, 'the report says encryption was not carried');
     } finally {
       page.restore();
     }

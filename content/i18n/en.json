@@ -1471,7 +1471,7 @@
           "damaged": "{name} is damaged and could not be opened.",
           "tooLarge": "{name} is too large for this device. The limit here is {limit}.",
           "tooMany": "The board holds up to {limit} pages, so {name} was not added.",
-          "locked": "{name} is protected with a password. This tool cannot open protected files yet.",
+          "locked": "{name} was not added: it needs its password.",
           "repaired": "{name} was damaged and has been repaired. Check its pages before saving.",
           "noPreview": "Page previews are not available in this browser. You can still arrange and save the pages.",
           "buildFailed": "The new file did not pass its own check, so it is not offered. Your original files are unchanged.",
@@ -1481,7 +1481,9 @@
           "badEvery": "Write a whole number from 1.",
           "badPosition": "Write a position from 1 to {pages}.",
           "saved": "Ready to save.",
-          "busy": "Still working on the previous step."
+          "busy": "Still working on the previous step.",
+          "lockedRevision": "{name} uses a newer kind of password protection (AES-256) that this tool cannot open yet.",
+          "lockedHandler": "{name} is locked with a certificate or with another program’s own protection, not with a password. This tool cannot open it."
         },
         "restartText": "Start again? Every page on the board will be removed.",
         "restartNo": "Keep working",
@@ -1645,7 +1647,7 @@
           "structure": "The structure screen readers use",
           "scripts": "Scripts and actions that run by themselves",
           "attachments": "Attached files",
-          "encryption": "Password protection"
+          "encryption": "Encryption, and with it any password and any limits on printing, copying or editing"
         },
         "linksRemoved": "{count} links to pages that are not in this file",
         "linkRemoved": "1 link to a page that is not in this file",
@@ -1671,7 +1673,17 @@
           "gb": "{n} GB"
         },
         "note1": "Everything happens in this browser tab: your files are not uploaded anywhere. The file you save is built by Lockwell's own code. The page previews are drawn by a copy of Mozilla's PDF.js served from this site; it is the only code here that Lockwell did not write, and it only draws.",
-        "note2": "The saved copy keeps each page as it is, with its comments, form fields and layers. It leaves out the author, the software and the dates, and never carries bookmarks, attached files, scripts or the structure screen readers use; after saving, the result lists what was left out. Keep the original."
+        "note2": "The saved copy keeps each page as it is, with its comments, form fields and layers. It leaves out the author, the software and the dates, and never carries bookmarks, attached files, scripts or the structure screen readers use; after saving, the result lists what was left out. Keep the original.",
+        "password": {
+          "title": "{name} is protected with a password.",
+          "label": "Password",
+          "show": "Show",
+          "hide": "Hide",
+          "hint": "Either of its passwords works: the one for opening the file or the owner password. It is used only here on this device, to open the file, and is not kept.",
+          "wrong": "That password does not open the file. Check it and try again: capital and small letters count.",
+          "open": "Open",
+          "skip": "Skip this file"
+        }
       },
       "encrypt": {
         "title": "File encryption",

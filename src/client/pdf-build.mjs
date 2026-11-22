@@ -79,7 +79,7 @@ export async function build({ pages, sources, imagePage = IMAGE_PAGE, compress =
   const forms = new Map();
   for (const [num, map] of firsts) {
     const { file } = sourceOf(sources, num);
-    if (file.encrypted) throw new PdfError('locked', 'encrypted source');
+    if (file.encrypted && !file.unlocked) throw new PdfError('locked', 'encrypted source');
     const copier = new SourceCopier(file, writer, map);
     copiers.set(num, copier);
     documentLosses(file, copier.report);
@@ -89,7 +89,7 @@ export async function build({ pages, sources, imagePage = IMAGE_PAGE, compress =
     if ('source' in page.origin && !isImage(sources, page.origin.source) && !copiers.has(page.origin.source)) {
       // A source whose pages are all written directly in Kids: nothing can refer to them.
       const { file } = sourceOf(sources, page.origin.source);
-      if (file.encrypted) throw new PdfError('locked', 'encrypted source');
+      if (file.encrypted && !file.unlocked) throw new PdfError('locked', 'encrypted source');
       const copier = new SourceCopier(file, writer, new Map());
       documentLosses(file, copier.report);
       copiers.set(page.origin.source, copier);

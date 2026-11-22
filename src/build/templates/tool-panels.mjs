@@ -1518,7 +1518,7 @@ function encryptPanel(ctx) {
 
 /** Content some tools show above their controls, readable without JavaScript. */
 /** Messages the PDF tools' message line can show. */
-const PDF_MESSAGES = ['added', 'addedOne', 'unsupported', 'pictureUnsupported', 'blocked', 'resized', 'badFit', 'notUnder', 'damaged', 'tooLarge', 'tooMany', 'locked', 'repaired', 'noPreview', 'buildFailed', 'nothingSelected', 'cancelled', 'badRanges', 'badEvery', 'badPosition', 'saved', 'busy'];
+const PDF_MESSAGES = ['added', 'addedOne', 'unsupported', 'pictureUnsupported', 'blocked', 'resized', 'badFit', 'notUnder', 'damaged', 'tooLarge', 'tooMany', 'locked', 'lockedRevision', 'lockedHandler', 'repaired', 'noPreview', 'buildFailed', 'nothingSelected', 'cancelled', 'badRanges', 'badEvery', 'badPosition', 'saved', 'busy'];
 /** What a saved PDF leaves behind, kept and warns about (pdf-copy.mjs, plan §6.5), in the order listed. */
 const PDF_DROPPED = ['bookmarks', 'pageLabels', 'articles', 'structure', 'scripts', 'attachments', 'encryption'];
 const PDF_KEPT = ['pictures', 'comments', 'fields', 'layers'];
@@ -1665,6 +1665,22 @@ function pdfPanel(ctx) {
         </div>
       </div>
       <p class="tool__message" role="status" data-js="pdf-message"${PDF_MESSAGES.map((key) => html` data-${kebab(key)}="${s(`messages.${key}`)}"`)}></p>
+      <div class="tool__note pdf__password" role="dialog" aria-labelledby="pdf__password-title" data-js="pdf-password" hidden>
+        <p id="pdf__password-title" data-js="pdf-password-title" data-text="${s('password.title')}"></p>
+        <div class="field">
+          <label class="field__label" for="pdf__password-input">${s('password.label')}</label>
+          <div class="pdf__password-row">
+            <input class="input" type="password" id="pdf__password-input" data-js="pdf-password-input" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" translate="no" dir="ltr" aria-describedby="pdf__password-hint">
+            <button class="button button--ghost button--small" type="button" data-js="pdf-password-show" aria-controls="pdf__password-input" aria-pressed="false" data-show="${s('password.show')}" data-hide="${s('password.hide')}">${icons.eye}<span>${s('password.show')}</span></button>
+          </div>
+        </div>
+        <p class="facts__why" id="pdf__password-hint">${s('password.hint')}</p>
+        <p class="tool__message" role="alert" data-js="pdf-password-wrong" hidden>${s('password.wrong')}</p>
+        <div class="tool__actions">
+          <button class="button button--small" type="button" data-js="pdf-password-open">${s('password.open')}</button>
+          <button class="button button--ghost button--small" type="button" data-js="pdf-password-skip">${s('password.skip')}</button>
+        </div>
+      </div>
       <div class="tool__note pdf__restart" role="alertdialog" aria-labelledby="pdf__restart" data-js="pdf-restart" hidden>
         <p id="pdf__restart">${s('restartText')}</p>
         <div class="tool__actions">

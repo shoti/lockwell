@@ -232,7 +232,7 @@ describe('PDF build: pages', () => {
     assert.ok(xobjects instanceof PdfDict && xobjects.has('Im1') && xobjects.has('Im2'), 'the shared dictionary is not trimmed');
   });
 
-  it('refuses an encrypted source until locked files are supported', async () => {
+  it('refuses an encrypted source that no password has unlocked', async () => {
     const bytes = sourceFile({ extra: [{ num: 40, body: '<< /Filter /Standard /V 1 /R 2 >>' }], trailer: '/Encrypt 40 0 R' });
     await assert.rejects(run(new Map([[1, await source(bytes)]]), plan([[1, 0]])), (error) => error instanceof PdfError && error.code === 'locked');
   });
