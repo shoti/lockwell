@@ -21,6 +21,9 @@ date its sources were last checked.
   `scripts/lockbox-open.mjs`, a reference decryptor for Node 22.
 - Saving: an exact-name mode and a "neutral name by default" option in the
   shared save box.
+- Guides now link to the new tools: sharing documents and email attachments
+  to file encryption, what email reveals and phishing to the email header
+  analyzer. The tools page description no longer lists single tools.
 
 ## Unreleased: email header analyzer (November 2026)
 

@@ -19,7 +19,7 @@ Email is how most people first get in touch, but it was not built to keep secret
 Security in a Box's [guide to secure email](https://securityinabox.org/en/communication/secure-email/) says ordinary email is stored unencrypted on your provider's servers and your recipient's, and can sit on several of the recipient's devices.
 
 1. Every email carries metadata: who wrote to whom, when, and usually the subject line. EFF calls metadata [the digital equivalent of an envelope](https://ssd.eff.org/module/why-metadata-matters) and says [end-to-end encryption protects only the content](https://ssd.eff.org/module/communicating-others), not who you talk to or when.
-2. Depending on the provider, the header can also include the sender's IP address, which shows roughly where you were.
+2. Depending on the provider, the header can also include the sender's IP address, which shows roughly where you were. To see what a message's header holds, paste it into our [email header analyzer](/tools/email-headers/).
 3. Even encrypted email services see some metadata. [Proton's Mail privacy policy](https://proton.me/mail/privacy-policy) says it can see sender and recipient addresses, the IP address incoming mail came from, attachment names, subject lines and times. [Tuta's security FAQ](https://tuta.com/support/security) says it can see sender and recipient addresses and the date. [Apple's iCloud data security overview](https://support.apple.com/en-us/102651) says iCloud Mail is not end-to-end encrypted, even with Advanced Data Protection.
 4. When you exchange mail with someone on another service, that service may be able to read it or keep a copy, Proton's [encryption explainer](https://proton.me/support/proton-mail-encryption-explained) notes, whatever you use yourself.
 5. Keep subject lines bland. Proton recommends subjects that say as little as possible about the content.
@@ -107,7 +107,8 @@ None of these protects the message once the recipient has opened it.
 Files and pictures in email can reveal more than the message.
 
 1. Remove hidden data from files before you send them: see [Remove hidden data from files](/guides/sources-documents/#metadata-in-files).
-2. Images loaded from the internet can tell the sender that you opened the message, and sometimes where you are. Turn off automatic loading, or use a setting that loads images privately.
+2. To send a file only the recipient can open, lock it with our [file encryption tool](/tools/file-encryption/) and attach the locked file. Send the password another way, such as in person or over Signal. The subject and the addresses stay readable, as with any email.
+3. Images loaded from the internet can tell the sender that you opened the message, and sometimes where you are. Turn off automatic loading, or use a setting that loads images privately.
 
 ### Gmail
 
