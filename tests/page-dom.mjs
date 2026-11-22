@@ -13,6 +13,9 @@ const VOID = new Set(['input', 'br', 'img', 'meta', 'link', 'hr', 'path', 'rect'
 
 /** An element of the page, with real descendant lookups and text. */
 export class PageElement extends FakeEventTarget {
+  /** The focused element (document.activeElement), or null for the page itself. @type {PageElement | null} */
+  static active = null;
+
   /** @param {string} tag */
   constructor(tag) {
     super();
@@ -55,7 +58,28 @@ export class PageElement extends FakeEventTarget {
     this.dispatchEvent({ type: 'click' });
   }
 
-  focus() {}
+  /** Focus, as a browser keeps it: one element at a time, lost when that element is taken out of the page. */
+  focus() {
+    PageElement.active = this;
+  }
+
+  /** @returns {PageElement | null} */
+  get parentElement() {
+    return this.parent;
+  }
+
+  /** The element itself or its nearest ancestor that matches. @param {string} selector @returns {PageElement | null} */
+  closest(selector) {
+    for (let at = /** @type {PageElement | null} */ (this); at; at = at.parent) if (at.matches(selector)) return at;
+    return null;
+  }
+
+  /** No layout here: every element is a 100 × 140 box at the origin. */
+  getBoundingClientRect() {
+    return { top: 0, left: 0, right: 100, bottom: 140, width: 100, height: 140 };
+  }
+
+  setPointerCapture() {}
 
   /** A link's address is its attribute, as in a real DOM (removeAttribute clears it). */
   get href() {
@@ -87,6 +111,8 @@ export class PageElement extends FakeEventTarget {
 
   /** @param {...(PageElement | string)} nodes */
   replaceChildren(...nodes) {
+    const active = PageElement.active;
+    if (active && this.children.some((child) => child === active || child.descendants().includes(active))) PageElement.active = null;
     this.ownText = '';
     this.nodes = nodes.map((node) => (typeof node === 'string' ? node : Object.assign(node, { parent: this })));
   }
@@ -94,6 +120,11 @@ export class PageElement extends FakeEventTarget {
   /** @param {...(PageElement | string)} nodes */
   append(...nodes) {
     this.nodes.push(...nodes.map((node) => (typeof node === 'string' ? node : Object.assign(node, { parent: this }))));
+  }
+
+  /** @param {PageElement | null} node */
+  contains(node) {
+    return node === this || this.descendants().includes(/** @type {PageElement} */ (node));
   }
 
   /** @returns {PageElement[]} */

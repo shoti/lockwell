@@ -44,7 +44,8 @@ export function initSearch() {
 
   const field = /** @type {HTMLInputElement} */ (input);
   const items = /** @type {HTMLElement[]} */ ([...list.querySelectorAll('[data-js="search-entry"]')]);
-  const entries = items.map((item) => ({ title: item.dataset.title ?? '', text: item.dataset.text ?? '' }));
+  // The title is the entry's link text: the page does not repeat it in an attribute, which keeps it under its size budget.
+  const entries = items.map((item) => ({ title: (item.querySelector('a')?.textContent ?? '').trim().toLowerCase(), text: item.dataset.text ?? '' }));
   const status = document.querySelector('[data-js="search-status"]');
   const empty = document.querySelector('[data-js="search-empty"]');
 

@@ -1517,6 +1517,175 @@ function encryptPanel(ctx) {
 }
 
 /** Content some tools show above their controls, readable without JavaScript. */
+/** Messages the PDF tools' message line can show. */
+const PDF_MESSAGES = ['added', 'addedOne', 'unsupported', 'damaged', 'tooLarge', 'tooMany', 'locked', 'repaired', 'noPreview', 'buildFailed', 'nothingSelected', 'cancelled', 'badRanges', 'badEvery', 'badPosition', 'saved', 'busy'];
+/** What a saved PDF leaves behind, kept and warns about (pdf-copy.mjs, plan §6.5), in the order listed. */
+const PDF_DROPPED = ['bookmarks', 'pageLabels', 'articles', 'structure', 'scripts', 'attachments', 'encryption'];
+const PDF_KEPT = ['comments', 'fields', 'layers'];
+const PDF_WARNINGS = ['signatures', 'annotationsOnce'];
+/** How a saved result is cut into files (pdf-build.mjs `splitPages`). */
+const PDF_MAKE = ['all', 'selected', 'ranges', 'every', 'single', 'source'];
+
+/** @param {Ctx} ctx */
+function pdfPanel(ctx) {
+  const { t } = ctx;
+  /** @param {string} key */
+  const s = (key) => t(`tools.items.pdf.${key}`);
+  /** A button with an icon and a word. @param {string} name @param {SafeHtml} icon @param {string} label */
+  const action = (name, icon, label) =>
+    html`<button class="button button--ghost button--small" type="button" data-js="pdf-${name}">${icon}<span>${label}</span></button>`;
+  /** A button that shows only an icon; its name is read out and shown on hover. @param {string} name @param {SafeHtml} icon @param {string} label */
+  const iconAction = (name, icon, label) =>
+    html`<button class="button button--ghost button--small button--icon" type="button" aria-label="${label}" title="${label}" data-js="pdf-${name}">${icon}</button>`;
+  /** One action of a card's "More" menu. @param {string} name @param {SafeHtml} icon @param {string} label */
+  const menuAction = (name, icon, label) =>
+    html`<button class="button button--ghost button--small" type="button" data-js="pdf-card-action" data-action="${name}">${icon}<span>${label}</span></button>`;
+  /** A sentence with one link to another tool: "{link}" in the string. @param {string} key @param {string} tool @param {string} route */
+  const onward = (key, tool, route) => {
+    const [before, after] = s(key).split('{link}');
+    return html`<p class="facts__why">${before}<a href="${ctx.url(route)}">${t(`tools.items.${tool}.title`)}</a>${after}</p>`;
+  };
+  return html`<div class="field">
+        <label class="field__label" for="pdf__file">${s('file')}</label>
+        ${filePicker(ctx, 'pdf__file', 'pdf-file', 'application/pdf,.pdf', true)}
+        <p class="facts__why">${s('dropHint')}</p>
+        <div class="tool__actions">
+          <button class="button button--ghost button--small" type="button" data-js="pdf-example">${icons.eye}<span>${t('tools.example')}</span></button>
+        </div>
+      </div>
+      <p class="tool__message" role="status" data-js="pdf-message"${PDF_MESSAGES.map((key) => html` data-${kebab(key)}="${s(`messages.${key}`)}"`)}></p>
+      <div class="tool__note pdf__restart" role="alertdialog" aria-labelledby="pdf__restart" data-js="pdf-restart" hidden>
+        <p id="pdf__restart">${s('restartText')}</p>
+        <div class="tool__actions">
+          <button class="button button--small" type="button" data-js="pdf-restart-no">${s('restartNo')}</button>
+          <button class="button button--ghost button--small" type="button" data-js="pdf-restart-yes">${s('restartYes')}</button>
+        </div>
+      </div>
+      <div class="pdf" data-js="pdf-work" hidden>
+        <div class="pdf__board">
+          <div class="pdf__bar">
+            <div class="tool__actions">
+              ${action('undo', icons.undo, s('undo'))}
+              ${action('redo', icons.redo, s('redo'))}
+            </div>
+            <div class="tool__actions">
+              ${iconAction('select-all', icons.selectAll, s('selectAll'))}
+              ${iconAction('select-none', icons.selectNone, s('selectNone'))}
+              ${iconAction('smaller', icons.minus, s('smaller'))}
+              ${iconAction('larger', icons.plus, s('larger'))}
+              ${action('restart-ask', icons.refresh, s('restart'))}
+            </div>
+          </div>
+          <div class="pdf__pick">
+            <label class="field__label" for="pdf__range">${s('selectRange')}</label>
+            <div class="pdf__row">
+              <input class="input" type="text" id="pdf__range" inputmode="text" autocomplete="off" spellcheck="false" placeholder="1-3, 5" data-js="pdf-range">
+              <button class="button button--ghost button--small" type="button" data-js="pdf-range-select">${s('selectRangeButton')}</button>
+            </div>
+          </div>
+          <div class="tool__actions pdf__actions" role="group" aria-label="${s('actionsGroup')}">
+            ${iconAction('move-start', icons.toStart, s('moveStart'))}
+            ${iconAction('move-left', icons.arrowLeft, s('moveLeft'))}
+            ${iconAction('move-right', icons.arrowRight, s('moveRight'))}
+            ${iconAction('move-end', icons.toEnd, s('moveEnd'))}
+            ${iconAction('rotate-left', icons.rotateLeft, s('rotateLeft'))}
+            ${iconAction('rotate-right', icons.rotateRight, s('rotateRight'))}
+            ${iconAction('duplicate', icons.duplicate, s('duplicate'))}
+            ${iconAction('blank', icons.pagePlus, s('blank'))}
+            ${iconAction('remove', icons.trash, s('remove'))}
+          </div>
+          <div class="pdf__row pdf__position">
+            <label class="field__label" for="pdf__position">${s('position')}</label>
+            <input class="input pdf__number" type="number" inputmode="numeric" id="pdf__position" min="1" step="1" data-js="pdf-position">
+            <button class="button button--ghost button--small" type="button" data-js="pdf-position-move">${s('positionButton')}</button>
+          </div>
+          <p class="tool__status" role="status" data-js="pdf-status" data-template="${s('status')}" data-template-one="${s('statusOne')}" data-moved="${s('moved')}" data-moved-many="${s('movedMany')}"></p>
+          <ol class="pdf__cards" data-js="pdf-cards" data-size="3" aria-label="${s('cards')}" aria-describedby="pdf__help"></ol>
+          <template data-js="pdf-card-template">
+            <li class="pdf__card" data-js="pdf-card" tabindex="-1">
+              <div class="pdf__thumb">
+                <canvas class="pdf__canvas" width="100" height="141" data-js="pdf-card-canvas"></canvas>
+                <span class="pdf__outline" data-js="pdf-card-outline">${s('outline')}</span>
+              </div>
+              <div class="pdf__card-bar">
+                <label class="pdf__check"><input class="checkbox checkbox--small" type="checkbox" data-js="pdf-card-check" data-template="${s('cardLabel')}" data-blank="${s('cardBlank')}"><span class="pdf__number-label" data-js="pdf-card-number"></span></label>
+                <span class="pdf__card-tools">
+                  <button class="button button--ghost button--small button--icon pdf__grip" type="button" aria-label="${s('grip')}" title="${s('grip')}" data-js="pdf-card-grip">${icons.grip}</button>
+                  <details class="pdf__more">
+                    <summary class="button button--ghost button--small button--icon" aria-label="${s('more')}" title="${s('more')}">${icons.more}</summary>
+                    <div class="pdf__menu">
+                      ${menuAction('rotate-left', icons.rotateLeft, s('rotateLeft'))}
+                      ${menuAction('rotate-right', icons.rotateRight, s('rotateRight'))}
+                      ${menuAction('move-start', icons.toStart, s('moveStart'))}
+                      ${menuAction('move-end', icons.toEnd, s('moveEnd'))}
+                      ${menuAction('duplicate', icons.duplicate, s('duplicate'))}
+                      ${menuAction('blank', icons.pagePlus, s('blank'))}
+                      ${menuAction('remove', icons.trash, s('remove'))}
+                    </div>
+                  </details>
+                </span>
+              </div>
+              <p class="pdf__source" translate="no" data-js="pdf-card-source"></p>
+            </li>
+          </template>
+          <div class="tool__actions" role="group" aria-label="${s('wholeGroup')}">
+            ${action('reverse', icons.reverse, s('reverse'))}
+            ${action('interleave', icons.interleave, s('interleave'))}
+          </div>
+          ${option('pdf__interleave-reversed', 'pdf-interleave-reversed', s('interleaveReversed'), true)}
+          <p class="facts__why" id="pdf__help">${s('help')}</p>
+        </div>
+        <div class="pdf__save">
+          <h2 class="file-report__title">${s('saveHeading')}</h2>
+          <fieldset class="field">
+            <legend class="field__label">${s('makeLabel')}</legend>
+            ${PDF_MAKE.map((key, i) => radio('pdf-make', `pdf__make-${key}`, key, 'pdf-make', s(`make.${key}`), i === 0))}
+          </fieldset>
+          <div class="pdf__row">
+            <label class="field__label" for="pdf__ranges">${s('rangesLabel')}</label>
+            <input class="input" type="text" id="pdf__ranges" autocomplete="off" spellcheck="false" placeholder="1-3, 4-" data-js="pdf-ranges" disabled>
+          </div>
+          <div class="pdf__row">
+            <label class="field__label" for="pdf__every">${s('everyLabel')}</label>
+            <input class="input pdf__number" type="number" inputmode="numeric" id="pdf__every" min="1" step="1" value="2" data-js="pdf-every" disabled>
+          </div>
+          <div class="field">
+            <label class="field__label" for="pdf__name">${s('name')}</label>
+            <input class="input" type="text" id="pdf__name" autocomplete="off" spellcheck="false" translate="no" data-js="pdf-name">
+          </div>
+          <div class="tool__actions">
+            <button class="button" type="button" data-js="pdf-create">${icons.pages}<span>${s('create')}</span></button>
+            <button class="button button--ghost button--small" type="button" data-js="pdf-cancel" disabled>${s('cancel')}</button>
+          </div>
+          <progress class="pdf__progress" max="1" value="0" data-js="pdf-progress" aria-label="${s('progress')}" hidden></progress>
+          <div class="pdf__result" data-js="pdf-result" hidden>
+            <canvas class="pdf__result-canvas" width="100" height="141" aria-hidden="true" data-js="pdf-result-canvas"></canvas>
+            <p data-js="pdf-result-line" data-one-page="${s('resultOnePage')}" data-one="${s('resultOne')}" data-many="${s('resultMany')}"></p>
+            <p class="facts__why">${s('metadataGone')}</p>
+            <div data-js="pdf-dropped" hidden>
+              <h3 class="file-report__title">${s('droppedHeading')}</h3>
+              <ul class="pdf__list">
+                ${PDF_DROPPED.map((key) => html`<li data-js="pdf-dropped-item" data-key="${key}" hidden>${s(`dropped.${key}`)}</li>`)}
+                <li data-js="pdf-links-removed" data-one="${s('linkRemoved')}" data-template="${s('linksRemoved')}" hidden></li>
+              </ul>
+            </div>
+            <ul class="pdf__list" data-js="pdf-kept" hidden>
+              ${PDF_KEPT.map((key) => html`<li data-js="pdf-kept-item" data-key="${key}" hidden>${s(`kept.${key}`)}</li>`)}
+            </ul>
+            <ul class="pdf__list pdf__warnings" data-js="pdf-warnings" hidden>
+              ${PDF_WARNINGS.map((key) => html`<li data-js="pdf-warning-item" data-key="${key}" hidden>${icons.alert}<span>${s(`warnings.${key}`)}</span></li>`)}
+            </ul>
+            <ol class="pdf__files" data-js="pdf-files" hidden></ol>
+            ${saveBox(ctx, s('saveButton'))}
+          </div>
+          ${onward('redactLink', 'redact', '/tools/image-redaction/')}
+          ${onward('encryptLink', 'encrypt', '/tools/file-encryption/')}
+          ${onward('documentLink', 'document', '/tools/document-metadata/')}
+        </div>
+      </div>
+      <span hidden data-js="pdf-units"${ENCRYPT_UNITS.map((unit) => html` data-${unit}="${s(`units.${unit}`)}"`)}></span>`;
+}
+
 export const INTROS = /** @type {Partial<Record<import('../tools.mjs').Tool['key'], (ctx: Ctx) => SafeHtml>>} */ ({ email: emailHowto });
 
 /** @type {Record<import('../tools.mjs').Tool['key'], (ctx: Ctx) => SafeHtml>} */
@@ -1527,6 +1696,7 @@ export const PANELS = {
   redact: redactPanel,
   editor: editorPanel,
   document: documentPanel,
+  pdf: pdfPanel,
   hidden: hiddenPanel,
   photo: photoPanel,
   video: videoPanel,

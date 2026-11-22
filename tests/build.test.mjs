@@ -533,7 +533,7 @@ describe('search page', () => {
 
   it('makes step instructions searchable, in lowercase, without showing them', async () => {
     const page = await read('en/search/index.html');
-    const entry = /<li class="search-result" data-js="search-entry" data-title="check which devices are linked" data-text="([^"]*)">/.exec(page);
+    const entry = /<li class="search-result" data-js="search-entry" data-text="([^"]*)">\s*<p class="search-result__kind">[^<]*<\/p>\s*<a class="search-result__link" href="[^"]*">Check which devices are linked<\/a>/.exec(page);
     assert.ok(entry, 'entry for the linked-devices step');
     // The client matches each query word on its own, so every word of the menu path must be there.
     for (const word of ['settings', 'account', 'desktop', 'tablets']) assert.ok(entry[1].includes(word), word);

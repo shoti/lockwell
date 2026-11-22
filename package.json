@@ -2,7 +2,7 @@
   "name": "lockwell",
   "version": "0.1.0",
   "private": true,
-  "description": "Practical online privacy guides for people in Georgia, in Georgian and English. A static site with zero dependencies.",
+  "description": "Practical online privacy guides for people in Georgia, in Georgian and English. A static site whose own code has no dependencies; one page, the PDF tools, uses a self-hosted copy of Mozilla's PDF.js to draw page previews.",
   "license": "MIT",
   "author": "Shota Mtvarelishvili <mtvarelishvili@proton.me> (https://shoti.github.io/)",
   "type": "module",

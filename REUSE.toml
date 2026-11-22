@@ -47,3 +47,31 @@ path = "src/client/wordlist-en.mjs"
 precedence = "override"
 SPDX-FileCopyrightText = "Electronic Frontier Foundation"
 SPDX-License-Identifier = "CC-BY-4.0"
+
+# Mozilla's PDF.js, vendored unchanged by scripts/update-pdfjs.mjs for the PDF tools' previews (see VERSION there).
+[[annotations]]
+path = "src/vendor/pdfjs/**"
+precedence = "override"
+SPDX-FileCopyrightText = "Mozilla Foundation and PDF.js contributors"
+SPDX-License-Identifier = "Apache-2.0"
+
+# PDF.js's JPEG 2000 decoder: OpenJPEG compiled to JavaScript (see LICENSE_OPENJPEG and LICENSE_PDFJS_OPENJPEG there).
+[[annotations]]
+path = "src/vendor/pdfjs/openjpeg_nowasm_fallback.js"
+precedence = "override"
+SPDX-FileCopyrightText = ["2002-2014 Université catholique de Louvain (UCL) and the OpenJPEG contributors", "2024 Mozilla Foundation"]
+SPDX-License-Identifier = "BSD-2-Clause"
+
+# PDF.js's JBIG2 decoder: PDFium's compiled to JavaScript (see LICENSE_JBIG2 and LICENSE_PDFJS_JBIG2 there).
+[[annotations]]
+path = "src/vendor/pdfjs/jbig2_nowasm_fallback.js"
+precedence = "override"
+SPDX-FileCopyrightText = ["2014 The PDFium Authors", "2026 Mozilla Foundation"]
+SPDX-License-Identifier = "BSD-3-Clause AND Apache-2.0"
+
+# Adobe's character maps, as PDF.js ships them, wrapped as modules (see cmaps/LICENSE there).
+[[annotations]]
+path = "src/vendor/pdfjs/cmaps/**"
+precedence = "override"
+SPDX-FileCopyrightText = "1990-2009 Adobe Systems Incorporated"
+SPDX-License-Identifier = "BSD-3-Clause"

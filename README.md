@@ -12,16 +12,17 @@ Website: [lockwell.org](https://lockwell.org/)
 - **Articles** that explain in plain language why the steps matter.
 - **In-browser tools**: password and PIN generator, link checker and cleaner,
   photo and document metadata viewer and remover, image redaction, a photo
-  editor, file and text encryption, hidden character detector, an email header
-  analyzer, and a "what your browser reveals" check.
+  editor, file and text encryption, PDF tools to merge, split, reorder and
+  rotate pages, hidden character detector, an email header analyzer, and a "what your browser reveals" check.
   Nothing is uploaded.
 - **Private by design.** Progress is saved only in your browser, search runs
   on the page, and there are no third-party requests, enforced by a strict
   Content-Security-Policy and by tests.
 - **Fast and accessible.** Static HTML that works without JavaScript, light and
   dark themes, WCAG 2.2 AA, printable.
-- **No dependencies.** Plain HTML, CSS and JavaScript, built by a small Node
-  script.
+- **No dependencies in our own code.** Plain HTML, CSS and JavaScript, built by
+  a small Node script. One page, the PDF tools, uses a self-hosted copy of
+  Mozilla's PDF.js to draw page previews.
 
 ## Quick start
 

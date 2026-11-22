@@ -16,6 +16,7 @@ const LOADERS = {
   redact: () => import('./tool-redact.mjs'),
   editor: () => import('./tool-editor.mjs'),
   document: () => import('./tool-document.mjs'),
+  pdf: () => import('./tool-pdf.mjs'),
   hidden: () => import('./tool-hidden.mjs'),
   photo: () => import('./tool-photo.mjs'),
   video: () => import('./tool-video.mjs'),

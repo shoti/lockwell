@@ -12,6 +12,7 @@ export const PATHS = {
   content: join(ROOT, 'content'),
   styles: join(ROOT, 'src', 'styles'),
   client: join(ROOT, 'src', 'client'),
+  vendor: join(ROOT, 'src', 'vendor'),
   public: join(ROOT, 'src', 'public'),
   dist: join(ROOT, 'dist'),
 };

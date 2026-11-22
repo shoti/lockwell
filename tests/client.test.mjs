@@ -129,7 +129,9 @@ describe('final review fixes', async () => {
     for (const name of (await readdir(dir)).filter((file) => file.endsWith('.mjs'))) {
       const source = await readFile(new URL(name, dir), 'utf8');
       assert.doesNotMatch(source, /XMLHttpRequest|sendBeacon|EventSource|WebSocket|RTCPeerConnection|\.src\s*=|new Image\(|<link|importScripts/, name);
-      for (const match of source.matchAll(/\bfetch\(([^,)]*)/g)) requests.push(`${name}: ${match[1]}`);
+      // A method called fetch is not a request: PDF.js asks its data factory for files through `fetch()`, and
+      // pdf-view.mjs answers with import() (its own test checks that). Every call still counts.
+      for (const match of source.matchAll(/(?<!async )\bfetch\(([^,)]*)/g)) requests.push(`${name}: ${match[1]}`);
     }
     assert.deepEqual(requests, ['tool-browser.mjs: TRACE_URL']);
   });
@@ -708,7 +710,11 @@ describe('search', async () => {
   });
 
   it('typing hides other entries, moves the best match first and reports the count', () => {
-    const items = ENTRIES.map((entry) => Object.assign(new FakeElement('li', entry), { hidden: false }));
+    const items = ENTRIES.map(({ title, text }) => {
+      const item = Object.assign(new FakeElement('li', { text }), { hidden: false });
+      item.select = { a: [Object.assign(new FakeElement('a'), { textContent: title })] };
+      return item;
+    });
     const input = new FakeElement('input');
     const list = new FakeElement('ul');
     list.select = { '[data-js="search-entry"]': items };
