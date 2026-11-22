@@ -32,8 +32,11 @@ const V4_RANGES = [
   ['172.16.0.0', 12, 'private'],
   ['192.0.0.0', 24, 'protocol'],
   ['192.0.2.0', 24, 'documentation'],
+  ['192.31.196.0', 24, 'protocol'], // AS112-v4 (added after review E28, like the three below)
+  ['192.52.193.0', 24, 'protocol'], // AMT
   ['192.88.99.0', 24, 'relay'],
   ['192.168.0.0', 16, 'private'],
+  ['192.175.48.0', 24, 'protocol'], // Direct Delegation AS112 Service
   ['198.18.0.0', 15, 'benchmarking'],
   ['198.51.100.0', 24, 'documentation'],
   ['203.0.113.0', 24, 'documentation'],
@@ -48,8 +51,12 @@ const V6_RANGES = [
   ['64:ff9b::', 96, 'translation'],
   ['64:ff9b:1::', 48, 'translation'],
   ['100::', 64, 'discard'],
+  ['100:0:0:1::', 64, 'protocol'], // Dummy IPv6 Prefix (review E28, like the ones below)
   ['2001:db8::', 32, 'documentation'],
   ['2001::', 32, 'teredo'],
+  ['2001:2::', 48, 'benchmarking'],
+  ['2001::', 23, 'protocol'], // IETF Protocol Assignments: AMT, AS112-v6, ORCHIDv2, DETs and the anycast addresses
+  ['2620:4f:8000::', 48, 'protocol'], // Direct Delegation AS112 Service
   ['2002::', 16, 'sixToFour'],
   ['3fff::', 20, 'documentation'],
   ['5f00::', 16, 'srv6'],

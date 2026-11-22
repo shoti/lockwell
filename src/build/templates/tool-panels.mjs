@@ -1350,7 +1350,7 @@ const ENCRYPT_WARNINGS = ['tooShort', 'short', 'oneClass', 'run', 'name', 'text'
 /** What the message line can say (data-* in kebab case on it; see MESSAGES in tool-encrypt.mjs). */
 const ENCRYPT_MESSAGES = [
   'locking', 'checking', 'opening', 'locked', 'opened', 'needsInput', 'wrongPassword', 'wrongPasswordCaps', 'wrongPasswordLayout', 'damaged', 'notLocked', 'newerVersion', 'tooLarge',
-  'bundleTooLarge', 'unsupported', 'readFailed', 'writeFailed', 'cancelled', 'verifyFailed', 'pressAgain', 'busy',
+  'bundleTooLarge', 'unsupported', 'readFailed', 'writeFailed', 'sameTarget', 'cancelled', 'verifyFailed', 'pressAgain', 'busy',
 ];
 const ENCRYPT_UNITS = ['b', 'kb', 'mb', 'gb'];
 /** Six words from EFF's long list of 7,776, as the page makes them: written at build time so the line never fills in

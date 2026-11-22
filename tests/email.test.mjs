@@ -14,7 +14,7 @@ import { inspectText } from '../src/client/tool-check.mjs';
 import { STEPS, splitMessage } from '../src/client/mail-parse.mjs';
 import { CfbError } from '../src/client/cfb.mjs';
 import {
-  FINDINGS, MAX_ATTACHMENTS, countRemoteImages, domainsInName, exampleMessages, headersFromMsg, inspectMessage, organisationOf, readBody, trustBoundary, verdictOf,
+  FINDINGS, MAX_ATTACHMENTS, countRemoteImages, domainsInName, exampleMessages, headersFromMsg, inspectMessage, lookalike, organisationOf, readBody, trustBoundary, verdictOf,
 } from '../src/client/tool-email.mjs';
 import { cfb, latin1, utf16le } from './build-files.mjs';
 import { ALL_MESSAGES, MICROSOFT_AUTH, RFC8601_B2, RFC8601_B5, RFC8601_B6 } from './mail-fixtures.mjs';
@@ -368,6 +368,15 @@ describe('findings', () => {
     const word = cfb([{ path: 'WordDocument', data: new Uint8Array(600) }]);
     assert.equal(headersFromMsg(word), null);
     assert.equal(headersFromMsg(cfb([{ path: '__properties_version1.0', data: new Uint8Array(32) }])), '');
+  });
+
+  it('does not call a company’s own sourced mail domains lookalikes, and still catches imitations (E13)', () => {
+    for (const domain of ['amazonses.com', 'us-east-1.amazonses.com', 'dropboxmail.com', 'dropboxpartners.com', 'dropboxteam.com']) {
+      assert.equal(lookalike(domain), null, domain);
+    }
+    for (const domain of ['dropbox-mail.example', 'amazonses-billing.com', 'dropboxmails.com']) {
+      assert.notEqual(lookalike(domain), null, domain);
+    }
   });
 
   it('forwarded: not for the provider’s own ARC set, but for anyone else’s (E11)', () => {

@@ -290,6 +290,30 @@ async function fileSink(handle) {
   };
 }
 
+/**
+ * Whether the file chosen in the save dialog has the name of a file being read. Saving there would destroy the file
+ * being read, and Chromium may already have emptied a file chosen for replacing, so it is refused and left alone
+ * (review C3). The same name in another folder is refused too: a needless refusal costs one more choice.
+ * @param {FileSystemFileHandle} handle @param {File[]} files
+ */
+const sameName = (handle, files) => files.some((file) => file.name.toLowerCase() === handle.name.toLowerCase());
+
+/**
+ * After a job that saved nothing: removes the file chosen in the save dialog, but only while it is empty, so a file
+ * with anything in it is never deleted (review C3). Browsers without `remove()` keep the empty file.
+ * @param {FileSystemFileHandle} handle
+ */
+async function discardTarget(handle) {
+  const removable = /** @type {FileSystemFileHandle & { remove?: () => Promise<void> }} */ (handle);
+  if (typeof removable.remove !== 'function') return;
+  try {
+    if ((await handle.getFile()).size !== 0) return;
+    await removable.remove();
+  } catch (error) {
+    console.warn('[lockwell] Could not remove the empty file chosen in the save dialog.', error);
+  }
+}
+
 /** Chromium's save dialog where the browser has one: found by feature, never by the browser's name. @returns {SavePicker | null} */
 function savePicker() {
   const picker = /** @type {{ showSaveFilePicker?: SavePicker }} */ (/** @type {unknown} */ (globalThis)).showSaveFilePicker;
@@ -666,10 +690,19 @@ export function init(root) {
         console.warn('[lockwell] The save dialog did not open; saving through the download link instead.', error);
       }
     }
+    if (handle && sameName(handle, chosen)) {
+      if (job === ticket) {
+        busy = false;
+        update();
+        say('sameTarget');
+      }
+      return;
+    }
     /** @type {Awaited<ReturnType<typeof fileSink>> | null} */
     let file = null;
     // A file written through the save dialog but not yet checked: emptied unless the check passes (review C4).
     let unchecked = false;
+    let saved = false;
     let checkedWith = '';
     const stop = () => cancelled || job !== ticket;
     say('locking');
@@ -709,6 +742,7 @@ export function init(root) {
       if (!handle) lockSave.offer({ blob: result, original: `${several ? 'files.zip' : chosen[0].name}.lockwell`, extension: 'lockwell', fallback: 'locked', suffix: '', neutral: true });
       locked.hidden = false;
       lockedWith = checkedWith;
+      saved = true;
       say('locked');
     } catch (error) {
       if (file) await file.abort();
@@ -717,6 +751,7 @@ export function init(root) {
       if (unchecked && handle) {
         await (await fileSink(handle)).finish().catch((error) => console.warn('[lockwell] Could not empty the chosen file after its check did not finish.', error));
       }
+      if (handle && !saved) await discardTarget(handle);
       if (job === ticket) {
         busy = false;
         progressBox.hidden = true;
@@ -787,8 +822,21 @@ export function init(root) {
         return;
       }
     }
+    /** The chosen file is the locked one: refused before anything is written (review C3). */
+    const refused = () => {
+      handle = null;
+      pickFirst = false;
+      say('sameTarget');
+    };
+    if (handle && chosen && sameName(handle, [chosen])) {
+      refused();
+      busy = false;
+      update();
+      return;
+    }
     /** @type {Awaited<ReturnType<typeof fileSink>> | null} */
     let file = null;
+    let saved = false;
     const stop = () => cancelled || job !== ticket;
     say('opening');
     try {
@@ -812,6 +860,10 @@ export function init(root) {
           console.warn('[lockwell] The save dialog did not open after the password check; asking for another press.', error);
           pickFirst = true;
           say('pressAgain');
+          return;
+        }
+        if (chosen && sameName(handle, [chosen])) {
+          refused();
           return;
         }
       }
@@ -838,11 +890,13 @@ export function init(root) {
         openSave.offer({ blob: blob.finish('application/octet-stream'), original, extension, fallback: 'unlocked', suffix: '', neutral: false });
       }
       opened.hidden = false;
+      saved = true;
       say('opened');
     } catch (error) {
       if (file) await file.abort();
       if (job === ticket) fail(error, 'open');
     } finally {
+      if (handle && !saved) await discardTarget(handle);
       if (job === ticket) {
         busy = false;
         progressBox.hidden = true;

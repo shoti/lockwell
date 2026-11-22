@@ -660,6 +660,39 @@ describe('PDF tools page: sign and stamp', () => {
     }
   });
 
+  it('keeps a tick its size in points when the picture page size changes after it was placed (review P17)', async () => {
+    const page = open('en');
+    try {
+      await page.add(examplePhoto(jpegFile({ width: 64, height: 48 }), jpegFile({ width: 8, height: 6 })), 'IMG_2041.jpg', 'image/jpeg');
+      page.check(0);
+      page.press('sign');
+      page.press('add-tick');
+      page.press('stage-done');
+      /** The tick's extent in the saved page, in points: its path's width and height, and its pen. @param {Uint8Array} bytes */
+      const box = async (bytes) => {
+        const content = await drawn(bytes, 0);
+        const points = [...content.matchAll(/([-\d.]+) ([-\d.]+) [ml]\n/g)].map((match) => [Number(match[1]), Number(match[2])]);
+        assert.ok(points.length >= 3, `the tick is a path: ${content.slice(0, 200)}`);
+        const xs = points.map(([x]) => x);
+        const ys = points.map(([, y]) => y);
+        return [Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys), Number(/([\d.]+) w/.exec(content)?.[1])];
+      };
+      page.press('create');
+      const before = await box((await page.saved()).bytes);
+      const a4 = /** @type {PageElement} */ (page.tool.querySelectorAll('[data-js="pdf-picture-size"]').find((radio) => radio.value === 'a4'));
+      for (const radio of page.tool.querySelectorAll('[data-js="pdf-picture-size"]')) radio.checked = radio === a4;
+      a4.dispatchEvent({ type: 'change' });
+      page.press('create');
+      const after = await box((await page.saved()).bytes);
+      assert.ok(after.every((value, i) => Math.abs(value - before[i]) < 0.01), `${before} → ${after}`);
+      page.press('undo');
+      page.press('create');
+      assert.equal((await page.saved()).bytes.length > 0, true);
+    } finally {
+      page.restore();
+    }
+  });
+
   it('draws a signature on the pad, keeps it for this tab only, and warns that it is not a digital signature', async () => {
     const page = open('en');
     try {

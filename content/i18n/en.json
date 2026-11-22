@@ -1776,6 +1776,7 @@
           "unsupported": "This browser can’t encrypt on this page: it offers the Web Crypto it needs only on secure (https) pages, and not every browser has it.",
           "readFailed": "The file couldn’t be read. If it’s on a cloud drive, save it to this device first.",
           "writeFailed": "Couldn’t write the file you chose. Check that there is room on the disk and that the file is still there, then try again.",
+          "sameTarget": "Choose another name or folder: that is the name of the file being read, and saving over it would destroy it. Nothing was written.",
           "cancelled": "Stopped. Nothing was saved.",
           "verifyFailed": "The check failed: the result didn’t open back to what you locked, so it isn’t offered. Try again.",
           "pressAgain": "Press Open again, and choose where to save the file first.",

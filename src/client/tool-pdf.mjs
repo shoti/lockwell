@@ -15,7 +15,7 @@ import { pageBox, pageList } from './pdf-pages.mjs';
 import { FIT_STEPS, LEVELS } from './pdf-compress.mjs';
 import { createRecoder, decodePicture, drawOverlays, drawPicturePage, rasterPicture, thumbnailOf } from './pdf-raster.mjs';
 import { initStage } from './pdf-stage.mjs';
-import { turnOverlays } from './pdf-overlay.mjs';
+import { resizeOverlays, turnOverlays } from './pdf-overlay.mjs';
 import { PdfDict, PdfName, PdfStream } from './pdf-syntax.mjs';
 import { closePreview, drawPage, openPreview } from './pdf-view.mjs';
 import { PdfWriter } from './pdf-write.mjs';
@@ -911,10 +911,22 @@ export function init(root) {
       const chosen = (/** @type {string} */ name) => /** @type {HTMLInputElement | undefined} */ ([...root.querySelectorAll(`[data-js="pdf-picture-${name}"]`)].find((item) => /** @type {HTMLInputElement} */ (item).checked))?.value;
       const sizeName = chosen('size');
       const margin = Number(chosen('margin'));
+      // Signatures and stamps on picture pages keep their size in points on the new page size, in every step of the
+      // history, so undo never brings back a stretched one (review P17).
+      const signed = new Set(history.entries.flat().filter((page) => page.overlays?.length && isImagePage(page)));
+      const before = new Map([...signed].map((page) => [page, shownSize(page)]));
       imagePage = {
         size: sizeName === 'a4' || sizeName === 'letter' ? sizeName : 'fit',
         margin: margin === 5 || margin === 10 ? margin : 0,
       };
+      if (signed.size) {
+        /** @type {Map<PlanPage, PlanPage>} */
+        const resized = new Map();
+        for (const page of signed) {
+          resized.set(page, { ...page, overlays: resizeOverlays(/** @type {import('./pdf-overlay.mjs').Overlay[]} */ (page.overlays), /** @type {{ width: number, height: number }} */ (before.get(page)), shownSize(page)) });
+        }
+        history = { ...history, entries: history.entries.map((entry) => entry.map((page) => resized.get(page) ?? page)) };
+      }
       clearResult();
       for (const page of pages()) {
         const card = cardViews.get(page.key);

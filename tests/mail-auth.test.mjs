@@ -259,6 +259,17 @@ describe('spam filter fields', () => {
 });
 
 describe('IP addresses', () => {
+  it('names every block in IANA’s special-purpose registries of 2025-10-09 (review E28)', () => {
+    const cls = (/** @type {string} */ text) => ipClass(/** @type {import('../src/client/ip.mjs').Ip} */ (parseIp(text)));
+    for (const [address, expected] of [
+      ['192.31.196.1', 'protocol'], ['192.52.193.1', 'protocol'], ['192.175.48.1', 'protocol'], ['192.0.0.9', 'protocol'],
+      ['100:0:0:1::1', 'protocol'], ['2001:1::1', 'protocol'], ['2001:2::1', 'benchmarking'], ['2001:3::1', 'protocol'],
+      ['2001:4:112::1', 'protocol'], ['2001:20::1', 'protocol'], ['2001:30::1', 'protocol'], ['2001::1', 'teredo'],
+      ['2001:db8::1', 'documentation'], ['2620:4f:8000::1', 'protocol'],
+      ['2001:200::1', 'public'], ['2620:4f:8001::1', 'public'], ['192.31.197.1', 'public'],
+    ]) assert.equal(cls(address), expected, address);
+  });
+
   it('reads IPv4 and IPv6 as headers write them', () => {
     assert.equal(parseIp('192.0.2.1')?.text, '192.0.2.1');
     assert.equal(parseIp('[192.0.2.1]')?.text, '192.0.2.1');

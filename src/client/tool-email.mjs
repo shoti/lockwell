@@ -206,6 +206,18 @@ export function domainsInName(name) {
   return out;
 }
 
+/**
+ * Mail domains a company names as its own on its own pages, which the lookalike rules would otherwise take for
+ * imitations of it (review E13). Each one sourced: research log, "Review E13". A domain without such a page stays
+ * out, however likely it is to be real (paypal-communication.com and microsoft365.com, 2026-11-22).
+ */
+const OFFICIAL_MAIL = new Set([
+  'amazonses.com', // Amazon SES's default MAIL FROM domain: docs.aws.amazon.com/ses/latest/dg/mail-from.html
+  'dropboxmail.com', // Dropbox's official email domains: help.dropbox.com/security/official-domains
+  'dropboxpartners.com',
+  'dropboxteam.com',
+]);
+
 /** The link checker's warnings that mean a host name imitates another one. */
 const LOOKALIKE_WARNINGS = new Set(['mixedScript', 'lookalikeScript', 'latinLookalike', 'brandElsewhere', 'brandSubdomain', 'brandLookalike', 'typo', 'nestedDomain']);
 
@@ -215,7 +227,7 @@ const LOOKALIKE_WARNINGS = new Set(['mixedScript', 'lookalikeScript', 'latinLook
  * @returns {{ shown: string, brand: string } | null}
  */
 export function lookalike(domain) {
-  if (!domain || parseIp(domain)) return null;
+  if (!domain || parseIp(domain) || OFFICIAL_MAIL.has(organisationOf(domain))) return null;
   const report = inspectLink(`https://${domain}/`);
   if (report.status !== 'ok' || !report.warnings.some((warning) => LOOKALIKE_WARNINGS.has(warning))) return null;
   return { shown: report.host, brand: report.details.brand ?? report.details.inner ?? '' };

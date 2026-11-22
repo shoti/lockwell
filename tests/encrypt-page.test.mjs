@@ -611,6 +611,71 @@ describe('file encryption page: large and several files', () => {
     }
   });
 
+  it('refuses a save target with the name of the file being read, and writes nothing to it (review C3)', async () => {
+    const page = open('en');
+    const target = savedFile('Big.BIN');
+    /** @type {unknown} */
+    let answer = target.handle;
+    const picker = withPicker(async () => answer);
+    try {
+      await until(() => Boolean(page.part('passphrase').textContent), 'the passphrase');
+      page.part('file').files = [new File([bytesOf(40 * 1024 * 1024)], 'big.bin')];
+      page.part('file').dispatchEvent({ type: 'change' });
+      await until(() => page.part('lock-button').disabled === false, 'the file');
+      page.part('lock-button').click();
+      await until(() => page.said('sameTarget'), 'the refusal');
+      assert.equal(target.state.writers, 0, 'nothing was opened for writing');
+      assert.equal(page.part('lock-button').disabled, false, 'the visitor can try again');
+
+      const locked = savedFile('report.pdf.lockwell');
+      const sealed = await sealBytes({ password: 'a long and private sentence', meta: { kind: KIND.file, name: 'report.pdf', type: '' }, content: bytesOf(33 * 1024 * 1024), iterations: 100_000 });
+      answer = locked.handle;
+      page.choose('mode', 'open');
+      const big = new File([sealed], 'report.pdf.lockwell');
+      page.part('locked-file').files = [big];
+      page.part('locked-file').dispatchEvent({ type: 'change' });
+      page.type('open-password', 'a long and private sentence');
+      page.part('open-button').click();
+      await until(() => page.said('sameTarget'), 'the refusal when opening');
+      assert.equal(locked.state.writers, 0);
+    } finally {
+      picker.remove();
+      page.restore();
+    }
+  });
+
+  it('removes the chosen file after a cancel only while it is empty (review C3)', async () => {
+    for (const [left, removedExpected] of /** @type {const} */ ([[0, 1], [5, 0]])) {
+      const page = open('en');
+      const target = savedFile('locked.lockwell');
+      let removed = 0;
+      Object.assign(target.handle, {
+        async remove() {
+          removed += 1;
+        },
+        async getFile() {
+          return new File([new Uint8Array(left)], 'locked.lockwell');
+        },
+      });
+      const picker = withPicker(async () => target.handle);
+      try {
+        await until(() => Boolean(page.part('passphrase').textContent), 'the passphrase');
+        page.part('file').files = [new File([bytesOf(40 * 1024 * 1024)], 'big.bin')];
+        page.part('file').dispatchEvent({ type: 'change' });
+        await until(() => page.part('lock-button').disabled === false, 'the file');
+        page.part('lock-button').click();
+        await until(() => /** @type {number} */ (/** @type {unknown} */ (page.part('progress').value)) > 0, 'the first batch');
+        page.part('cancel').click();
+        await until(() => page.said('cancelled'), 'the cancel');
+        await until(() => page.part('lock-button').disabled === false, 'the end of the job');
+        assert.equal(removed, removedExpected, `${left} bytes left in the file`);
+      } finally {
+        picker.remove();
+        page.restore();
+      }
+    }
+  });
+
   it('empties the chosen file when the job is cancelled during the check (review C4)', async () => {
     const page = open('en');
     const target = savedFile('locked.lockwell');

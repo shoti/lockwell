@@ -113,6 +113,27 @@ export function turnOverlays(overlays, delta, { width, height }) {
   });
 }
 
+/**
+ * Overlays on a page whose size changed (a picture page set to A4 instead of the picture's size): the same size in
+ * points and the same place relative to the page, since positions and sizes are fractions of the page. One that would
+ * no longer fit is made smaller, keeping its shape (review P17).
+ * @param {Overlay[]} overlays
+ * @param {{ width: number, height: number }} before  The page in points, as shown.
+ * @param {{ width: number, height: number }} after
+ * @returns {Overlay[]}
+ */
+export function resizeOverlays(overlays, before, after) {
+  return overlays.map((overlay) => {
+    let w = (overlay.w * before.width) / after.width;
+    let h = (overlay.h * before.height) / after.height;
+    const fit = Math.min(1, 1 / w, 1 / h);
+    [w, h] = [w * fit, h * fit];
+    const cx = Math.min(1 - w / 2, Math.max(w / 2, overlay.x + overlay.w / 2));
+    const cy = Math.min(1 - h / 2, Math.max(h / 2, overlay.y + overlay.h / 2));
+    return { ...overlay, x: cx - w / 2, y: cy - h / 2, w, h };
+  });
+}
+
 /* ---------- Content ---------- */
 
 /** @param {number} n */

@@ -9,7 +9,7 @@ import { describe, it } from 'node:test';
 import { build } from '../src/client/pdf-build.mjs';
 import { openPdf } from '../src/client/pdf-file.mjs';
 import { pageList } from '../src/client/pdf-pages.mjs';
-import { INKS, MARKS, STAMP_OPACITY, apply, compose, fitStrokes, inkMask, overlayMatrix, shownSize, shownToUser } from '../src/client/pdf-overlay.mjs';
+import { INKS, MARKS, STAMP_OPACITY, apply, compose, fitStrokes, resizeOverlays, inkMask, overlayMatrix, shownSize, shownToUser } from '../src/client/pdf-overlay.mjs';
 import { PdfDict, PdfName, PdfRef, PdfStream } from '../src/client/pdf-syntax.mjs';
 import { pdfFile, simplePdf } from './build-files.mjs';
 
@@ -62,6 +62,19 @@ describe('overlays: geometry', () => {
     const module = await import('../src/client/pdf-overlay.mjs');
     assert.equal(typeof module.compose, 'function');
     assert.equal('then' in module, false);
+  });
+
+  it('keeps overlays their size in points when the page size changes, and inside the page (review P17)', () => {
+    const tick = /** @type {import('../src/client/pdf-overlay.mjs').Overlay} */ ({ type: 'mark', mark: 'tick', color: 'black', x: 0.4, y: 0.45, w: 0.2, h: 0.1, rotation: 0 });
+    const photo = { width: 1000, height: 500 };
+    const a4 = { width: 842, height: 595 };
+    const [moved] = resizeOverlays([tick], photo, a4);
+    assert.ok(Math.abs(moved.w * a4.width - tick.w * photo.width) < 1e-9, 'same width in points');
+    assert.ok(Math.abs(moved.h * a4.height - tick.h * photo.height) < 1e-9, 'same height in points');
+    assert.ok(Math.abs(moved.x + moved.w / 2 - 0.5) < 1e-9 && Math.abs(moved.y + moved.h / 2 - 0.5) < 1e-9, 'same centre');
+    const [shrunk] = resizeOverlays([{ ...tick, x: 0.1, w: 0.8 }], photo, { width: 400, height: 500 });
+    assert.ok(shrunk.w <= 1 && shrunk.x >= 0 && shrunk.x + shrunk.w <= 1, 'made smaller to fit, inside the page');
+    assert.ok(Math.abs((shrunk.w * 400) / (shrunk.h * 500) - (0.8 * 1000) / (0.1 * 500)) < 1e-9, 'its shape kept');
   });
 
   it('composes matrices first-then-second', () => {
