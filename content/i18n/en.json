@@ -1455,8 +1455,8 @@
       },
       "pdf": {
         "title": "PDF tools",
-        "summary": "Merge, split, reorder and rotate the pages of PDF files, and turn photos and scans into a PDF, in your browser. Your documents are never uploaded.",
-        "description": "Merge, split, reorder and rotate PDF pages in your browser, without uploading them.",
+        "summary": "Merge, split, reorder, rotate, shrink and sign PDF files, and turn photos and scans into a PDF, in your browser. Your documents are never uploaded.",
+        "description": "Merge, split, shrink and sign PDFs in your browser, without uploading them.",
         "file": "PDF files and pictures",
         "dropHint": "Or drop files here, or paste a picture. You can add several PDFs and pictures: their pages join the board one file after another.",
         "messages": {
@@ -1673,7 +1673,7 @@
           "gb": "{n} GB"
         },
         "note1": "Everything happens in this browser tab: your files are not uploaded anywhere. The file you save is built by Lockwell's own code. The page previews are drawn by a copy of Mozilla's PDF.js served from this site; it is the only code here that Lockwell did not write, and it only draws.",
-        "note2": "The saved copy keeps each page as it is, with its comments, form fields and layers. It leaves out the author, the software and the dates, and never carries bookmarks, attached files, scripts or the structure screen readers use; after saving, the result lists what was left out. Keep the original.",
+        "note2": "Sites that do these jobs on their servers receive your whole document: the contract, the copy of an ID or the bank statement goes to their computers to be merged or made smaller. The best-known ones say they delete files within one or two hours, unless you save them to an account there. Here the file never leaves your device, so there is nothing to delete afterwards.",
         "password": {
           "title": "{name} is protected with a password.",
           "label": "Password",
@@ -1683,7 +1683,12 @@
           "wrong": "That password does not open the file. Check it and try again: capital and small letters count.",
           "open": "Open",
           "skip": "Skip this file"
-        }
+        },
+        "note3": "The saved copy keeps each page’s look, with its comments, form fields and layers. It leaves out the title, the author, the software and the dates, and never carries bookmarks, attached files, scripts or the structure screen readers use; after saving, the result lists what was left out. Keep the original.",
+        "note4": "Saving always leaves out what a PDF does not need, such as unused objects and repeated copies of the same picture, without changing how any page looks. Making the pictures smaller is a separate step: it loses some detail, colours can shift slightly, and colour profiles are dropped. Pictures that are already small, and a few kinds this tool cannot redraw, are left as they are, and the result says how many. A scanned document usually shrinks a lot; one that is mostly text barely changes, because text already takes little space.",
+        "note5": "A signature drawn or added here becomes part of the page, like ink on paper. It is not a digital signature: it records nothing about who added it or whether the document changed afterwards. If the PDF has a digital signature, the saved copy no longer carries it as one, even if you change nothing, because the copy is written anew; its look stays. Anything you add sits on top of the page and someone with a PDF editor can take it off again, so it hides nothing reliably. For a copy of an ID, the Dutch government advises writing on the copy that it is a copy, who it is for and the date, and making the national identity number unreadable, including in the line of characters at the bottom: cover the number on the photo in Image redaction first, then turn the photo into a PDF here and add the stamp.",
+        "note6": "Some things this tool does not do. It cannot open a file whose password you do not have, or files protected with AES-256, the newer kind of password protection, or with a certificate, and it does not add a password to the saved copy (File encryption can lock any file). It does not change the text on a page or recognise the text in a scan. It turns down files over 300 MB on a computer and over 100 MB on a phone, and a phone can still run out of memory with very large files. When a file does not carry its own fonts, the previews draw its letters with this device’s fonts, so a preview can look slightly different from the same page in another reader; the saved file is not affected.",
+        "ai1": "Asking an AI chatbot to merge, shrink or sign a PDF means uploading the whole document, whether a contract, a payslip or a copy of an ID, to that company’s servers. Depending on the service, your settings and your plan, what you upload may be kept for a long time, read by staff or used to train models. Do this kind of work on your own device."
       },
       "encrypt": {
         "title": "File encryption",

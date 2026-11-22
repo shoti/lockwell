@@ -3,6 +3,41 @@
 Notable changes to the site's content and behaviour. Each guide also shows the
 date its sources were last checked.
 
+## Unreleased: PDF tools (November 2026)
+
+### Tools
+- New PDF tools page (`/tools/pdf-tools/`, in "Before you share", a wide page).
+  Add PDFs and pictures; every page becomes a card on a board that can be
+  reordered by dragging or by keyboard, rotated, duplicated, deleted, with
+  blank pages and undo. Save one PDF, the selected pages, page ranges, every
+  N pages, one file per page or one per source (several files come as a ZIP).
+- Photos and scans become PDF pages (fit, A4 or Letter, with margins): JPEG and
+  simple PNG go in unchanged once the photo tool has cleaned them, so no
+  location or camera details reach the PDF; other pictures are drawn again.
+- Sign and stamp: a signature drawn on the screen or photographed on paper,
+  text, the date, a tick or a cross and a "copy" stamp, placed on the page,
+  turned, sized, and put on several pages at once. A signature added here is a
+  picture on the page, not a digital signature, and the page says so.
+- Smaller files: saving always drops what is not needed, without loss; the
+  pictures inside can be made smaller (Good, Small, or as good as fits under a
+  size). Where the browser blocks reading pictures back (Tor Browser, Firefox
+  with resistFingerprinting) the picture levels are off and the reason shown.
+- Password-protected PDFs (revisions 2 to 4: RC4 and AES-128) open with their
+  password; restricted ones are read like any other. The saved copy is never
+  encrypted, and the result says so. AES-256 files (revisions 5 and 6) and
+  certificate-locked ones are refused with a message.
+- The saved copy is written by Lockwell's own PDF code: it keeps comments, form
+  fields and layers, drops the title, author, software, dates, XMP and the
+  original's file ID,
+  and never carries bookmarks, attachments, scripts or the structure tree;
+  the result lists what was left out. Every saved file is read back and checked
+  before it is offered.
+- Page previews are drawn by a self-hosted copy of Mozilla's PDF.js 6.5.438
+  (`src/vendor/pdfjs/`), loaded only on this page, under the site's unchanged
+  CSP and Trusted Types. It is the only third-party code on the site and it
+  only draws. The "no dependencies" wording in README, CONTRIBUTING and
+  package.json now says so.
+
 ## Unreleased: file encryption (November 2026)
 
 ### Tools

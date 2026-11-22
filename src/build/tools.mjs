@@ -35,7 +35,7 @@ export const TOOLS = [
   { slug: 'image-redaction', key: 'redact', icon: 'marker', notes: 5, ai: 2 },
   { slug: 'image-editor', key: 'editor', icon: 'sliders', notes: 5, ai: 2, wide: true },
   { slug: 'document-metadata', key: 'document', icon: 'file', notes: 4, ai: 1 },
-  { slug: 'pdf-tools', key: 'pdf', icon: 'pages', notes: 2, ai: 0, wide: true },
+  { slug: 'pdf-tools', key: 'pdf', icon: 'pages', notes: 6, ai: 1, wide: true },
   { slug: 'file-encryption', key: 'encrypt', icon: 'lock', notes: 5, ai: 1 },
   { slug: 'hidden-characters', key: 'hidden', icon: 'eye', notes: 3, ai: 2 },
   { slug: 'video-metadata', key: 'video', icon: 'film', notes: 5, ai: 1 },
