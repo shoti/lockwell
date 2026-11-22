@@ -875,6 +875,48 @@ const EMAIL_FILTER_FIELDS = ['sfv', 'cat', 'scl', 'bcl', 'cip', 'ctry', 'dir', '
 /** The rows of "Who sent it", in order; the ones with a same/other note compare with the From address. */
 const EMAIL_IDENTITY = /** @type {const} */ ([['name', false], ['address', false], ['replyTo', true], ['returnPath', true], ['signedBy', false], ['sender', false], ['list', false], ['handoff', false]]);
 
+/**
+ * Where each mail program shows a message's headers, with the menu labels exactly as the vendor writes them, in
+ * English in both languages (research §6 and §14). Only paths confirmed on the vendor's own page are listed.
+ */
+const EMAIL_HOWTO = /** @type {const} */ ([
+  ['gmail', ['Reply', 'More', 'Show original', 'Copy to clipboard']],
+  ['outlook', ['More actions', 'View', 'View message details', 'Message details']],
+  ['outlookClassic', ['File', 'Properties', 'Internet headers']],
+  ['icloud', ['More', 'Show All Headers']],
+  ['yahoo', ['More options', 'View Raw Message']],
+  ['proton', ['More', 'View headers', 'More options', 'View Headers']],
+  ['appleMail', ['View', 'Message', 'All Headers']],
+]);
+
+/**
+ * A sentence with menu labels in it: "{1}" is the first label, shown bold and left untranslated.
+ * @param {string} text
+ * @param {readonly string[]} labels
+ */
+function withLabels(text, labels) {
+  return text.split(/\{(\d)\}/).map((part, index) => (index % 2 ? html`<strong translate="no">${labels[Number(part) - 1]}</strong>` : html`${part}`));
+}
+
+/**
+ * "How to get the headers": static steps shown above the tool, so they work without JavaScript and never move.
+ * @param {Ctx} ctx
+ */
+function emailHowto(ctx) {
+  const { t } = ctx;
+  /** @param {string} key */
+  const s = (key) => t(`tools.items.email.${key}`);
+  return html`<section class="email__howto" aria-labelledby="email__howto">
+        <h2 class="file-report__title" id="email__howto">${s('howto.title')}</h2>
+        <p class="facts__why">${s('howto.intro')}</p>
+        ${EMAIL_HOWTO.map(([client, labels]) => html`<details class="email__client">
+          <summary>${s(`howto.${client}.name`)}</summary>
+          <p>${withLabels(s(`howto.${client}.steps`), labels)}</p>
+        </details>`)}
+        <p class="facts__why">${s('howto.others')}</p>
+      </section>`;
+}
+
 /** @param {Ctx} ctx */
 function emailPanel(ctx) {
   const { t } = ctx;
@@ -1300,6 +1342,9 @@ function browserPanel(ctx) {
         </ul>
       </section>`;
 }
+
+/** Content some tools show above their controls, readable without JavaScript. */
+export const INTROS = /** @type {Partial<Record<import('../tools.mjs').Tool['key'], (ctx: Ctx) => SafeHtml>>} */ ({ email: emailHowto });
 
 /** @type {Record<import('../tools.mjs').Tool['key'], (ctx: Ctx) => SafeHtml>} */
 export const PANELS = {

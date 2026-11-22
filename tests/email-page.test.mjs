@@ -277,7 +277,7 @@ describe('email header analyzer page', () => {
       assert.match(part('verdict').textContent, /^სათაურებში საეჭვო ნიშნები არ ჩანს\./);
       assert.equal(part('verdict-card').dataset.state, 'ok');
       assert.deepEqual(shownFindings(tool), ['spfFail', 'forwarded', 'bulkSender', 'messageIdElsewhere', 'encryptedInTransit']);
-      assert.equal(part('checks').children.find((item) => item.querySelector('[data-js="email-check-method"]')?.textContent === 'ARC')?.querySelector('[data-js="email-check-meaning"]')?.textContent, 'გადაგზავნის ჩანაწერი მთელია: იმის წაკითხვა, რაც წინა შუამავლებმა ჩაწერეს, შეიძლება.');
+      assert.equal(part('checks').children.find((item) => item.querySelector('[data-js="email-check-method"]')?.textContent === 'ARC')?.querySelector('[data-js="email-check-meaning"]')?.textContent, 'გადაგზავნის ჩანაწერი მთელია: იმის წაკითხვა, რაც წინა შუამავლებმა ჩაწერეს, შეიძლება. ის იმდენად სანდოა, რამდენადაც ეს შუამავლები.');
     } finally {
       page.restore();
     }
@@ -410,6 +410,14 @@ describe('email header analyzer page content', () => {
       assert.match(pages[lang], /<input class="file__input" type="file" id="email__file" accept="\.eml,\.msg,message\/rfc822" data-js="email-file">/);
       assert.doesNotMatch(/<section class="tool js-only"[\s\S]*?<\/section>/.exec(pages[lang])?.[0] ?? '', /\sstyle=/, 'no style attributes');
       assert.match(/Content-Security-Policy" content="([^"]+)"/.exec(pages[lang])?.[1] ?? '', /connect-src 'none'/, 'the page makes no requests');
+      // "How to get the headers" works without JavaScript: it sits before the tool's JS-only section, labels in English.
+      const howto = /<section class="email__howto"[\s\S]*?<\/section>/.exec(pages[lang])?.[0] ?? '';
+      assert.ok(pages[lang].indexOf('class="email__howto"') < pages[lang].indexOf('class="tool js-only"'), `${lang}: how-to before the tool`);
+      assert.equal((howto.match(/<details class="email__client">/g) ?? []).length, 7);
+      for (const label of ['Reply', 'More', 'Show original', 'Copy to clipboard', 'More actions', 'View message details', 'Message details', 'File', 'Properties', 'Internet headers', 'Show All Headers', 'More options', 'View Raw Message', 'View headers', 'View Headers', 'All Headers']) {
+        assert.ok(howto.includes(`<strong translate="no">${label}</strong>`), `${lang} label ${label}`);
+      }
+      assert.doesNotMatch(howto, /\{\d\}/, `${lang}: every label placeholder filled`);
       const prefix = lang === 'en' ? '/en' : '';
       for (const link of ['/guides/phishing/#pause', '/guides/phishing/#report', '/tools/link-checker/', '/tools/attachment-checker/', '/guides/sensitive-email/#what-email-reveals']) {
         assert.ok(pages[lang].includes(`href="${prefix}${link}"`), `${lang} link ${link}`);

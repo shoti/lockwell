@@ -3,6 +3,24 @@
 Notable changes to the site's content and behaviour. Each guide also shows the
 date its sources were last checked.
 
+## Unreleased: email header analyzer (November 2026)
+
+### Tools
+- New email header analyzer (`/tools/email-headers/`, in "Check something
+  suspicious" after the attachment checker). Paste a message's headers or the
+  whole message, or drop an `.eml` or Outlook `.msg` file. It shows who the
+  message says it is from, what the receiving provider's SPF, DKIM, DMARC, ARC
+  and Microsoft composite checks found, the spam filter's verdict, the route
+  the message took, and plain-language findings (spoofed sender, reply going
+  elsewhere, lookalike domains, risky attachment names, forwarded or mailing
+  list mail). Results written by servers the receiving provider doesn't run
+  are shown as claims, not checks. With a whole message it also lists the
+  links and attachment names. A short guide on the page, which works without
+  JavaScript, shows where seven mail apps and sites show the full headers.
+  Nothing is uploaded and no lookups are made.
+- The attachment checker's file-name checks moved into a shared module so the
+  email tool can use them; that tool is unchanged.
+
 ## Unreleased: photo editor (November 2026)
 
 ### Tools

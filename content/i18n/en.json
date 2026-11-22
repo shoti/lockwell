@@ -628,7 +628,7 @@
         "verdicts": {
           "warn": "This message has warning signs: {n}. Don’t reply, click or pay until you’ve checked with the sender in another way.",
           "unchecked": "The sender couldn’t be confirmed: your mail provider’s checks aren’t in what you pasted, or only part of the headers is there.",
-          "none": "No warning signs in the headers. That doesn’t prove the message is honest: it only means it came from the mailbox it names. A hacked or free mailbox passes too."
+          "none": "No warning signs in the headers. That doesn’t prove the message is honest: it only means it came through the domain it names. Anyone who can send from that domain passes too, including a hacked or free mailbox."
         },
         "copySummary": "Copy the summary",
         "whoTitle": "Who sent it",
@@ -676,15 +676,15 @@
             "none": "The bounce address’s domain publishes no SPF rules.",
             "temperror": "The check couldn’t finish because of a temporary error, usually a DNS lookup problem.",
             "permerror": "The domain’s SPF rules couldn’t be read.",
-            "policy": "The receiving server set this result by its own rules.",
+            "policy": "SPF would have passed, but the receiving server didn’t accept the result under its own rules.",
             "hardfail": "An old name for “fail”."
           },
           "dkim": {
-            "pass": "A domain signed the message and it wasn’t changed after signing. This says which domain, not that the domain is honest.",
+            "pass": "A domain signed the message and the signed parts weren’t changed after signing. This says which domain, not that the domain is honest.",
             "fail": "A signature didn’t match: the message was changed after signing, or the signature is wrong. Mailing lists often cause this.",
             "neutral": "A signature couldn’t be judged.",
             "none": "The message wasn’t signed.",
-            "policy": "The signature was valid, but the receiving server didn’t accept it by its own rules.",
+            "policy": "The receiving server didn’t accept the signature under its own rules, for example because the wrong domain signed.",
             "temperror": "The check couldn’t finish because of a temporary error, usually a DNS lookup problem.",
             "permerror": "The signature couldn’t be checked: it is malformed, or its key wasn’t found."
           },
@@ -697,14 +697,14 @@
             "bestguesspass": "Microsoft: the domain has no DMARC policy, but the check would pass if it had one."
           },
           "arc": {
-            "pass": "The forwarding record is intact: what earlier handlers recorded can be read.",
+            "pass": "The forwarding record is intact: what earlier handlers recorded can be read. It is only as trustworthy as those handlers.",
             "fail": "The forwarding record is broken.",
             "none": "There is no forwarding record."
           },
           "compauth": {
             "pass": "Microsoft’s own combined check passed.",
             "fail": "Microsoft’s own combined check failed.",
-            "softpass": "Microsoft’s own combined check partly passed.",
+            "softpass": "Microsoft’s own combined check passed weakly: Microsoft inferred it rather than the domain’s own records proving it.",
             "none": "Microsoft didn’t run its combined check."
           }
         },
@@ -723,7 +723,7 @@
           "cip": "The address that connected to Microsoft’s server.",
           "ctry": "The country or region of that address, as Microsoft worked it out. It may not be where the sender is.",
           "dir": "Direction: INB inbound, OUT outbound, INT internal.",
-          "sfty": "Microsoft identified the message as phishing and showed a safety tip.",
+          "sfty": "Microsoft added a safety tip: 9.19 domain impersonation, 9.20 user impersonation, 9.25 first contact (often harmless).",
           "x-spam-status": "SpamAssassin’s result: Yes means it scored as spam.",
           "sfvValues": {
             "nspm": "Not spam.",
@@ -733,7 +733,7 @@
             "blk": "Blocked: the sender is on your Blocked Senders list.",
             "sfe": "Allowed: the sender is on your Safe Senders list.",
             "ska": "Allowed by an anti-spam policy; filtering was skipped.",
-            "ski": "Filtering was skipped: the sending address is on an allow list.",
+            "ski": "Filtering was skipped: the sending server’s IP address is on the IP Allow List.",
             "skn": "Filtering was skipped by a mail flow rule.",
             "skq": "Released from quarantine."
           },
@@ -785,7 +785,7 @@
           "info": "For information:"
         },
         "findings": {
-          "dmarcFail": "Your provider’s DMARC check failed for {value}: the address you see isn’t backed by that domain’s own checks. Treat the sender as unconfirmed and contact them in another way before you act.",
+          "dmarcFail": "Your provider’s DMARC check failed for {value}: the address you see isn’t backed by that domain’s own checks. Forwarded mail and mailing lists can fail this way too, but so does a forged sender. Treat the sender as unconfirmed and contact them in another way before you act.",
           "spoofedSender": "No check by your provider ties this message to {value}: neither SPF nor DKIM passed for that domain. Anyone can write any From address, so contact the sender in another way before you act.",
           "replyElsewhere": "Replies would go to {value}, a different organisation from the address you see. Before you reply, check that address with the sender in another way.",
           "replyElsewhereFree": "Replies would go to {value}, a free mailbox, not the organisation in the From address. Scams do this so that the answer reaches them. Check with the sender in another way.",
@@ -834,8 +834,8 @@
         "unread": "Lines not read as headers: {n}.",
         "limit": "This tool reads what your mail provider wrote into the message. It can’t look anything up, and it can’t tell whether a message is honest.",
         "note1": "Everything is read in your browser. Headers hold your address, your contacts’ addresses and sometimes network addresses, which is a reason not to paste them into a website that receives them. The online analyzers we looked at either don’t say what they do with what you paste, or collect usage data.",
-        "note2": "What a pass means: the receiving server recorded that a domain vouched for the message. That ties the message to a mailbox or a domain, not to a person. A free mailbox anyone can open, or a hacked one, passes every check, and a lookalike domain passes for itself. The standard for these results says so: a pass “does not render the message trustworthy” (RFC 8601).",
-        "note3": "What a failure means: ordinary mail fails too. Forwarding can break SPF, and mailing lists that change a message can break DKIM. DMARC still passes when either one matches the address you see. So a single failed check is only a note here; a failed DMARC check, or no check tying the message to its address, is a warning.",
+        "note2": "What a pass means: the receiving server recorded that a domain vouched for the message. That ties the message to a domain, not to a mailbox or a person. A free mailbox anyone can open, or a hacked one, passes every check, and a lookalike domain passes for itself. The standard for these results says so: a pass “does not render the message trustworthy” (RFC 8601).",
+        "note3": "What a failure means: ordinary mail fails too. Forwarding can break SPF, and mailing lists that change a message can break DKIM. DMARC still passes when either one matches the address you see, but forwarded mail and mailing lists can make DMARC fail as well. So a single failed check is only a note here; a failed DMARC check, or no check tying the message to its address, is a warning, because a forged sender looks exactly like that.",
         "note4": "What it can’t do: it makes no requests, so it can’t look anything up in DNS, verify a signature or check a sender’s reputation. It believes only the lines your own provider wrote at the top of the message; everything below them came with the message and could be invented. It works out organisations from a list built into the site, while the current DMARC standard (RFC 9989, May 2026) looks them up in DNS, so the two can differ; your provider’s own DMARC result is used wherever there is one. How each mail provider writes its headers wasn’t checked against real mail.",
         "note5": "If a message worries you, don’t reply, click or pay. Contact the sender in a way you already know, not with the details in the message, and report it to your mail provider. The links under the report lead to the steps.",
         "ai1": "A chatbot can read headers and explain them. Pasting them gives the company behind it your address, your contacts’ addresses and details of the networks the message passed through.",
@@ -856,6 +856,39 @@
           "kb": "{n} KB",
           "mb": "{n} MB",
           "attachmentsHint": "To check a file itself, save it and open it in the"
+        },
+        "howto": {
+          "title": "How to get the headers",
+          "intro": "Each mail program shows them in its own place. Copy everything it shows and paste it below.",
+          "others": "For another mail program, look in the message’s menu for an option that shows the original message or its source.",
+          "gmail": {
+            "name": "Gmail on a computer",
+            "steps": "Open the message. Next to {1}, click {2}, then {3}. In the new window, click {4}. Google gives these steps for a computer only: for a message you read on your phone, open Gmail on a computer."
+          },
+          "outlook": {
+            "name": "New Outlook, Outlook on the web and Outlook.com",
+            "steps": "Open the message. Select {1} at the top of the message window, then {2} > {3}. Copy the text in the {4} window."
+          },
+          "outlookClassic": {
+            "name": "Classic Outlook for Windows",
+            "steps": "Double-click the message to open it in its own window. Click {1} > {2}. The headers are in the {3} box: select all of it and copy."
+          },
+          "icloud": {
+            "name": "iCloud Mail on the web",
+            "steps": "Open the message, select the {1} button, then {2}."
+          },
+          "yahoo": {
+            "name": "Yahoo Mail",
+            "steps": "Open the message, click the {1} icon and select {2}."
+          },
+          "proton": {
+            "name": "Proton Mail",
+            "steps": "On the web: open the message, go to {1} (the three dots) and choose {2}. In the iPhone app: tap the three-dot menu, then {3}, then {4}. Proton’s page names only the web and iPhone apps."
+          },
+          "appleMail": {
+            "name": "Apple Mail on a Mac",
+            "steps": "Open the message and choose {1} > {2} > {3}. Apple documents this for macOS Sequoia 15; we couldn’t confirm it for macOS Tahoe 26 or macOS 27."
+          }
         }
       },
       "browser": {

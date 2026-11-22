@@ -8,7 +8,7 @@ import { absoluteUrl, localePath } from '../site.mjs';
 import { toolRoute } from '../tools.mjs';
 import { breadcrumbs } from './components.mjs';
 import { icons } from './icons.mjs';
-import { PANELS } from './tool-panels.mjs';
+import { INTROS, PANELS } from './tool-panels.mjs';
 
 /** @typedef {import('./layout.mjs').Ctx} Ctx */
 /** @typedef {import('../tools.mjs').Tool} Tool */
@@ -36,6 +36,7 @@ export function toolPage(ctx, tool) {
       <h1 class="page-header__title">${name}</h1>
       <p class="lead">${t(`tools.items.${tool.key}.summary`)}</p>
     </header>
+    ${INTROS[tool.key]?.(ctx) ?? null}
     <p class="draft-notice no-js-only" data-js="tool-fallback">${icons.alert}<span>${t('tools.needsJs')}</span></p>
     <section class="tool js-only" data-js="tool" data-tool="${tool.key}" aria-label="${name}">
       ${PANELS[tool.key](ctx)}
