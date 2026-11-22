@@ -9,6 +9,7 @@
  * translations in one place and the client free of HTML building.
  */
 import { html } from '../html.mjs';
+import { absoluteUrl, localePath } from '../site.mjs';
 import { icons } from './icons.mjs';
 
 /** @typedef {import('./layout.mjs').Ctx} Ctx */
@@ -1343,6 +1344,159 @@ function browserPanel(ctx) {
       </section>`;
 }
 
+/** Warnings about a typed password (see passwordWarnings in tool-encrypt.mjs), in the order they are listed. */
+const ENCRYPT_WARNINGS = ['tooShort', 'short', 'oneClass', 'run', 'name', 'text', 'mismatch'];
+/** What the message line can say (data-* in kebab case on it; see MESSAGES in tool-encrypt.mjs). */
+const ENCRYPT_MESSAGES = [
+  'locking', 'checking', 'opening', 'locked', 'opened', 'needsInput', 'wrongPassword', 'damaged', 'notLocked', 'newerVersion', 'tooLarge',
+  'bundleTooLarge', 'unsupported', 'readFailed', 'cancelled', 'verifyFailed',
+];
+const ENCRYPT_UNITS = ['b', 'kb', 'mb', 'gb'];
+/** The example's password: shown to everyone, so it is a demonstration and nothing else. */
+const ENCRYPT_EXAMPLE_PASSWORD = 'example-only-pocket-violin-tundra-spark';
+
+/** @param {string} name */
+const kebab = (name) => name.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
+
+/** @param {Ctx} ctx */
+function encryptPanel(ctx) {
+  const { t, site, lang } = ctx;
+  /** @param {string} key */
+  const s = (key) => t(`tools.items.encrypt.${key}`);
+  const page = absoluteUrl(site, localePath(site, lang, '/tools/file-encryption/'));
+  /** A password field with its show/hide button. @param {string} name @param {string} label */
+  const passwordField = (name, label) => html`<div class="field">
+            <label class="field__label" for="encrypt__${name}">${label}</label>
+            <div class="encrypt__password">
+              <input class="input" type="password" id="encrypt__${name}" data-js="encrypt-${name}" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" translate="no" dir="ltr">
+              <button class="button button--ghost button--small" type="button" data-js="encrypt-${name}-show" aria-controls="encrypt__${name}" aria-pressed="false" data-show="${s('show')}" data-hide="${s('hide')}">${icons.eye}<span>${s('show')}</span></button>
+            </div>
+          </div>`;
+  return html`<div class="encrypt" data-js="encrypt"${ENCRYPT_UNITS.map((unit) => html` data-${unit}="${s(`units.${unit}`)}"`)}>
+      <fieldset class="field">
+        <legend class="field__label">${s('mode')}</legend>
+        <div class="segmented">
+          ${radio('encrypt-mode', 'encrypt__mode-lock', 'lock', 'encrypt-mode', s('modeLock'), true)}
+          ${radio('encrypt-mode', 'encrypt__mode-open', 'open', 'encrypt-mode', s('modeOpen'), false)}
+        </div>
+      </fieldset>
+      <div class="encrypt__mode" data-js="encrypt-lock">
+        <fieldset class="field">
+          <legend class="field__label">${s('what')}</legend>
+          ${radio('encrypt-what', 'encrypt__what-text', 'text', 'encrypt-what', s('whatText'), true)}
+          ${radio('encrypt-what', 'encrypt__what-file', 'file', 'encrypt-what', s('whatFile'), false)}
+        </fieldset>
+        <div class="field" data-js="encrypt-text-box">
+          <label class="field__label" for="encrypt__text">${s('text')}</label>
+          <textarea class="textarea" id="encrypt__text" rows="5" dir="auto" autocomplete="off" spellcheck="false" data-js="encrypt-text"></textarea>
+          <p class="facts__why" data-js="encrypt-text-size"></p>
+        </div>
+        <div class="field" data-js="encrypt-file-box" hidden>
+          <label class="field__label" for="encrypt__file">${s('file')}</label>
+          ${filePicker(ctx, 'encrypt__file', 'encrypt-file', '')}
+          <p class="facts__why" data-js="encrypt-file-size">${s('fileHint')}</p>
+        </div>
+        <fieldset class="field">
+          <legend class="field__label">${s('passwordKind')}</legend>
+          ${radio('encrypt-password-kind', 'encrypt__kind-made', 'made', 'encrypt-password-kind', s('made'), true)}
+          ${radio('encrypt-password-kind', 'encrypt__kind-own', 'own', 'encrypt-password-kind', s('own'), false)}
+        </fieldset>
+        <div class="tool__result" data-js="encrypt-made">
+          <p class="field__label" id="encrypt__passphrase-label">${s('passphrase')}</p>
+          <p class="tool__value tool__value--secret" data-js="encrypt-passphrase" aria-labelledby="encrypt__passphrase-label" translate="no" dir="ltr"></p>
+          <div class="tool__actions">
+            ${copyButton(ctx, 'encrypt-passphrase')}
+            <button class="button button--ghost button--small" type="button" data-js="encrypt-another">${icons.refresh}<span>${s('another')}</span></button>
+          </div>
+          <p class="tool__status" role="status" data-js="encrypt-passphrase-status"></p>
+          <p class="facts__why" data-js="encrypt-bits" data-template="${s('bits')}"></p>
+        </div>
+        <div class="encrypt__own" data-js="encrypt-own" hidden>
+          ${passwordField('password', s('password'))}
+          <div class="field" data-js="encrypt-repeat-box">
+            <label class="field__label" for="encrypt__repeat">${s('repeat')}</label>
+            <input class="input" type="password" id="encrypt__repeat" data-js="encrypt-repeat" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" translate="no" dir="ltr">
+          </div>
+          <ul class="findings" data-js="encrypt-warnings">
+            ${ENCRYPT_WARNINGS.map((key) => html`<li data-warning="${key}" hidden>${s(`warnings.${key}`)}</li>`)}
+          </ul>
+          <p class="facts__why">${s('ownHint')}</p>
+          <p class="facts__why">${s('keyboard')}</p>
+        </div>
+        <p class="tool__note">${s('noRecovery')}</p>
+        <div class="tool__actions">
+          <button class="button" type="button" data-js="encrypt-lock-button" disabled>${icons.lock}<span>${s('lock')}</span></button>
+        </div>
+        <div class="tool__result encrypt__result" data-js="encrypt-locked" hidden>
+          <p class="encrypt__verified" data-js="encrypt-verified" data-full="${s('verified')}" data-ends="${s('verifiedEnds')}"></p>
+          <div class="field" data-js="encrypt-armour-box" hidden>
+            <label class="field__label" for="encrypt__armour">${s('armour')}</label>
+            <textarea class="textarea encrypt__armour" id="encrypt__armour" rows="6" readonly translate="no" dir="ltr" spellcheck="false" data-js="encrypt-armour"></textarea>
+            <div class="tool__actions">
+              ${copyButton(ctx, 'encrypt-armour')}
+              ${shareButton(ctx, 'encrypt-armour-share')}
+            </div>
+            <p class="tool__status" role="status" data-js="encrypt-armour-status"></p>
+            <p class="facts__why" data-js="encrypt-long" data-template="${s('long')}" hidden></p>
+          </div>
+          <div data-js="encrypt-lock-save">${saveBox(ctx, s('saveLocked'))}</div>
+          <p class="facts__why">${s('nameHint')}</p>
+          <section class="encrypt__how" aria-labelledby="encrypt__how">
+            <h3 class="file-report__title" id="encrypt__how">${s('howTitle')}</h3>
+            <ol class="encrypt__steps">
+              ${[1, 2, 3].map((n) => html`<li>${s(`how${n}`)}</li>`)}
+            </ol>
+            <p class="field__label" id="encrypt__sentence-label">${s('sentenceLabel')}</p>
+            <p class="tool__value tool__value--text" data-js="encrypt-sentence" aria-labelledby="encrypt__sentence-label">${s('sentence').replace('{url}', page)}</p>
+            <div class="tool__actions">
+              ${copyButton(ctx, 'encrypt-sentence')}
+            </div>
+            <p class="tool__status" role="status" data-js="encrypt-sentence-status"></p>
+          </section>
+        </div>
+      </div>
+      <div class="encrypt__mode" data-js="encrypt-open" hidden>
+        <div class="field">
+          <label class="field__label" for="encrypt__locked-file">${s('lockedFile')}</label>
+          ${filePicker(ctx, 'encrypt__locked-file', 'encrypt-locked-file', '.lockwell')}
+          <p class="facts__why">${s('lockedFileHint')}</p>
+        </div>
+        <div class="field">
+          <label class="field__label" for="encrypt__locked-text">${s('lockedText')}</label>
+          <textarea class="textarea encrypt__armour" id="encrypt__locked-text" rows="4" translate="no" dir="ltr" autocomplete="off" autocapitalize="off" spellcheck="false" data-js="encrypt-locked-text"></textarea>
+          <div class="tool__actions">
+            <button class="button button--ghost button--small" type="button" data-js="encrypt-example" data-password="${ENCRYPT_EXAMPLE_PASSWORD}" data-text="${s('exampleText')}">${icons.eye}<span>${t('tools.example')}</span></button>
+          </div>
+        </div>
+        ${passwordField('open-password', s('password'))}
+        <div class="tool__actions">
+          <button class="button" type="button" data-js="encrypt-open-button" disabled>${icons.lock}<span>${s('open')}</span></button>
+        </div>
+        <div class="tool__result encrypt__result" data-js="encrypt-opened" hidden>
+          <h3 class="file-report__title">${s('inside')}</h3>
+          <dl class="facts">
+            <div class="facts__row"><dt>${s('kind')}</dt><dd data-js="encrypt-kind" data-text="${s('kinds.text')}" data-file="${s('kinds.file')}" data-files="${s('kinds.files')}"></dd></div>
+            <div class="facts__row" data-js="encrypt-name-row"><dt>${s('name')}</dt><dd data-js="encrypt-name" translate="no" dir="ltr"></dd></div>
+            <div class="facts__row"><dt>${s('size')}</dt><dd data-js="encrypt-size"></dd></div>
+          </dl>
+          <div class="field" data-js="encrypt-plain-box" hidden>
+            <label class="field__label" for="encrypt__plain">${s('plain')}</label>
+            <textarea class="textarea" id="encrypt__plain" rows="6" readonly dir="auto" spellcheck="false" data-js="encrypt-plain"></textarea>
+            <div class="tool__actions">
+              ${copyButton(ctx, 'encrypt-plain')}
+            </div>
+            <p class="tool__status" role="status" data-js="encrypt-plain-status"></p>
+          </div>
+          <div data-js="encrypt-open-save">${saveBox(ctx, s('saveOpened'))}</div>
+        </div>
+      </div>
+      <p class="tool__message" role="status" data-js="encrypt-message"${ENCRYPT_MESSAGES.map((key) => html` data-${kebab(key)}="${s(`messages.${key}`)}"`)}></p>
+      <div class="tool__actions">
+        <button class="button button--ghost button--small" type="button" data-js="encrypt-reset">${icons.trash}<span>${s('reset')}</span></button>
+      </div>
+    </div>`;
+}
+
 /** Content some tools show above their controls, readable without JavaScript. */
 export const INTROS = /** @type {Partial<Record<import('../tools.mjs').Tool['key'], (ctx: Ctx) => SafeHtml>>} */ ({ email: emailHowto });
 
@@ -1359,5 +1513,6 @@ export const PANELS = {
   video: videoPanel,
   attachment: attachmentPanel,
   email: emailPanel,
+  encrypt: encryptPanel,
   browser: browserPanel,
 };

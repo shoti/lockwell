@@ -21,6 +21,7 @@ const LOADERS = {
   video: () => import('./tool-video.mjs'),
   attachment: () => import('./tool-attachment.mjs'),
   email: () => import('./tool-email.mjs'),
+  encrypt: () => import('./tool-encrypt.mjs'),
   browser: () => import('./tool-browser.mjs'),
 };
 

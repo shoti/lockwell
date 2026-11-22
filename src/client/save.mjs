@@ -39,10 +39,13 @@ export const hasDate = (name) => DATE_IN_NAME.test(name);
  * The name of a saved copy.
  * @param {string} original  The chosen file's name.
  * @param {{ extension: string, fallback: string, suffix: string, neutral: boolean }} options
- *   fallback: the neutral name without extension ("photo"); suffix: added to the original name ("clean").
+ *   fallback: the neutral name without extension ("photo"); suffix: added to the original name ("clean"). An empty
+ *   suffix keeps the original name exactly as given (the encryption tool passes "report.pdf.lockwell").
  */
 export function savedName(original, { extension, fallback, suffix, neutral }) {
-  if (neutral) return `${fallback}.${extension}`;
+  const plain = extension ? `${fallback}.${extension}` : fallback;
+  if (neutral) return plain;
+  if (!suffix) return original || plain;
   const base = original.replace(/\.[^.]*$/, '') || fallback;
   return `${base}-${suffix}.${extension}`;
 }
@@ -61,7 +64,9 @@ export function canShareFile(file) {
  * @property {string} original  The chosen file's name.
  * @property {string} extension
  * @property {string} fallback  The neutral name, without extension.
- * @property {string} suffix  Added to the original name.
+ * @property {string} suffix  Added to the original name; empty keeps it exactly.
+ * @property {boolean} [neutral]  Start with the neutral name chosen (true) or not (false); by default it is chosen
+ *   when the original name holds a date.
  */
 
 /**
@@ -116,11 +121,11 @@ export function initSave(box) {
     offer(offer) {
       if (url) URL.revokeObjectURL(url);
       // The same file offered again (an archive rebuilt) keeps the visitor's choice.
-      if (current?.original !== offer.original) neutral.checked = hasDate(offer.original);
+      if (current?.original !== offer.original) neutral.checked = offer.neutral ?? hasDate(offer.original);
       current = offer;
       url = URL.createObjectURL(offer.blob);
       download.href = url;
-      neutralName.textContent = `${offer.fallback}.${offer.extension}`;
+      neutralName.textContent = savedName('', { ...offer, neutral: true });
       status.textContent = '';
       rename();
       // Where files can't be shared, saving rests on the download alone: say up front what to do if it fails.

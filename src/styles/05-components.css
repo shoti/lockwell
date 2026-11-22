@@ -2317,6 +2317,94 @@
     overflow-wrap: anywhere;
   }
 
+  /* A choice between two or three modes, made of real radio buttons, drawn like the guides' platform tabs. */
+  .segmented {
+    display: flex;
+    gap: 2px;
+    width: fit-content;
+    max-width: 100%;
+    padding: 4px;
+    border-radius: var(--radius-full);
+    background: var(--color-surface-2);
+  }
+
+  .segmented .option {
+    position: relative;
+    min-height: 2.5rem;
+    padding-inline: var(--space-5);
+    border-radius: var(--radius-full);
+    color: var(--color-text-muted);
+    font-size: var(--step--1);
+    font-weight: 600;
+  }
+
+  /* The radio stays in charge (keyboard, screen readers) but is drawn by its label. */
+  .segmented .radio {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+  }
+
+  .segmented .option:hover {
+    color: var(--color-text);
+  }
+
+  .segmented .option:has(.radio:focus-visible) {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  /* The accent underline marks the choice with 3:1 contrast, as on the tabs. */
+  .segmented .option:has(.radio:checked) {
+    background: var(--color-surface);
+    color: var(--color-text);
+    box-shadow: inset 0 -2px 0 var(--color-accent), var(--shadow-sm);
+  }
+
+  /* File encryption: the mode in use, then its controls and result. */
+  .encrypt,
+  .encrypt__mode,
+  .encrypt__own {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-5);
+  }
+
+  .encrypt__password {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .encrypt__password .input {
+    flex: 1 1 14rem;
+    width: auto;
+    font-family: var(--font-mono);
+  }
+
+  .encrypt__armour {
+    font-family: var(--font-mono);
+    font-size: var(--step--1);
+    overflow-wrap: anywhere;
+  }
+
+  .encrypt__verified {
+    font-weight: 600;
+  }
+
+  .encrypt__steps {
+    display: grid;
+    gap: var(--space-2);
+    padding-inline-start: var(--space-6);
+  }
+
+  .encrypt__how {
+    display: grid;
+    gap: var(--space-3);
+  }
+
   /* Attachment checker: names, addresses and commands under a finding, one per line, exactly as found. */
   .attachment__values {
     display: grid;
