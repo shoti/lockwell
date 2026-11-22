@@ -391,7 +391,7 @@ export class PdfFile {
 
   /**
    * A stream's data: from the line end after "stream" for /Length bytes, when "endstream" follows there; otherwise
-   * up to the next "endstream" (§6.1 of the plan: a wrong or missing /Length is common).
+   * up to the nearer of "endstream" and "endobj" (§6.1 of the plan: a wrong or missing /Length is common).
    * @param {PdfDict} dict
    * @param {number} at  Just after the keyword "stream".
    */
@@ -407,9 +407,11 @@ export class PdfFile {
       while (end < bytes.length && isSpace(bytes[end]) && end < start + length + 4) end += 1;
       if (startsAt(bytes, end, 'endstream')) return new PdfStream(dict, bytes.subarray(start, start + length));
     }
-    let end = find(bytes, 'endstream', start);
-    if (end < 0) end = find(bytes, 'endobj', start);
-    if (end < 0) throw new PdfError('damaged', `stream at ${at} has no end`);
+    // Whichever keyword comes first, as qpdf recovers a length: a damaged "endstream" must not swallow the
+    // objects after it (qpdf corpus: xref-compressed-in-compressed.pdf).
+    const ends = [find(bytes, 'endstream', start), find(bytes, 'endobj', start)].filter((n) => n >= 0);
+    if (ends.length === 0) throw new PdfError('damaged', `stream at ${at} has no end`);
+    let end = Math.min(...ends);
     if (bytes[end - 1] === 0x0a) end -= 1;
     if (bytes[end - 1] === 0x0d) end -= 1;
     return new PdfStream(dict, bytes.subarray(start, Math.max(start, end)));

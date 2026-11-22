@@ -4,12 +4,14 @@
  * docs/research/tool-pdf-toolkit.md §14). Used by the PDF tools' reader and writer; pure, no DOM. Not the
  * pattern scanner in pdf.mjs, which the document tool and the attachment checker use on hostile byte soup.
  */
+import { byteString } from './bytes.mjs';
 
 /**
  * Why a PDF could not be read or written. `unsupported`: not a PDF, or a feature this tool does not read.
  * `damaged`: the structure is broken beyond repair. `tooLarge`: over one of the limits. `locked`: encrypted.
- * `wrongPassword`: the password does not open it. `cancelled`: the visitor stopped it.
- * @typedef {'unsupported' | 'damaged' | 'tooLarge' | 'locked' | 'wrongPassword' | 'cancelled'} PdfErrorCode
+ * `wrongPassword`: the password does not open it. `cancelled`: the visitor stopped it. `buildFailed`: a file we
+ * wrote did not pass the check before it is offered (plan §6.9).
+ * @typedef {'unsupported' | 'damaged' | 'tooLarge' | 'locked' | 'wrongPassword' | 'cancelled' | 'buildFailed'} PdfErrorCode
  */
 export class PdfError extends Error {
   /** @param {PdfErrorCode} code @param {string} [detail]  For developers; never shown. */
@@ -434,7 +436,19 @@ function dictFrom(lexer, depth) {
 export const isName = (value, name) => value instanceof PdfName && (name === undefined || value.value === name);
 
 /** The bytes of a string object as text of one character per byte. @param {PdfString} string */
-export const stringBytes = (string) => String.fromCharCode(...string.bytes);
+export const stringBytes = (string) => byteString(string.bytes);
+
+/**
+ * A text string as text (§7.9.2.2): UTF-16BE after its byte order mark, UTF-8 after its mark (PDF 2.0), otherwise
+ * PDFDocEncoding, read here as Latin-1, which agrees with it on every printable ASCII character.
+ * @param {PdfString} string
+ */
+export function textOf(string) {
+  const { bytes } = string;
+  if (bytes[0] === 0xfe && bytes[1] === 0xff) return new TextDecoder('utf-16be').decode(bytes.subarray(2));
+  if (bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf) return new TextDecoder('utf-8').decode(bytes.subarray(3));
+  return stringBytes(string);
+}
 
 /* ---------- Writing (§7.3) ---------- */
 
