@@ -2253,6 +2253,58 @@
     display: grid;
   }
 
+  /*
+   * Email header analyzer: the report's sections, the check rows and the route. A line written before the message
+   * reached the visitor's provider says so in words ("could be invented"); the quieter colour only supports that.
+   * No approving colour anywhere: a pass proves a mailbox, not a person.
+   */
+  .email {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-5);
+  }
+
+  .email__check,
+  .email__hop {
+    display: grid;
+    gap: var(--space-1);
+    overflow-wrap: anywhere;
+  }
+
+  .email__check[data-state="claimed"],
+  .email__hop[data-state="claimed"] {
+    color: var(--color-text-muted);
+  }
+
+  .email__claimed {
+    color: var(--color-text-muted);
+    font-size: var(--step--1);
+    font-weight: 600;
+  }
+
+  .email__level {
+    font-weight: 700;
+  }
+
+  .email__headers > summary {
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .email__headers > summary:focus-visible {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  .email__headers > .facts {
+    margin-block-start: var(--space-3);
+  }
+
+  .email__headers .facts dt {
+    font-family: var(--font-mono);
+    overflow-wrap: anywhere;
+  }
+
   /* Attachment checker: names, addresses and commands under a finding, one per line, exactly as found. */
   .attachment__values {
     display: grid;

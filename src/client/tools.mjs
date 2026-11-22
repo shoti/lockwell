@@ -20,6 +20,7 @@ const LOADERS = {
   photo: () => import('./tool-photo.mjs'),
   video: () => import('./tool-video.mjs'),
   attachment: () => import('./tool-attachment.mjs'),
+  email: () => import('./tool-email.mjs'),
   browser: () => import('./tool-browser.mjs'),
 };
 

@@ -835,6 +835,151 @@ function attachmentPanel(ctx) {
       </template>`;
 }
 
+/**
+ * Everything the email header analyzer can find (FINDINGS in src/client/tool-email.mjs, same order), and the other
+ * wordings some of them have (Finding.variant).
+ */
+const EMAIL_FINDINGS = /** @type {const} */ ([
+  ['dmarcFail', 'warn', []], ['spoofedSender', 'warn', []], ['replyElsewhere', 'warn', ['free']], ['nameIsAddress', 'warn', []], ['lookalikeDomain', 'warn', ['script']],
+  ['nameHidden', 'warn', []], ['severalFrom', 'warn', []], ['filterSaidSpam', 'warn', []], ['dkimLength', 'warn', []], ['arcBroken', 'warn', []],
+  ['noChecks', 'note', ['claimed', 'none']], ['partial', 'note', []], ['spfFail', 'note', []], ['spfSoftfail', 'note', []], ['dkimFail', 'note', []],
+  ['freeMailbox', 'note', []], ['signedByOther', 'note', []], ['fakeReply', 'note', []], ['dateOdd', 'note', ['future', 'old']], ['slowHop', 'note', []],
+  ['backwards', 'note', []], ['plainHop', 'note', []], ['privateOrigin', 'note', []], ['forwarded', 'note', []], ['oldDkim', 'note', []],
+  ['bulkSender', 'info', []], ['mailingList', 'info', []], ['autoReply', 'info', []], ['software', 'info', []], ['senderAddress', 'info', []],
+  ['messageIdElsewhere', 'info', []], ['encryptedInTransit', 'info', []],
+]);
+
+/** Result words the analyzer explains, per method (KNOWN_RESULTS in tool-email.mjs). */
+const EMAIL_RESULTS = /** @type {const} */ ({
+  spf: ['pass', 'fail', 'softfail', 'neutral', 'none', 'temperror', 'permerror', 'policy', 'hardfail'],
+  dkim: ['pass', 'fail', 'neutral', 'none', 'policy', 'temperror', 'permerror'],
+  dmarc: ['pass', 'fail', 'none', 'temperror', 'permerror', 'bestguesspass'],
+  arc: ['pass', 'fail', 'none'],
+  compauth: ['pass', 'fail', 'softpass', 'none'],
+});
+
+/** Kinds of IP address (IpClass in src/client/ip.mjs), each shown with one of four plain labels. */
+const EMAIL_IP_CLASSES = /** @type {const} */ ({
+  public: 'classPublic', private: 'classInternal', shared: 'classInternal', loopback: 'classInternal', linkLocal: 'classInternal', uniqueLocal: 'classInternal',
+  documentation: 'classDocumentation', thisNetwork: 'classSpecial', protocol: 'classSpecial', benchmarking: 'classSpecial', relay: 'classSpecial', reserved: 'classSpecial',
+  broadcast: 'classSpecial', unspecified: 'classSpecial', translation: 'classSpecial', discard: 'classSpecial', teredo: 'classSpecial', sixToFour: 'classSpecial', srv6: 'classSpecial',
+});
+
+/** Microsoft's spam-filter values the analyzer explains (research §5): SFV and CAT values, and the other fields. */
+const EMAIL_FILTER_VALUES = /** @type {const} */ ({
+  sfv: ['nspm', 'spm', 'sks', 'skb', 'blk', 'sfe', 'ska', 'ski', 'skn', 'skq'],
+  cat: ['phsh', 'hphsh', 'hphish', 'spoof', 'spm', 'hspm', 'bulk', 'malw', 'amp', 'bimp', 'dimp', 'gimp', 'uimp', 'intos', 'sap', 'ftbp', 'ospm'],
+});
+const EMAIL_FILTER_FIELDS = ['sfv', 'cat', 'scl', 'bcl', 'cip', 'ctry', 'dir', 'sfty', 'x-spam-status'];
+
+/** The rows of "Who sent it", in order; the ones with a same/other note compare with the From address. */
+const EMAIL_IDENTITY = /** @type {const} */ ([['name', false], ['address', false], ['replyTo', true], ['returnPath', true], ['signedBy', false], ['sender', false], ['list', false], ['handoff', false]]);
+
+/** @param {Ctx} ctx */
+function emailPanel(ctx) {
+  const { t } = ctx;
+  /** @param {string} key */
+  const s = (key) => t(`tools.items.email.${key}`);
+  /** data-class-private="…" and so on, on an element that shows an IP address. */
+  const classes = [...Object.entries(EMAIL_IP_CLASSES).map(([name, label]) => html` data-class-${attributeName(name)}="${s(label)}"`), html` data-invalid="${s('classInvalid')}"`];
+  return html`<div class="field">
+        <label class="field__label" for="email__input">${s('input')}</label>
+        <textarea class="textarea" id="email__input" rows="8" autocomplete="off" autocapitalize="off" spellcheck="false" dir="ltr" data-js="email-input"></textarea>
+        <p class="facts__why">${s('inputHint')}</p>
+      </div>
+      <div class="field">
+        <label class="field__label" for="email__file">${s('file')}</label>
+        ${filePicker(ctx, 'email__file', 'email-file', '.eml,.msg,message/rfc822')}
+      </div>
+      <div class="tool__actions">
+        <button class="button button--small" type="button" data-js="email-check">${icons.search}<span>${s('check')}</span></button>
+        <button class="button button--ghost button--small" type="button" data-js="email-clear">${icons.trash}<span>${s('clear')}</span></button>
+      </div>
+      <div class="tool__actions" role="group" aria-label="${t('tools.example')}">
+        <span class="facts__why">${t('tools.example')}:</span>
+        ${[1, 2, 3].map((n) => html`<button class="button button--ghost button--small" type="button" data-js="email-example" data-example="${n - 1}">${icons.eye}<span>${s(`example${n}`)}</span></button>`)}
+      </div>
+      <p class="tool__message" role="status" data-js="email-message" data-empty="${s('messages.empty')}" data-not-headers="${s('messages.notHeaders')}" data-too-large="${s('messages.tooLarge')}" data-read-failed="${s('messages.readFailed')}"></p>
+      <div class="email" data-js="email-report" hidden>
+        <article class="verdict email__verdict" data-js="email-verdict-card">
+          <p class="verdict__summary" data-js="email-verdict" data-warn="${s('verdicts.warn')}" data-unchecked="${s('verdicts.unchecked')}" data-none="${s('verdicts.none')}"></p>
+          <div class="tool__actions">
+            <button class="button button--ghost button--small" type="button" data-js="copy" data-copy-from="email-summary-text" data-status="email-summary-text-status" data-done="${t('tools.copied')}" data-failed="${t('tools.copyFailed')}">${icons.copy}<span>${s('copySummary')}</span></button>
+            <span class="facts__why" role="status" data-js="email-summary-text-status"></span>
+          </div>
+          <pre class="email__summary" data-js="email-summary-text" hidden></pre>
+        </article>
+
+        <section class="file-report__group" aria-labelledby="email__who">
+          <h3 class="file-report__title" id="email__who">${s('whoTitle')}</h3>
+          <dl class="facts" data-js="email-identity">
+            ${EMAIL_IDENTITY.map(([row, compared]) => html`<div class="facts__row" data-row="${row}" hidden><dt>${s(`identity.${row}`)}</dt><dd>${row === 'address'
+              ? html`<span class="verdict__address" data-js="email-address" translate="no" dir="ltr"></span>`
+              : html`<span${row === 'name' ? null : html` class="verdict__address"`} data-js="email-value" translate="no"${row === 'name' ? null : html` dir="ltr"`}></span>`}${compared
+              ? html`<span class="facts__why" data-js="email-same" data-same="${s(`identity.${row}Same`)}" data-other="${s(`identity.${row}Other`)}"></span>`
+              : null}${row === 'handoff' ? html`<span class="facts__why" data-js="email-class"${classes}></span>` : null}</dd></div>`)}
+          </dl>
+        </section>
+
+        <section class="file-report__group" aria-labelledby="email__checks">
+          <h3 class="file-report__title" id="email__checks">${s('checksTitle')}</h3>
+          <p class="facts__why" data-js="email-receiver" data-named="${s('receiver.named')}" data-provider="${s('receiver.provider')}" data-unnamed="${s('receiver.unnamed')}" data-none="${s('receiver.none')}"></p>
+          <ul class="findings email__checks" data-js="email-checks"></ul>
+          <p class="facts__why" data-js="email-checks-none">${s('checksNone')}</p>
+          <template data-js="email-check-template">
+            <li class="email__check">
+              <span class="email__check-head"><strong data-js="email-check-method"${Object.keys(EMAIL_RESULTS).map((method) => html` data-${method}="${s(`methods.${method}`)}"`)}></strong> <code data-js="email-check-result" translate="no"></code></span>
+              <span data-js="email-check-meaning" data-unknown="${s('meanings.unknown')}"${Object.entries(EMAIL_RESULTS).flatMap(([method, results]) => results.map((result) => html` data-${method}-${result}="${s(`meanings.${method}.${result}`)}"`))}></span>
+              <span class="facts__why" data-js="email-check-domain" data-plain="${s('domain.plain')}" data-same="${s('domain.same')}" data-other="${s('domain.other')}"></span>
+              <span class="attachment__values" data-js="email-check-comments" translate="no" dir="ltr"></span>
+              <span class="email__claimed" data-js="email-check-claimed">${s('claimed')}</span>
+            </li>
+          </template>
+        </section>
+
+        <section class="file-report__group" data-js="email-filter" aria-labelledby="email__filter" hidden>
+          <h3 class="file-report__title" id="email__filter">${s('filterTitle')}</h3>
+          <ul class="findings" data-js="email-filter-list"${EMAIL_FILTER_FIELDS.map((field) => html` data-${field}="${s(`filter.${field}`)}"`)}${Object.entries(EMAIL_FILTER_VALUES).flatMap(([field, values]) => values.map((value) => html` data-${field}-${value}="${s(`filter.${field}Values.${value}`)}"`))}></ul>
+        </section>
+
+        <section class="file-report__group" data-js="email-route-section" aria-labelledby="email__route">
+          <h3 class="file-report__title" id="email__route">${s('routeTitle')}</h3>
+          <p class="facts__why">${s('routeHint')}</p>
+          <ol class="findings email__route" data-js="email-route" data-seconds="${s('units.seconds')}" data-minutes="${s('units.minutes')}" data-hours="${s('units.hours')}" data-days="${s('units.days')}"></ol>
+          <p class="facts__why" data-js="email-dates" data-template="${s('dates')}" hidden></p>
+          <template data-js="email-hop-template">
+            <li class="email__hop">
+              <span class="verdict__address" data-js="email-hop-path" data-template="${s('hop.path')}" translate="no" dir="ltr"></span>
+              <span class="facts__why" data-js="email-hop-address" data-template="${s('hop.address')}"${classes}></span>
+              <span class="facts__why" data-js="email-hop-protocol" data-tls-auth="${s('hop.tlsAuth')}" data-tls="${s('hop.tls')}" data-auth="${s('hop.auth')}" data-plain="${s('hop.plain')}" data-unknown="${s('hop.unknown')}"></span>
+              <span class="facts__why" data-js="email-hop-time" data-template="${s('hop.time')}"></span>
+              <span class="facts__why" data-js="email-hop-delay" data-template="${s('hop.delay')}"></span>
+              <span class="email__claimed" data-js="email-hop-claimed">${s('hopClaimed')}</span>
+            </li>
+          </template>
+        </section>
+
+        <section class="file-report__group" data-js="email-findings" aria-labelledby="email__findings">
+          <h3 class="file-report__title" id="email__findings">${s('findingsTitle')}</h3>
+          <ul class="findings">
+            ${EMAIL_FINDINGS.map(([key, level, variants]) => html`<li data-finding="${key}" data-level="${level}" hidden><strong class="email__level">${s(`levels.${level}`)}</strong> <span data-js="email-finding-text" data-template="${s(`findings.${key}`)}"${variants.map((variant) => html` data-${variant}="${s(`findings.${key}${variant[0].toUpperCase()}${variant.slice(1)}`)}"`)}></span></li>`)}
+          </ul>
+        </section>
+
+        <p class="facts__why email__next">${s('next')} <a href="${ctx.url('/guides/phishing/#pause')}">${s('nextPause')}</a> · <a href="${ctx.url('/guides/phishing/#report')}">${s('nextReport')}</a> · <a href="${ctx.url('/tools/link-checker/')}">${t('tools.items.check.title')}</a> · <a href="${ctx.url('/tools/attachment-checker/')}">${t('tools.items.attachment.title')}</a> · <a href="${ctx.url('/guides/sensitive-email/#what-email-reveals')}">${s('nextReveals')}</a></p>
+
+        <details class="email__headers">
+          <summary data-js="email-headers-count" data-template="${s('headersTitle')}"></summary>
+          <p class="facts__why" data-js="email-unread" data-template="${s('unread')}" hidden></p>
+          <dl class="facts" data-js="email-headers"></dl>
+          <template data-js="email-header-template">
+            <div class="facts__row"><dt data-js="email-header-name" translate="no"></dt><dd class="verdict__address" data-js="email-header-value" translate="no" dir="ltr"></dd></div>
+          </template>
+        </details>
+      </div>
+      <p class="tool__note">${s('limit')}</p>`;
+}
+
 /** What the hidden character detector looks for, in the order it is listed (see KINDS in tool-hidden.mjs). */
 const HIDDEN_KINDS = ['zeroWidth', 'bidi', 'tags', 'softHyphen', 'spaces', 'trailing', 'lookalike', 'doubleSpace', 'quotes', 'dashes', 'fullwidth', 'mathLetters', 'compatibility', 'composition', 'dotless', 'georgianCase'];
 
@@ -1151,5 +1296,6 @@ export const PANELS = {
   photo: photoPanel,
   video: videoPanel,
   attachment: attachmentPanel,
+  email: emailPanel,
   browser: browserPanel,
 };
