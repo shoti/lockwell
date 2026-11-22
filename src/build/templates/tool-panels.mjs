@@ -9,6 +9,7 @@
  * translations in one place and the client free of HTML building.
  */
 import { html } from '../html.mjs';
+import { absoluteUrl, localePath } from '../site.mjs';
 import { icons } from './icons.mjs';
 
 /** @typedef {import('./layout.mjs').Ctx} Ctx */
@@ -835,6 +836,211 @@ function attachmentPanel(ctx) {
       </template>`;
 }
 
+/**
+ * Everything the email header analyzer can find (FINDINGS in src/client/tool-email.mjs, same order), and the other
+ * wordings some of them have (Finding.variant).
+ */
+const EMAIL_FINDINGS = /** @type {const} */ ([
+  ['dmarcFail', 'warn', []], ['spoofedSender', 'warn', []], ['replyElsewhere', 'warn', ['free']], ['nameIsAddress', 'warn', []], ['lookalikeDomain', 'warn', ['script']], ['riskyAttachment', 'warn', []],
+  ['nameHidden', 'warn', []], ['severalFrom', 'warn', []], ['filterSaidSpam', 'warn', []], ['dkimLength', 'warn', []], ['arcBroken', 'warn', []],
+  ['noChecks', 'note', ['claimed', 'none']], ['partial', 'note', []], ['spfFail', 'note', []], ['spfSoftfail', 'note', []], ['dkimFail', 'note', []],
+  ['freeMailbox', 'note', []], ['signedByOther', 'note', []], ['fakeReply', 'note', []], ['dateOdd', 'note', ['future', 'old']], ['slowHop', 'note', []],
+  ['backwards', 'note', []], ['plainHop', 'note', []], ['privateOrigin', 'note', []], ['forwarded', 'note', []], ['oldDkim', 'note', []],
+  ['bulkSender', 'info', []], ['mailingList', 'info', []], ['autoReply', 'info', []], ['software', 'info', []], ['senderAddress', 'info', []],
+  ['messageIdElsewhere', 'info', []], ['encryptedInTransit', 'info', []], ['remoteImages', 'info', []],
+]);
+
+/** Result words the analyzer explains, per method (KNOWN_RESULTS in tool-email.mjs). */
+const EMAIL_RESULTS = /** @type {const} */ ({
+  spf: ['pass', 'fail', 'softfail', 'neutral', 'none', 'temperror', 'permerror', 'policy', 'hardfail'],
+  dkim: ['pass', 'fail', 'neutral', 'none', 'policy', 'temperror', 'permerror'],
+  dmarc: ['pass', 'fail', 'none', 'temperror', 'permerror', 'bestguesspass'],
+  arc: ['pass', 'fail', 'none'],
+  compauth: ['pass', 'fail', 'softpass', 'none'],
+});
+
+/** Kinds of IP address (IpClass in src/client/ip.mjs), each shown with one of four plain labels. */
+const EMAIL_IP_CLASSES = /** @type {const} */ ({
+  public: 'classPublic', private: 'classInternal', shared: 'classInternal', loopback: 'classInternal', linkLocal: 'classInternal', uniqueLocal: 'classInternal',
+  documentation: 'classDocumentation', thisNetwork: 'classSpecial', protocol: 'classSpecial', benchmarking: 'classSpecial', relay: 'classSpecial', reserved: 'classSpecial',
+  broadcast: 'classSpecial', unspecified: 'classSpecial', translation: 'classSpecial', discard: 'classSpecial', teredo: 'classSpecial', sixToFour: 'classSpecial', srv6: 'classSpecial',
+});
+
+/** Microsoft's spam-filter values the analyzer explains (research §5): SFV and CAT values, and the other fields. */
+const EMAIL_FILTER_VALUES = /** @type {const} */ ({
+  sfv: ['nspm', 'spm', 'sks', 'skb', 'blk', 'sfe', 'ska', 'ski', 'skn', 'skq'],
+  cat: ['phsh', 'hphsh', 'hphish', 'spoof', 'spm', 'hspm', 'bulk', 'malw', 'amp', 'bimp', 'dimp', 'gimp', 'uimp', 'intos', 'sap', 'ftbp', 'ospm'],
+});
+const EMAIL_FILTER_FIELDS = ['sfv', 'cat', 'scl', 'bcl', 'cip', 'ctry', 'dir', 'sfty', 'x-spam-status'];
+
+/** The rows of "Who sent it", in order; the ones with a same/other note compare with the From address. */
+const EMAIL_IDENTITY = /** @type {const} */ ([['name', false], ['address', false], ['replyTo', true], ['returnPath', true], ['signedBy', false], ['sender', false], ['list', false], ['handoff', false]]);
+
+/**
+ * Where each mail program shows a message's headers, with the menu labels exactly as the vendor writes them, in
+ * English in both languages (research §6 and §14). Only paths confirmed on the vendor's own page are listed.
+ */
+const EMAIL_HOWTO = /** @type {const} */ ([
+  ['gmail', ['Reply', 'More', 'Show original', 'Copy to clipboard']],
+  ['outlook', ['More actions', 'View', 'View message details', 'Message details']],
+  ['outlookClassic', ['File', 'Properties', 'Internet headers']],
+  ['icloud', ['More', 'Show All Headers']],
+  ['yahoo', ['More options', 'View Raw Message']],
+  ['proton', ['More', 'View headers', 'More options', 'View Headers']],
+  ['appleMail', ['View', 'Message', 'All Headers']],
+]);
+
+/**
+ * A sentence with menu labels in it: "{1}" is the first label, shown bold and left untranslated.
+ * @param {string} text
+ * @param {readonly string[]} labels
+ */
+function withLabels(text, labels) {
+  return text.split(/\{(\d)\}/).map((part, index) => (index % 2 ? html`<strong translate="no">${labels[Number(part) - 1]}</strong>` : html`${part}`));
+}
+
+/**
+ * "How to get the headers": static steps shown above the tool, so they work without JavaScript and never move.
+ * @param {Ctx} ctx
+ */
+function emailHowto(ctx) {
+  const { t } = ctx;
+  /** @param {string} key */
+  const s = (key) => t(`tools.items.email.${key}`);
+  return html`<section class="email__howto" aria-labelledby="email__howto">
+        <h2 class="file-report__title" id="email__howto">${s('howto.title')}</h2>
+        <p class="facts__why">${s('howto.intro')}</p>
+        ${EMAIL_HOWTO.map(([client, labels]) => html`<details class="email__client">
+          <summary>${s(`howto.${client}.name`)}</summary>
+          <p>${withLabels(s(`howto.${client}.steps`), labels)}</p>
+        </details>`)}
+        <p class="facts__why">${s('howto.others')}</p>
+      </section>`;
+}
+
+/** @param {Ctx} ctx */
+function emailPanel(ctx) {
+  const { t } = ctx;
+  /** @param {string} key */
+  const s = (key) => t(`tools.items.email.${key}`);
+  /** data-class-private="…" and so on, on an element that shows an IP address. */
+  const classes = [...Object.entries(EMAIL_IP_CLASSES).map(([name, label]) => html` data-class-${attributeName(name)}="${s(label)}"`), html` data-invalid="${s('classInvalid')}"`];
+  return html`<div class="field">
+        <label class="field__label" for="email__input">${s('input')}</label>
+        <textarea class="textarea" id="email__input" rows="8" autocomplete="off" autocapitalize="off" spellcheck="false" dir="ltr" data-js="email-input"></textarea>
+        <p class="facts__why">${s('inputHint')}</p>
+      </div>
+      <div class="field">
+        <label class="field__label" for="email__file">${s('file')}</label>
+        ${filePicker(ctx, 'email__file', 'email-file', '.eml,.msg,message/rfc822')}
+      </div>
+      <div class="tool__actions">
+        <button class="button button--small" type="button" data-js="email-check">${icons.search}<span>${s('check')}</span></button>
+        <button class="button button--ghost button--small" type="button" data-js="email-clear">${icons.trash}<span>${s('clear')}</span></button>
+      </div>
+      <div class="tool__actions" role="group" aria-label="${t('tools.example')}">
+        <span class="facts__why">${t('tools.example')}:</span>
+        ${[1, 2, 3].map((n) => html`<button class="button button--ghost button--small" type="button" data-js="email-example" data-example="${n - 1}">${icons.eye}<span>${s(`example${n}`)}</span></button>`)}
+      </div>
+      <p class="tool__message" role="status" data-js="email-message" data-empty="${s('messages.empty')}" data-not-headers="${s('messages.notHeaders')}" data-too-large="${s('messages.tooLarge')}" data-read-failed="${s('messages.readFailed')}" data-msg-no-headers="${s('messages.msgNoHeaders')}" data-failed="${s('messages.failed')}"></p>
+      <p class="visually-hidden" role="status" data-js="email-announce"></p>
+      <div class="email" data-js="email-report" hidden>
+        <article class="verdict email__verdict" data-js="email-verdict-card">
+          <p class="verdict__summary" data-js="email-verdict" data-warn="${s('verdicts.warn')}" data-unchecked="${s('verdicts.unchecked')}" data-none="${s('verdicts.none')}"></p>
+          <div class="tool__actions">
+            <button class="button button--ghost button--small" type="button" data-js="copy" data-copy-from="email-summary-text" data-status="email-summary-text-status" data-done="${t('tools.copied')}" data-failed="${t('tools.copyFailed')}">${icons.copy}<span>${s('copySummary')}</span></button>
+            <span class="facts__why" role="status" data-js="email-summary-text-status"></span>
+          </div>
+          <pre class="email__summary" data-js="email-summary-text" hidden></pre>
+        </article>
+
+        <section class="file-report__group" aria-labelledby="email__who">
+          <h3 class="file-report__title" id="email__who">${s('whoTitle')}</h3>
+          <dl class="facts" data-js="email-identity">
+            ${EMAIL_IDENTITY.map(([row, compared]) => html`<div class="facts__row" data-row="${row}" hidden><dt>${s(`identity.${row}`)}</dt><dd>${row === 'address'
+              ? html`<span class="verdict__address" data-js="email-address" translate="no" dir="ltr"></span>`
+              : html`<span${row === 'name' ? null : html` class="verdict__address"`} data-js="email-value" translate="no"${row === 'name' ? null : html` dir="ltr"`}></span>`}${compared
+              ? html`<span class="facts__why" data-js="email-same" data-same="${s(`identity.${row}Same`)}" data-other="${s(`identity.${row}Other`)}"></span>`
+              : null}${row === 'handoff' ? html`<span class="facts__why" data-js="email-class"${classes}></span>` : null}</dd></div>`)}
+          </dl>
+        </section>
+
+        <section class="file-report__group" aria-labelledby="email__checks">
+          <h3 class="file-report__title" id="email__checks">${s('checksTitle')}</h3>
+          <p class="facts__why" data-js="email-receiver" data-named="${s('receiver.named')}" data-provider="${s('receiver.provider')}" data-unnamed="${s('receiver.unnamed')}" data-none="${s('receiver.none')}"></p>
+          <ul class="findings email__checks" data-js="email-checks"></ul>
+          <p class="facts__why" data-js="email-checks-none">${s('checksNone')}</p>
+          <template data-js="email-check-template">
+            <li class="email__check">
+              <span class="email__check-head"><strong data-js="email-check-method"${Object.keys(EMAIL_RESULTS).map((method) => html` data-${method}="${s(`methods.${method}`)}"`)}></strong> <code data-js="email-check-result" translate="no"></code></span>
+              <span data-js="email-check-meaning" data-unknown="${s('meanings.unknown')}"${Object.entries(EMAIL_RESULTS).flatMap(([method, results]) => results.map((result) => html` data-${method}-${result}="${s(`meanings.${method}.${result}`)}"`))}></span>
+              <span class="facts__why" data-js="email-check-domain" data-plain="${s('domain.plain')}" data-same="${s('domain.same')}" data-other="${s('domain.other')}"></span>
+              <span class="attachment__values" data-js="email-check-comments" translate="no" dir="ltr"></span>
+              <span class="email__claimed" data-js="email-check-claimed">${s('claimed')}</span>
+            </li>
+          </template>
+        </section>
+
+        <section class="file-report__group" data-js="email-filter" aria-labelledby="email__filter" hidden>
+          <h3 class="file-report__title" id="email__filter">${s('filterTitle')}</h3>
+          <ul class="findings" data-js="email-filter-list"${EMAIL_FILTER_FIELDS.map((field) => html` data-${field}="${s(`filter.${field}`)}"`)}${Object.entries(EMAIL_FILTER_VALUES).flatMap(([field, values]) => values.map((value) => html` data-${field}-${value}="${s(`filter.${field}Values.${value}`)}"`))}></ul>
+        </section>
+
+        <section class="file-report__group" data-js="email-route-section" aria-labelledby="email__route">
+          <h3 class="file-report__title" id="email__route">${s('routeTitle')}</h3>
+          <p class="facts__why">${s('routeHint')}</p>
+          <ol class="findings email__route" data-js="email-route" data-seconds="${s('units.seconds')}" data-minutes="${s('units.minutes')}" data-hours="${s('units.hours')}" data-days="${s('units.days')}"></ol>
+          <p class="facts__why" data-js="email-dates" data-template="${s('dates')}" hidden></p>
+          <template data-js="email-hop-template">
+            <li class="email__hop">
+              <span class="verdict__address" data-js="email-hop-path" data-template="${s('hop.path')}" translate="no" dir="ltr"></span>
+              <span class="facts__why" data-js="email-hop-address" data-template="${s('hop.address')}"${classes}></span>
+              <span class="facts__why" data-js="email-hop-protocol" data-tls-auth="${s('hop.tlsAuth')}" data-tls="${s('hop.tls')}" data-auth="${s('hop.auth')}" data-plain="${s('hop.plain')}" data-unknown="${s('hop.unknown')}"></span>
+              <span class="facts__why" data-js="email-hop-time" data-template="${s('hop.time')}"></span>
+              <span class="facts__why" data-js="email-hop-delay" data-template="${s('hop.delay')}"></span>
+              <span class="email__claimed" data-js="email-hop-claimed">${s('hopClaimed')}</span>
+            </li>
+          </template>
+        </section>
+
+        <section class="file-report__group" data-js="email-findings" aria-labelledby="email__findings">
+          <h3 class="file-report__title" id="email__findings">${s('findingsTitle')}</h3>
+          <ul class="findings">
+            ${EMAIL_FINDINGS.map(([key, level, variants]) => html`<li data-finding="${key}" data-level="${level}" hidden><strong class="email__level">${s(`levels.${level}`)}</strong> <span data-js="email-finding-text" data-template="${s(`findings.${key}`)}"${variants.map((variant) => html` data-${variant}="${s(`findings.${key}${variant[0].toUpperCase()}${variant.slice(1)}`)}"`)}></span></li>`)}
+          </ul>
+        </section>
+
+        <section class="file-report__group" data-js="email-body" aria-labelledby="email__body" hidden>
+          <h3 class="file-report__title" id="email__body">${s('body.title')}</h3>
+          <p class="facts__why" data-js="email-body-unread" hidden>${s('body.unread')}</p>
+          <div class="email__body-part" data-js="email-links" hidden>
+            <p class="field__label" data-js="email-links-title" data-template="${s('body.linksTitle')}"></p>
+            <ul class="findings" data-js="email-links-list" data-ok="${s('body.linkOk')}" data-warn="${s('body.linkWarn')}"></ul>
+            <p class="facts__why" data-js="email-links-more" data-template="${s('body.more')}" hidden></p>
+            <p class="facts__why">${s('body.linksHint')} <a href="${ctx.url('/tools/link-checker/')}">${t('tools.items.check.title')}</a></p>
+          </div>
+          <div class="email__body-part" data-js="email-attachments" hidden>
+            <p class="field__label" data-js="email-attachments-title" data-template="${s('body.attachmentsTitle')}"></p>
+            <ul class="findings" data-js="email-attachments-list" data-risky="${s('body.attachmentRisky')}" data-ok="${s('body.attachmentOk')}" data-unnamed="${s('body.unnamed')}" data-bytes="${s('body.bytes')}" data-kb="${s('body.kb')}" data-mb="${s('body.mb')}"></ul>
+            <p class="facts__why" data-js="email-attachments-more" data-template="${s('body.more')}" hidden></p>
+            <p class="facts__why">${s('body.attachmentsHint')} <a href="${ctx.url('/tools/attachment-checker/')}">${t('tools.items.attachment.title')}</a></p>
+          </div>
+        </section>
+
+        <p class="facts__why email__next">${s('next')} <a href="${ctx.url('/guides/phishing/#pause')}">${s('nextPause')}</a> · <a href="${ctx.url('/guides/phishing/#report')}">${s('nextReport')}</a> · <a href="${ctx.url('/tools/link-checker/')}">${t('tools.items.check.title')}</a> · <a href="${ctx.url('/tools/attachment-checker/')}">${t('tools.items.attachment.title')}</a> · <a href="${ctx.url('/guides/sensitive-email/#what-email-reveals')}">${s('nextReveals')}</a></p>
+
+        <details class="email__headers">
+          <summary data-js="email-headers-count" data-template="${s('headersTitle')}"></summary>
+          <p class="facts__why" data-js="email-unread" data-template="${s('unread')}" hidden></p>
+          <dl class="facts" data-js="email-headers"></dl>
+          <template data-js="email-header-template">
+            <div class="facts__row"><dt data-js="email-header-name" translate="no"></dt><dd class="verdict__address" data-js="email-header-value" translate="no" dir="ltr"></dd></div>
+          </template>
+        </details>
+      </div>
+      <p class="tool__note">${s('limit')}</p>`;
+}
+
 /** What the hidden character detector looks for, in the order it is listed (see KINDS in tool-hidden.mjs). */
 const HIDDEN_KINDS = ['zeroWidth', 'bidi', 'tags', 'softHyphen', 'spaces', 'trailing', 'lookalike', 'doubleSpace', 'quotes', 'dashes', 'fullwidth', 'mathLetters', 'compatibility', 'composition', 'dotless', 'georgianCase'];
 
@@ -1139,6 +1345,505 @@ function browserPanel(ctx) {
       </section>`;
 }
 
+/** Warnings about a typed password (see passwordWarnings in tool-encrypt.mjs), in the order they are listed. */
+const ENCRYPT_WARNINGS = ['tooShort', 'short', 'oneClass', 'run', 'name', 'text', 'edges', 'mismatch'];
+/** What the message line can say (data-* in kebab case on it; see MESSAGES in tool-encrypt.mjs). */
+const ENCRYPT_MESSAGES = [
+  'locking', 'checking', 'opening', 'locked', 'opened', 'needsInput', 'wrongPassword', 'wrongPasswordCaps', 'wrongPasswordLayout', 'damaged', 'notLocked', 'newerVersion', 'tooLarge',
+  'bundleTooLarge', 'unsupported', 'readFailed', 'writeFailed', 'sameTarget', 'cancelled', 'verifyFailed', 'pressAgain', 'busy',
+];
+const ENCRYPT_UNITS = ['b', 'kb', 'mb', 'gb'];
+/** Six words from EFF's long list of 7,776, as the page makes them: written at build time so the line never fills in
+ * after load (rule 4, review C16). A test checks it against passphraseBits. */
+export const ENCRYPT_PASSPHRASE_BITS = Math.floor(6 * Math.log2(7776));
+/** The example's password: shown to everyone, so it is a demonstration and nothing else. */
+const ENCRYPT_EXAMPLE_PASSWORD = 'example-only-pocket-violin-tundra-spark';
+
+/** @param {string} name */
+const kebab = (name) => name.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
+
+/** @param {Ctx} ctx */
+function encryptPanel(ctx) {
+  const { t, site, lang } = ctx;
+  /** @param {string} key */
+  const s = (key) => t(`tools.items.encrypt.${key}`);
+  const page = absoluteUrl(site, localePath(site, lang, '/tools/file-encryption/'));
+  /** A password field with its show/hide button. @param {string} name @param {string} label */
+  const passwordField = (name, label) => html`<div class="field">
+            <label class="field__label" for="encrypt__${name}">${label}</label>
+            <div class="encrypt__password">
+              <input class="input" type="password" id="encrypt__${name}" data-js="encrypt-${name}" autocomplete="${name === 'open-password' ? 'off' : 'new-password'}" autocapitalize="off" autocorrect="off" spellcheck="false" translate="no" dir="ltr">
+              <button class="button button--ghost button--small" type="button" data-js="encrypt-${name}-show" aria-controls="encrypt__${name}" aria-pressed="false" data-show="${s('show')}" data-hide="${s('hide')}">${icons.eye}<span>${s('show')}</span></button>
+            </div>
+          </div>`;
+  return html`<div class="encrypt" data-js="encrypt"${ENCRYPT_UNITS.map((unit) => html` data-${unit}="${s(`units.${unit}`)}"`)}>
+      <fieldset class="field">
+        <legend class="field__label">${s('mode')}</legend>
+        <div class="segmented">
+          ${radio('encrypt-mode', 'encrypt__mode-lock', 'lock', 'encrypt-mode', s('modeLock'), true)}
+          ${radio('encrypt-mode', 'encrypt__mode-open', 'open', 'encrypt-mode', s('modeOpen'), false)}
+        </div>
+      </fieldset>
+      <div class="encrypt__mode" data-js="encrypt-lock">
+        <fieldset class="field">
+          <legend class="field__label">${s('what')}</legend>
+          ${radio('encrypt-what', 'encrypt__what-text', 'text', 'encrypt-what', s('whatText'), true)}
+          ${radio('encrypt-what', 'encrypt__what-file', 'file', 'encrypt-what', s('whatFile'), false)}
+        </fieldset>
+        <div class="field" data-js="encrypt-text-box">
+          <label class="field__label" for="encrypt__text">${s('text')}</label>
+          <textarea class="textarea" id="encrypt__text" rows="5" dir="auto" autocomplete="off" spellcheck="false" data-js="encrypt-text"></textarea>
+          <p class="facts__why" data-js="encrypt-text-size"></p>
+        </div>
+        <div class="field" data-js="encrypt-file-box" hidden>
+          <label class="field__label" for="encrypt__file">${s('file')}</label>
+          ${filePicker(ctx, 'encrypt__file', 'encrypt-file', '', true)}
+          <p class="facts__why" data-js="encrypt-file-size">${s('fileHint')}</p>
+          <ul class="encrypt__files" data-js="encrypt-files" hidden></ul>
+          <template data-js="encrypt-file-template"><li><span data-js="encrypt-file-name" translate="no" dir="ltr"></span> <span class="encrypt__bytes" data-js="encrypt-file-bytes"></span></li></template>
+        </div>
+        <fieldset class="field">
+          <legend class="field__label">${s('passwordKind')}</legend>
+          ${radio('encrypt-password-kind', 'encrypt__kind-made', 'made', 'encrypt-password-kind', s('made'), true)}
+          ${radio('encrypt-password-kind', 'encrypt__kind-own', 'own', 'encrypt-password-kind', s('own'), false)}
+        </fieldset>
+        <div class="tool__result" data-js="encrypt-made">
+          <p class="field__label" id="encrypt__passphrase-label">${s('passphrase')}</p>
+          <p class="tool__value tool__value--secret" data-js="encrypt-passphrase" aria-labelledby="encrypt__passphrase-label" translate="no" dir="ltr"></p>
+          <div class="tool__actions">
+            ${copyButton(ctx, 'encrypt-passphrase')}
+            <button class="button button--ghost button--small" type="button" data-js="encrypt-another">${icons.refresh}<span>${s('another')}</span></button>
+          </div>
+          <p class="tool__status" role="status" data-js="encrypt-passphrase-status"></p>
+          <p class="facts__why" data-js="encrypt-bits" data-template="${s('bits')}">${s('bits').replace('{bits}', String(ENCRYPT_PASSPHRASE_BITS))}</p>
+        </div>
+        <div class="encrypt__own" data-js="encrypt-own" hidden>
+          ${passwordField('password', s('password'))}
+          <div class="field" data-js="encrypt-repeat-box">
+            <label class="field__label" for="encrypt__repeat">${s('repeat')}</label>
+            <input class="input" type="password" id="encrypt__repeat" data-js="encrypt-repeat" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" translate="no" dir="ltr">
+          </div>
+          <ul class="findings" data-js="encrypt-warnings">
+            ${ENCRYPT_WARNINGS.map((key) => html`<li data-warning="${key}" hidden>${s(`warnings.${key}`)}</li>`)}
+          </ul>
+          <p class="facts__why">${s('ownHint')}</p>
+          <p class="facts__why">${s('keyboard')}</p>
+        </div>
+        <div class="field">
+          ${option('encrypt__pad', 'encrypt-pad', s('pad'), false)}
+          <p class="facts__why">${s('padHint')}</p>
+        </div>
+        <p class="tool__note">${s('noRecovery')}</p>
+        <div class="tool__actions">
+          <button class="button" type="button" data-js="encrypt-lock-button" disabled>${icons.lock}<span>${s('lock')}</span></button>
+        </div>
+        <div class="tool__result encrypt__result" data-js="encrypt-locked" hidden>
+          <p class="encrypt__verified" data-js="encrypt-verified" data-full="${s('verified')}" data-ends="${s('verifiedEnds')}"></p>
+          <div class="field" data-js="encrypt-armour-box" hidden>
+            <label class="field__label" for="encrypt__armour">${s('armour')}</label>
+            <textarea class="textarea encrypt__armour" id="encrypt__armour" rows="6" readonly translate="no" dir="ltr" spellcheck="false" data-js="encrypt-armour"></textarea>
+            <div class="tool__actions">
+              ${copyButton(ctx, 'encrypt-armour')}
+              ${shareButton(ctx, 'encrypt-armour-share')}
+            </div>
+            <p class="tool__status" role="status" data-js="encrypt-armour-status"></p>
+            <p class="facts__why" data-js="encrypt-long" data-template="${s('long')}" hidden></p>
+          </div>
+          <div data-js="encrypt-lock-save">
+            ${saveBox(ctx, s('saveLocked'))}
+            <p class="facts__why">${s('nameHint')}</p>
+          </div>
+          <p class="encrypt__verified" data-js="encrypt-lock-saved" hidden>${s('savedLock')}</p>
+          <section class="encrypt__how" aria-labelledby="encrypt__how">
+            <h3 class="file-report__title" id="encrypt__how">${s('howTitle')}</h3>
+            <ol class="encrypt__steps">
+              ${[1, 2, 3].map((n) => html`<li>${s(`how${n}`)}</li>`)}
+            </ol>
+            <p class="field__label" id="encrypt__sentence-label">${s('sentenceLabel')}</p>
+            <p class="tool__value tool__value--text" data-js="encrypt-sentence" aria-labelledby="encrypt__sentence-label">${s('sentence').replace('{url}', page)}</p>
+            <div class="tool__actions">
+              ${copyButton(ctx, 'encrypt-sentence')}
+            </div>
+            <p class="tool__status" role="status" data-js="encrypt-sentence-status"></p>
+          </section>
+        </div>
+      </div>
+      <div class="encrypt__mode" data-js="encrypt-open" hidden>
+        <div class="field">
+          <label class="field__label" for="encrypt__locked-file">${s('lockedFile')}</label>
+          ${filePicker(ctx, 'encrypt__locked-file', 'encrypt-locked-file', '.lockwell')}
+          <p class="facts__why">${s('lockedFileHint')}</p>
+        </div>
+        <div class="field">
+          <label class="field__label" for="encrypt__locked-text">${s('lockedText')}</label>
+          <textarea class="textarea encrypt__armour" id="encrypt__locked-text" rows="4" translate="no" dir="ltr" autocomplete="off" autocapitalize="off" spellcheck="false" data-js="encrypt-locked-text"></textarea>
+          <div class="tool__actions">
+            <button class="button button--ghost button--small" type="button" data-js="encrypt-example" data-password="${ENCRYPT_EXAMPLE_PASSWORD}" data-text="${s('exampleText')}">${icons.eye}<span>${t('tools.example')}</span></button>
+          </div>
+        </div>
+        ${passwordField('open-password', s('password'))}
+        <div class="tool__actions">
+          <button class="button" type="button" data-js="encrypt-open-button" disabled>${icons.lock}<span>${s('open')}</span></button>
+        </div>
+        <div class="tool__result encrypt__result" data-js="encrypt-opened" hidden>
+          <h3 class="file-report__title">${s('inside')}</h3>
+          <dl class="facts">
+            <div class="facts__row"><dt>${s('kind')}</dt><dd data-js="encrypt-kind" data-text="${s('kinds.text')}" data-file="${s('kinds.file')}" data-files="${s('kinds.files')}"></dd></div>
+            <div class="facts__row" data-js="encrypt-name-row"><dt>${s('name')}</dt><dd data-js="encrypt-name" translate="no" dir="ltr"></dd></div>
+            <div class="facts__row"><dt>${s('size')}</dt><dd data-js="encrypt-size"></dd></div>
+          </dl>
+          <p class="tool__note" data-js="encrypt-risky" hidden>${s('risky')} <a href="${ctx.url('/tools/attachment-checker/')}">${t('tools.items.attachment.title')}</a></p>
+          <p class="facts__why" data-js="encrypt-zip-note" hidden>${s('zipNote')}</p>
+          <div class="field" data-js="encrypt-plain-box" hidden>
+            <label class="field__label" for="encrypt__plain">${s('plain')}</label>
+            <textarea class="textarea" id="encrypt__plain" rows="6" readonly dir="auto" spellcheck="false" data-js="encrypt-plain"></textarea>
+            <div class="tool__actions">
+              ${copyButton(ctx, 'encrypt-plain')}
+            </div>
+            <p class="tool__status" role="status" data-js="encrypt-plain-status"></p>
+          </div>
+          <div data-js="encrypt-open-save">${saveBox(ctx, s('saveOpened'))}</div>
+          <p class="encrypt__verified" data-js="encrypt-open-saved" hidden>${s('savedOpen')}</p>
+        </div>
+      </div>
+      <div class="encrypt__progress" data-js="encrypt-progress-box" hidden>
+        <progress class="encrypt__bar" max="1" value="0" data-js="encrypt-progress" aria-label="${s('progressLabel')}"></progress>
+        <p class="facts__why" data-js="encrypt-progress-text" data-template="${s('progress')}"></p>
+        <div class="tool__actions">
+          <button class="button button--ghost button--small" type="button" data-js="encrypt-cancel">${s('cancel')}</button>
+        </div>
+      </div>
+      <p class="tool__message" role="status" data-js="encrypt-message"${ENCRYPT_MESSAGES.map((key) => html` data-${kebab(key)}="${s(`messages.${key}`)}"`)}></p>
+      <div class="tool__actions">
+        <button class="button button--ghost button--small" type="button" data-js="encrypt-reset">${icons.trash}<span>${s('reset')}</span></button>
+      </div>
+    </div>`;
+}
+
+/** Content some tools show above their controls, readable without JavaScript. */
+/** Messages the PDF tools' message line can show. */
+const PDF_MESSAGES = ['added', 'addedOne', 'unsupported', 'pictureUnsupported', 'blocked', 'resized', 'badFit', 'notUnder', 'damaged', 'tooLarge', 'tooMany', 'locked', 'lockedRevision', 'lockedHandler', 'repaired', 'noPreview', 'buildFailed', 'nothingSelected', 'cancelled', 'badRanges', 'badEvery', 'badPosition', 'saved', 'busy'];
+/** What a saved PDF leaves behind, kept and warns about (pdf-copy.mjs, plan §6.5), in the order listed. */
+const PDF_DROPPED = ['bookmarks', 'pageLabels', 'articles', 'structure', 'scripts', 'attachments', 'encryption'];
+const PDF_KEPT = ['pictures', 'comments', 'fields', 'layers'];
+const PDF_WARNINGS = ['signatures', 'annotationsOnce', 'signaturePicture'];
+/** How a saved result is cut into files (pdf-build.mjs `splitPages`). */
+const PDF_MAKE = ['all', 'selected', 'ranges', 'every', 'single', 'source'];
+/** Pages made from pictures (pdf-image.mjs `imageLayout`). */
+const PDF_PICTURE_SIZES = ['fit', 'a4', 'letter'];
+/** How much the pictures inside are made smaller (pdf-compress.mjs). */
+const PDF_COMPRESS = ['none', 'good', 'small', 'fit'];
+const PDF_PICTURE_MARGINS = [['0', 'none'], ['5', 'small'], ['10', 'large']];
+
+/** What the stage can put on a page, and how each item is named in the item list. */
+const PDF_ITEMS = ['ink', 'picture', 'text', 'tick', 'cross', 'stamp'];
+const PDF_FONTS = ['site', 'serif', 'cursive'];
+const PDF_INKS = ['black', 'blue'];
+const PDF_PLACES = ['bottomLeft', 'centre', 'bottomRight'];
+
+/**
+ * The sign-and-stamp stage (plan §7): one page large, what can be added, the chosen item's settings.
+ * @param {Ctx} ctx @param {(key: string) => string} s
+ * @param {(name: string, icon: SafeHtml, label: string) => SafeHtml} action
+ * @param {(name: string, icon: SafeHtml, label: string) => SafeHtml} iconAction
+ * @param {(key: string, tool: string, route: string) => SafeHtml} onward
+ */
+function pdfStage(ctx, s, action, iconAction, onward) {
+  /** @param {string} key */
+  const g = (key) => s(`stage.${key}`);
+  return html`<section class="pdf__stage" data-js="pdf-stage" aria-labelledby="pdf__stage-title" hidden>
+            <h2 class="file-report__title" id="pdf__stage-title" data-js="pdf-stage-title" data-template="${g('title')}"></h2>
+            <div class="tool__actions" role="group" aria-label="${g('add')}">
+              ${action('add-ink', icons.pen, g('ink'))}
+              <label class="button button--ghost button--small" for="pdf__ink-photo" data-js="pdf-add-photo">${icons.image}<span>${g('photo')}</span></label>
+              <input class="visually-hidden" type="file" id="pdf__ink-photo" accept="image/*" data-js="pdf-ink-photo">
+              ${action('add-mine', icons.edit, g('mine'))}
+              <button class="button button--ghost button--small" type="button" data-js="pdf-add-text" data-text="${g('textDefault')}">${icons.type}<span>${g('text')}</span></button>
+              ${action('add-date', icons.calendar, g('date'))}
+              ${action('add-tick', icons.check, g('tick'))}
+              ${action('add-cross', icons.cross, g('cross'))}
+              <button class="button button--ghost button--small" type="button" data-js="pdf-add-stamp" data-text="${g('stampText')}">${icons.stamp}<span>${g('stamp')}</span></button>
+            </div>
+            <p class="facts__why" data-js="pdf-stage-blocked" hidden>${g('noReadBack')}</p>
+            <div class="pdf__pad" data-js="pdf-pad" hidden>
+              <p class="field__label" id="pdf__pad-label">${g('padLabel')}</p>
+              <canvas class="pdf__pad-canvas" data-js="pdf-pad-canvas" width="600" height="200" aria-labelledby="pdf__pad-label" aria-describedby="pdf__pad-hint"></canvas>
+              <p class="facts__why" id="pdf__pad-hint">${g('padHint')}</p>
+              <div class="tool__actions">
+                <button class="button button--small" type="button" data-js="pdf-pad-use">${g('padUse')}</button>
+                <button class="button button--ghost button--small" type="button" data-js="pdf-pad-clear">${g('padClear')}</button>
+                <button class="button button--ghost button--small" type="button" data-js="pdf-pad-close">${g('close')}</button>
+              </div>
+              <p class="facts__why">${g('session')}</p>
+            </div>
+            <div class="pdf__pad" data-js="pdf-ink" hidden>
+              <p class="field__label" id="pdf__ink-label">${g('inkLabel')}</p>
+              <canvas class="pdf__pad-canvas" data-js="pdf-ink-canvas" width="600" height="200" aria-labelledby="pdf__ink-label"></canvas>
+              <label class="field__label" for="pdf__ink-threshold">${g('threshold')}</label>
+              <input class="range" type="range" id="pdf__ink-threshold" min="40" max="240" step="5" value="160" data-js="pdf-ink-threshold">
+              <p class="facts__why" role="status" data-js="pdf-ink-status" data-none="${g('inkNone')}"></p>
+              <div class="tool__actions">
+                <button class="button button--small" type="button" data-js="pdf-ink-use">${g('padUse')}</button>
+                <button class="button button--ghost button--small" type="button" data-js="pdf-ink-close">${g('close')}</button>
+              </div>
+              <p class="facts__why">${g('session')}</p>
+            </div>
+            <div class="tool__actions" role="group" aria-label="${g('zoom')}">
+              ${iconAction('zoom-out', icons.minus, g('zoomOut'))}
+              ${iconAction('zoom-in', icons.plus, g('zoomIn'))}
+            </div>
+            <div class="pdf__view" data-js="pdf-view" data-zoom="1">
+              <canvas class="pdf__view-page" data-js="pdf-view-page" width="100" height="141"></canvas>
+              <canvas class="pdf__view-items" data-js="pdf-view-items" width="100" height="141" tabindex="0" aria-label="${g('canvasLabel')}"></canvas>
+            </div>
+            <p class="facts__why" data-js="pdf-view-outline" hidden>${g('noPreview')}</p>
+            <div class="pdf__props" data-js="pdf-props" hidden>
+              <div class="field">
+                <label class="field__label" for="pdf__item">${g('item')}</label>
+                <select class="select" id="pdf__item" data-js="pdf-item"${PDF_ITEMS.map((key) => html` data-${key}="${g(`items.${key}`)}"`)}></select>
+              </div>
+              <div class="field" data-js="pdf-prop-text">
+                <label class="field__label" for="pdf__item-text">${g('textLabel')}</label>
+                <textarea class="textarea" id="pdf__item-text" rows="2" spellcheck="false" data-js="pdf-item-text"></textarea>
+              </div>
+              <fieldset class="field" data-js="pdf-prop-font">
+                <legend class="field__label">${g('font')}</legend>
+                ${PDF_FONTS.map((key, i) => radio('pdf-item-font', `pdf__item-font-${key}`, key, 'pdf-item-font', g(`fonts.${key}`), i === 0))}
+                ${option('pdf__item-bold', 'pdf-item-bold', g('bold'), false)}
+              </fieldset>
+              <fieldset class="field" data-js="pdf-prop-color">
+                <legend class="field__label">${g('color')}</legend>
+                ${PDF_INKS.map((key, i) => radio('pdf-item-color', `pdf__item-color-${key}`, key, 'pdf-item-color', g(`colors.${key}`), i === 0))}
+              </fieldset>
+              <div class="field" data-js="pdf-prop-opacity">
+                <label class="field__label" for="pdf__item-opacity">${g('opacity')}</label>
+                <input class="range" type="range" id="pdf__item-opacity" min="10" max="100" step="5" value="100" data-js="pdf-item-opacity">
+              </div>
+              <div class="tool__actions" role="group" aria-label="${g('itemActions')}">
+                ${iconAction('item-turn-left', icons.rotateLeft, g('turnLeft'))}
+                ${iconAction('item-turn-right', icons.rotateRight, g('turnRight'))}
+                ${iconAction('item-smaller', icons.minus, g('smaller'))}
+                ${iconAction('item-larger', icons.plus, g('larger'))}
+                ${iconAction('item-duplicate', icons.duplicate, g('duplicate'))}
+                ${iconAction('item-remove', icons.trash, g('remove'))}
+              </div>
+              <div class="tool__actions" role="group" aria-label="${g('place')}">
+                ${PDF_PLACES.map((key) => html`<button class="button button--ghost button--small" type="button" data-js="pdf-place" data-place="${key}">${g(`places.${key}`)}</button>`)}
+              </div>
+              <button class="button button--ghost button--small" type="button" data-js="pdf-item-every" data-done="${g('everyDone')}">${g('every')}</button>
+            </div>
+            <p class="tool__status" role="status" data-js="pdf-stage-status"></p>
+            <p class="facts__why" data-js="pdf-not-digital" hidden>${g('notDigital')}</p>
+            ${onward('stage.liftOff', 'redact', '/tools/image-redaction/')}
+            <div class="tool__actions">
+              <button class="button" type="button" data-js="pdf-stage-done">${icons.check}<span>${g('done')}</span></button>
+            </div>
+          </section>`;
+}
+
+/** @param {Ctx} ctx */
+function pdfPanel(ctx) {
+  const { t } = ctx;
+  /** @param {string} key */
+  const s = (key) => t(`tools.items.pdf.${key}`);
+  /** A button with an icon and a word. @param {string} name @param {SafeHtml} icon @param {string} label */
+  const action = (name, icon, label) =>
+    html`<button class="button button--ghost button--small" type="button" data-js="pdf-${name}">${icon}<span>${label}</span></button>`;
+  /** A button that shows only an icon; its name is read out and shown on hover. @param {string} name @param {SafeHtml} icon @param {string} label */
+  const iconAction = (name, icon, label) =>
+    html`<button class="button button--ghost button--small button--icon" type="button" aria-label="${label}" title="${label}" data-js="pdf-${name}">${icon}</button>`;
+  /** One action of a card's "More" menu. @param {string} name @param {SafeHtml} icon @param {string} label */
+  const menuAction = (name, icon, label) =>
+    html`<button class="button button--ghost button--small" type="button" data-js="pdf-card-action" data-action="${name}">${icon}<span>${label}</span></button>`;
+  /** A sentence with one link to another tool: "{link}" in the string. @param {string} key @param {string} tool @param {string} route */
+  const onward = (key, tool, route) => {
+    const [before, after] = s(key).split('{link}');
+    return html`<p class="facts__why">${before}<a href="${ctx.url(route)}">${t(`tools.items.${tool}.title`)}</a>${after}</p>`;
+  };
+  return html`<div class="field">
+        <label class="field__label" for="pdf__file">${s('file')}</label>
+        ${filePicker(ctx, 'pdf__file', 'pdf-file', 'application/pdf,.pdf,image/*,.heic,.heif', true)}
+        <p class="facts__why">${s('dropHint')}</p>
+        <div class="tool__actions">
+          <button class="button button--ghost button--small" type="button" data-js="pdf-example">${icons.eye}<span>${t('tools.example')}</span></button>
+        </div>
+      </div>
+      <p class="tool__message" role="status" data-js="pdf-message"${PDF_MESSAGES.map((key) => html` data-${kebab(key)}="${s(`messages.${key}`)}"`)}></p>
+      <div class="tool__note pdf__password" role="dialog" aria-labelledby="pdf__password-title" data-js="pdf-password" hidden>
+        <p id="pdf__password-title" data-js="pdf-password-title" data-text="${s('password.title')}"></p>
+        <div class="field">
+          <label class="field__label" for="pdf__password-input">${s('password.label')}</label>
+          <div class="pdf__password-row">
+            <input class="input" type="password" id="pdf__password-input" data-js="pdf-password-input" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" translate="no" dir="ltr" aria-describedby="pdf__password-hint">
+            <button class="button button--ghost button--small" type="button" data-js="pdf-password-show" aria-controls="pdf__password-input" aria-pressed="false" data-show="${s('password.show')}" data-hide="${s('password.hide')}">${icons.eye}<span>${s('password.show')}</span></button>
+          </div>
+        </div>
+        <p class="facts__why" id="pdf__password-hint">${s('password.hint')}</p>
+        <p class="tool__message" role="alert" data-js="pdf-password-wrong" hidden>${s('password.wrong')}</p>
+        <div class="tool__actions">
+          <button class="button button--small" type="button" data-js="pdf-password-open">${s('password.open')}</button>
+          <button class="button button--ghost button--small" type="button" data-js="pdf-password-skip">${s('password.skip')}</button>
+        </div>
+      </div>
+      <div class="tool__note pdf__restart" role="alertdialog" aria-labelledby="pdf__restart" data-js="pdf-restart" hidden>
+        <p id="pdf__restart">${s('restartText')}</p>
+        <div class="tool__actions">
+          <button class="button button--small" type="button" data-js="pdf-restart-no">${s('restartNo')}</button>
+          <button class="button button--ghost button--small" type="button" data-js="pdf-restart-yes">${s('restartYes')}</button>
+        </div>
+      </div>
+      <div class="pdf" data-js="pdf-work" hidden>
+        <div class="pdf__board">
+          <div class="pdf__bar">
+            <div class="tool__actions">
+              ${action('undo', icons.undo, s('undo'))}
+              ${action('redo', icons.redo, s('redo'))}
+            </div>
+            <div class="tool__actions">
+              ${iconAction('select-all', icons.selectAll, s('selectAll'))}
+              ${iconAction('select-none', icons.selectNone, s('selectNone'))}
+              ${iconAction('smaller', icons.minus, s('smaller'))}
+              ${iconAction('larger', icons.plus, s('larger'))}
+              ${action('restart-ask', icons.refresh, s('restart'))}
+            </div>
+          </div>
+          <div class="pdf__pick">
+            <label class="field__label" for="pdf__range">${s('selectRange')}</label>
+            <div class="pdf__row">
+              <input class="input" type="text" id="pdf__range" inputmode="text" autocomplete="off" spellcheck="false" placeholder="1-3, 5" data-js="pdf-range">
+              <button class="button button--ghost button--small" type="button" data-js="pdf-range-select">${s('selectRangeButton')}</button>
+            </div>
+          </div>
+          <div class="tool__actions pdf__actions" role="group" aria-label="${s('actionsGroup')}">
+            ${iconAction('move-start', icons.toStart, s('moveStart'))}
+            ${iconAction('move-left', icons.arrowLeft, s('moveLeft'))}
+            ${iconAction('move-right', icons.arrowRight, s('moveRight'))}
+            ${iconAction('move-end', icons.toEnd, s('moveEnd'))}
+            ${iconAction('rotate-left', icons.rotateLeft, s('rotateLeft'))}
+            ${iconAction('rotate-right', icons.rotateRight, s('rotateRight'))}
+            ${iconAction('duplicate', icons.duplicate, s('duplicate'))}
+            ${iconAction('blank', icons.pagePlus, s('blank'))}
+            ${iconAction('sign', icons.pen, s('sign'))}
+            ${iconAction('remove', icons.trash, s('remove'))}
+          </div>
+          <div class="pdf__row pdf__position">
+            <label class="field__label" for="pdf__position">${s('position')}</label>
+            <input class="input pdf__number" type="number" inputmode="numeric" id="pdf__position" min="1" step="1" data-js="pdf-position">
+            <button class="button button--ghost button--small" type="button" data-js="pdf-position-move">${s('positionButton')}</button>
+          </div>
+          <p class="tool__status" role="status" data-js="pdf-status" data-template="${s('status')}" data-template-one="${s('statusOne')}" data-moved="${s('moved')}" data-moved-many="${s('movedMany')}"></p>
+          ${pdfStage(ctx, s, action, iconAction, onward)}
+          <ol class="pdf__cards" data-js="pdf-cards" data-size="3" aria-label="${s('cards')}" aria-describedby="pdf__help"></ol>
+          <template data-js="pdf-card-template">
+            <li class="pdf__card" data-js="pdf-card" tabindex="-1">
+              <div class="pdf__thumb">
+                <canvas class="pdf__canvas" width="100" height="141" data-js="pdf-card-canvas"></canvas>
+                <span class="pdf__outline" data-js="pdf-card-outline">${s('outline')}</span>
+              </div>
+              <div class="pdf__card-bar">
+                <label class="pdf__check"><input class="checkbox checkbox--small" type="checkbox" data-js="pdf-card-check" data-template="${s('cardLabel')}" data-blank="${s('cardBlank')}"><span class="pdf__number-label" data-js="pdf-card-number"></span></label>
+                <span class="pdf__card-tools">
+                  <button class="button button--ghost button--small button--icon pdf__grip" type="button" aria-label="${s('grip')}" title="${s('grip')}" data-js="pdf-card-grip">${icons.grip}</button>
+                  <details class="pdf__more">
+                    <summary class="button button--ghost button--small button--icon" aria-label="${s('more')}" title="${s('more')}">${icons.more}</summary>
+                    <div class="pdf__menu">
+                      ${menuAction('rotate-left', icons.rotateLeft, s('rotateLeft'))}
+                      ${menuAction('rotate-right', icons.rotateRight, s('rotateRight'))}
+                      ${menuAction('move-start', icons.toStart, s('moveStart'))}
+                      ${menuAction('move-end', icons.toEnd, s('moveEnd'))}
+                      ${menuAction('duplicate', icons.duplicate, s('duplicate'))}
+                      ${menuAction('blank', icons.pagePlus, s('blank'))}
+                      ${menuAction('sign', icons.pen, s('sign'))}
+                      ${menuAction('remove', icons.trash, s('remove'))}
+                    </div>
+                  </details>
+                </span>
+              </div>
+              <p class="pdf__source" translate="no" data-js="pdf-card-source"></p>
+            </li>
+          </template>
+          <div class="tool__actions" role="group" aria-label="${s('wholeGroup')}">
+            ${action('reverse', icons.reverse, s('reverse'))}
+            ${action('interleave', icons.interleave, s('interleave'))}
+          </div>
+          ${option('pdf__interleave-reversed', 'pdf-interleave-reversed', s('interleaveReversed'), true)}
+          <p class="facts__why" id="pdf__help">${s('help')}</p>
+        </div>
+        <div class="pdf__save">
+          <div class="pdf__pictures" data-js="pdf-pictures" hidden>
+            <h2 class="file-report__title">${s('picturesHeading')}</h2>
+            <fieldset class="field">
+              <legend class="field__label">${s('pictureSize')}</legend>
+              ${PDF_PICTURE_SIZES.map((key, i) => radio('pdf-picture-size', `pdf__picture-size-${key}`, key, 'pdf-picture-size', s(`pictureSizes.${key}`), i === 0))}
+            </fieldset>
+            <fieldset class="field">
+              <legend class="field__label">${s('pictureMargin')}</legend>
+              ${PDF_PICTURE_MARGINS.map(([value, key], i) => radio('pdf-picture-margin', `pdf__picture-margin-${value}`, value, 'pdf-picture-margin', s(`pictureMargins.${key}`), i === 0))}
+            </fieldset>
+          </div>
+          <h2 class="file-report__title">${s('saveHeading')}</h2>
+          <fieldset class="field">
+            <legend class="field__label">${s('makeLabel')}</legend>
+            ${PDF_MAKE.map((key, i) => radio('pdf-make', `pdf__make-${key}`, key, 'pdf-make', s(`make.${key}`), i === 0))}
+          </fieldset>
+          <div class="pdf__row">
+            <label class="field__label" for="pdf__ranges">${s('rangesLabel')}</label>
+            <input class="input" type="text" id="pdf__ranges" autocomplete="off" spellcheck="false" placeholder="1-3, 4-" data-js="pdf-ranges" disabled>
+          </div>
+          <div class="pdf__row">
+            <label class="field__label" for="pdf__every">${s('everyLabel')}</label>
+            <input class="input pdf__number" type="number" inputmode="numeric" id="pdf__every" min="1" step="1" value="2" data-js="pdf-every" disabled>
+          </div>
+          <fieldset class="field">
+            <legend class="field__label">${s('compressLabel')}</legend>
+            ${PDF_COMPRESS.map((key, i) => radio('pdf-compress', `pdf__compress-${key}`, key, 'pdf-compress', s(`compress.${key}`), i === 0))}
+          </fieldset>
+          <div class="pdf__row">
+            <label class="field__label" for="pdf__fit">${s('fitLabel')}</label>
+            <input class="input pdf__number" type="number" inputmode="decimal" id="pdf__fit" min="0.1" step="0.1" value="5" data-js="pdf-fit" disabled>
+          </div>
+          <p class="facts__why">${s('compressNote')}</p>
+          <p class="facts__why" data-js="pdf-compress-blocked" hidden>${s('compressBlocked')}</p>
+          <div class="field">
+            <label class="field__label" for="pdf__name">${s('name')}</label>
+            <input class="input" type="text" id="pdf__name" autocomplete="off" spellcheck="false" translate="no" data-js="pdf-name">
+          </div>
+          <div class="tool__actions">
+            <button class="button" type="button" data-js="pdf-create">${icons.pages}<span>${s('create')}</span></button>
+            <button class="button button--ghost button--small" type="button" data-js="pdf-cancel" disabled>${s('cancel')}</button>
+          </div>
+          <progress class="pdf__progress" max="1" value="0" data-js="pdf-progress" aria-label="${s('progress')}" hidden></progress>
+          <div class="pdf__result" data-js="pdf-result" hidden>
+            <canvas class="pdf__result-canvas" width="100" height="141" aria-hidden="true" data-js="pdf-result-canvas"></canvas>
+            <p data-js="pdf-pictures-line" data-template="${s('picturesLine')}" hidden></p>
+            <p data-js="pdf-result-line" data-one-page="${s('resultOnePage')}" data-one="${s('resultOne')}" data-many="${s('resultMany')}"></p>
+            <p class="facts__why">${s('metadataGone')}</p>
+            <div data-js="pdf-dropped" hidden>
+              <h3 class="file-report__title">${s('droppedHeading')}</h3>
+              <ul class="pdf__list">
+                ${PDF_DROPPED.map((key) => html`<li data-js="pdf-dropped-item" data-key="${key}" hidden>${s(`dropped.${key}`)}</li>`)}
+                <li data-js="pdf-links-removed" data-one="${s('linkRemoved')}" data-template="${s('linksRemoved')}" hidden></li>
+              </ul>
+            </div>
+            <ul class="pdf__list" data-js="pdf-kept" hidden>
+              ${PDF_KEPT.map((key) => html`<li data-js="pdf-kept-item" data-key="${key}" hidden>${s(`kept.${key}`)}</li>`)}
+            </ul>
+            <ul class="pdf__list pdf__warnings" data-js="pdf-warnings" hidden>
+              ${PDF_WARNINGS.map((key) => html`<li data-js="pdf-warning-item" data-key="${key}" hidden>${icons.alert}<span>${s(`warnings.${key}`)}</span></li>`)}
+            </ul>
+            <ol class="pdf__files" data-js="pdf-files" hidden></ol>
+            ${saveBox(ctx, s('saveButton'))}
+          </div>
+          ${onward('redactLink', 'redact', '/tools/image-redaction/')}
+          ${onward('encryptLink', 'encrypt', '/tools/file-encryption/')}
+          ${onward('documentLink', 'document', '/tools/document-metadata/')}
+        </div>
+      </div>
+      <span hidden data-js="pdf-units"${ENCRYPT_UNITS.map((unit) => html` data-${unit}="${s(`units.${unit}`)}"`)}></span>`;
+}
+
+export const INTROS = /** @type {Partial<Record<import('../tools.mjs').Tool['key'], (ctx: Ctx) => SafeHtml>>} */ ({ email: emailHowto });
+
 /** @type {Record<import('../tools.mjs').Tool['key'], (ctx: Ctx) => SafeHtml>} */
 export const PANELS = {
   password: passwordPanel,
@@ -1147,9 +1852,12 @@ export const PANELS = {
   redact: redactPanel,
   editor: editorPanel,
   document: documentPanel,
+  pdf: pdfPanel,
   hidden: hiddenPanel,
   photo: photoPanel,
   video: videoPanel,
   attachment: attachmentPanel,
+  email: emailPanel,
+  encrypt: encryptPanel,
   browser: browserPanel,
 };

@@ -3,6 +3,84 @@
 Notable changes to the site's content and behaviour. Each guide also shows the
 date its sources were last checked.
 
+## Unreleased: PDF tools (November 2026)
+
+### Tools
+- New PDF tools page (`/tools/pdf-tools/`, in "Before you share", a wide page).
+  Add PDFs and pictures; every page becomes a card on a board that can be
+  reordered by dragging or by keyboard, rotated, duplicated, deleted, with
+  blank pages and undo. Save one PDF, the selected pages, page ranges, every
+  N pages, one file per page or one per source (several files come as a ZIP).
+- Photos and scans become PDF pages (fit, A4 or Letter, with margins): JPEG and
+  simple PNG go in unchanged once the photo tool has cleaned them, so no
+  location or camera details reach the PDF; other pictures are drawn again.
+- Sign and stamp: a signature drawn on the screen or photographed on paper,
+  text, the date, a tick or a cross and a "copy" stamp, placed on the page,
+  turned, sized, and put on several pages at once. A signature added here is a
+  picture on the page, not a digital signature, and the page says so.
+- Smaller files: saving always drops what is not needed, without loss; the
+  pictures inside can be made smaller (Good, Small, or as good as fits under a
+  size). Where the browser blocks reading pictures back (Tor Browser, Firefox
+  with resistFingerprinting) the picture levels are off and the reason shown.
+- Password-protected PDFs (revisions 2 to 4: RC4 and AES-128) open with their
+  password; restricted ones are read like any other. The saved copy is never
+  encrypted, and the result says so. AES-256 files (revisions 5 and 6) and
+  certificate-locked ones are refused with a message.
+- The saved copy is written by Lockwell's own PDF code: it keeps comments, form
+  fields and layers, drops the title, author, software, dates, XMP and the
+  original's file ID,
+  and never carries bookmarks, attachments, scripts or the structure tree;
+  the result lists what was left out. Every saved file is read back and checked
+  before it is offered.
+- Page previews are drawn by a self-hosted copy of Mozilla's PDF.js 6.5.438
+  (`src/vendor/pdfjs/`), loaded only on this page, under the site's unchanged
+  CSP and Trusted Types. It is the only third-party code on the site and it
+  only draws. The "no dependencies" wording in README, CONTRIBUTING and
+  package.json now says so.
+
+## Unreleased: file encryption (November 2026)
+
+### Tools
+- New file and text encryption tool (`/tools/file-encryption/`, in "Before you
+  share" after Document metadata). It locks a text, a file or several files
+  (put in one ZIP archive) with a password in the browser and opens what it
+  locked. The default password is six random words; a typed one gets
+  warnings, never a "strong" label. Every result is opened again and compared
+  with the input before it is offered. Locked text survives chats and mail;
+  large files go straight to a file chosen in the save dialog where the
+  browser has one (no limit of ours), and up to 1 GB elsewhere. Names of
+  opened files are checked like the attachment checker's. Only the browser's
+  own Web Crypto is used (PBKDF2-HMAC-SHA-256, HKDF, AES-256-GCM in 64 KiB
+  chunks); nothing is uploaded.
+- The format is public: `docs/ENCRYPTED-FORMAT.md`, with a test vector, and
+  `scripts/lockbox-open.mjs`, a reference decryptor for Node 22.
+- Saving: an exact-name mode and a "neutral name by default" option in the
+  shared save box.
+- "Hide the exact size" pads a locked file with Padmé (from the PURBs paper),
+  for at most 12% more, so its size shows only roughly how large the content
+  is. Files without padding are unchanged; readers already accepted padding.
+- Guides now link to the new tools: sharing documents and email attachments
+  to file encryption, what email reveals and phishing to the email header
+  analyzer. The tools page description no longer lists single tools.
+
+## Unreleased: email header analyzer (November 2026)
+
+### Tools
+- New email header analyzer (`/tools/email-headers/`, in "Check something
+  suspicious" after the attachment checker). Paste a message's headers or the
+  whole message, or drop an `.eml` or Outlook `.msg` file. It shows who the
+  message says it is from, what the receiving provider's SPF, DKIM, DMARC, ARC
+  and Microsoft composite checks found, the spam filter's verdict, the route
+  the message took, and plain-language findings (spoofed sender, reply going
+  elsewhere, lookalike domains, risky attachment names, forwarded or mailing
+  list mail). Results written by servers the receiving provider doesn't run
+  are shown as claims, not checks. With a whole message it also lists the
+  links and attachment names. A short guide on the page, which works without
+  JavaScript, shows where seven mail apps and sites show the full headers.
+  Nothing is uploaded and no lookups are made.
+- The attachment checker's file-name checks moved into a shared module so the
+  email tool can use them; that tool is unchanged.
+
 ## Unreleased: photo editor (November 2026)
 
 ### Tools

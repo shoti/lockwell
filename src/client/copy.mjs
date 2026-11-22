@@ -28,6 +28,9 @@ export function initCopy(root) {
       } catch (error) {
         console.warn('[lockwell] Could not write to the clipboard; asking the visitor to copy by hand.', error);
         copied = false;
+        // The message asks the visitor to select the text: a hidden source (the email summary) is shown for that.
+        // Revealed in answer to their own press (review E24).
+        if (source instanceof HTMLElement && source.hidden) source.hidden = false;
       }
       if (!status) return;
       status.textContent = (copied ? button.dataset.done : button.dataset.failed) ?? '';

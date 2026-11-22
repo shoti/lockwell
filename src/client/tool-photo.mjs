@@ -1572,7 +1572,7 @@ const MIN_SECRET = 6;
  * @param {Uint8Array} clean
  * @param {Findings} findings
  */
-function stillThere(clean, findings) {
+export function stillThere(clean, findings) {
   const values = [...new Set(findings.secrets.map((value) => value.trim()))].filter((value) => value.length >= MIN_SECRET);
   return values.some((value) => encodings(value).some((needle) => containsBytes(clean, needle))) || findings.rawSecrets.some((raw) => containsBytes(clean, raw));
 }

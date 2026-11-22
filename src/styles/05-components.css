@@ -2253,6 +2253,182 @@
     display: grid;
   }
 
+  /*
+   * Email header analyzer: the report's sections, the check rows and the route. A line written before the message
+   * reached the visitor's provider says so in words ("could be invented"); the quieter colour only supports that.
+   * No approving colour anywhere: a pass proves a mailbox, not a person.
+   */
+  .email {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-5);
+  }
+
+  .email__check,
+  .email__hop {
+    display: grid;
+    gap: var(--space-1);
+    overflow-wrap: anywhere;
+  }
+
+  .email__check[data-state="claimed"],
+  .email__hop[data-state="claimed"] {
+    color: var(--color-text-muted);
+  }
+
+  .email__claimed {
+    color: var(--color-text-muted);
+    font-size: var(--step--1);
+    font-weight: 600;
+  }
+
+  .email__level {
+    font-weight: 700;
+  }
+
+  .email__howto {
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .email__client > p {
+    margin-block: var(--space-2);
+    padding-inline-start: var(--space-4);
+  }
+
+  .email__client > summary,
+  .email__headers > summary {
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .email__client > summary:focus-visible,
+  .email__headers > summary:focus-visible {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  .email__headers > .facts {
+    margin-block-start: var(--space-3);
+  }
+
+  .email__headers .facts dt {
+    font-family: var(--font-mono);
+    overflow-wrap: anywhere;
+  }
+
+  /* A choice between two or three modes, made of real radio buttons, drawn like the guides' platform tabs. */
+  .segmented {
+    display: flex;
+    gap: 2px;
+    width: fit-content;
+    max-width: 100%;
+    padding: 4px;
+    border-radius: var(--radius-full);
+    background: var(--color-surface-2);
+  }
+
+  .segmented .option {
+    position: relative;
+    min-height: 2.5rem;
+    padding-inline: var(--space-5);
+    border-radius: var(--radius-full);
+    color: var(--color-text-muted);
+    font-size: var(--step--1);
+    font-weight: 600;
+  }
+
+  /* The radio stays in charge (keyboard, screen readers) but is drawn by its label. */
+  .segmented .radio {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+  }
+
+  .segmented .option:hover {
+    color: var(--color-text);
+  }
+
+  .segmented .option:has(.radio:focus-visible) {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  /* The accent underline marks the choice with 3:1 contrast, as on the tabs. */
+  .segmented .option:has(.radio:checked) {
+    background: var(--color-surface);
+    color: var(--color-text);
+    box-shadow: inset 0 -2px 0 var(--color-accent), var(--shadow-sm);
+  }
+
+  /* File encryption: the mode in use, then its controls and result. */
+  .encrypt,
+  .encrypt__mode,
+  .encrypt__own {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-5);
+  }
+
+  .encrypt__password {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .encrypt__password .input {
+    flex: 1 1 14rem;
+    width: auto;
+    font-family: var(--font-mono);
+  }
+
+  .encrypt__armour {
+    font-family: var(--font-mono);
+    font-size: var(--step--1);
+    overflow-wrap: anywhere;
+  }
+
+  .encrypt__verified {
+    font-weight: 600;
+  }
+
+  .encrypt__steps {
+    display: grid;
+    gap: var(--space-2);
+    padding-inline-start: var(--space-6);
+  }
+
+  .encrypt__how {
+    display: grid;
+    gap: var(--space-3);
+  }
+
+  .encrypt__files {
+    display: grid;
+    gap: var(--space-1);
+    padding: 0;
+    list-style: none;
+    font-size: var(--step--1);
+    overflow-wrap: anywhere;
+  }
+
+  .encrypt__bytes {
+    color: var(--color-text-muted);
+  }
+
+  .encrypt__progress {
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .encrypt__bar {
+    width: 100%;
+    height: 0.75rem;
+    accent-color: var(--color-accent);
+  }
+
   /* Attachment checker: names, addresses and commands under a finding, one per line, exactly as found. */
   .attachment__values {
     display: grid;
@@ -2978,5 +3154,346 @@
     to {
       transform: translateY(-0.25rem) rotate(-3deg);
     }
+  }
+
+  /* PDF tools: on a phone everything in one column; from 64rem the board of pages on the left, saving on the right. */
+  .pdf,
+  .pdf__board,
+  .pdf__save,
+  .pdf__pick,
+  .pdf__password:not([hidden]) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3);
+  }
+
+  .pdf__password-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    max-inline-size: 32rem;
+  }
+
+  .pdf__password-row .input {
+    flex: 1 1 14rem;
+    width: auto;
+    font-family: var(--font-mono);
+  }
+
+  .pdf__pictures:not([hidden]) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-4);
+    align-content: start;
+  }
+
+  .pdf {
+    gap: var(--space-6);
+  }
+
+  .pdf__pick {
+    gap: var(--space-2);
+  }
+
+  @media (min-width: 64rem) {
+    .pdf {
+      grid-template-columns: minmax(0, 1fr) 20rem;
+    }
+  }
+
+  .pdf__bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+
+  .pdf__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  /* Scoped to the row, or .input's width (declared later) wins. */
+  .pdf__row .input {
+    flex: 1;
+    min-inline-size: 0;
+  }
+
+  .pdf__row .pdf__number {
+    flex: none;
+    inline-size: 6rem;
+  }
+
+  /* The board: a grid of page cards that grows with the page, so focus rings are never cut off by a scrolling box.
+     Card sizes are steps on data-size (no inline styles). */
+  .pdf__cards {
+    --card: 9rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(var(--card), 100%), 1fr));
+    gap: var(--space-4);
+    min-block-size: 8rem;
+    margin: 0;
+    padding: var(--space-3);
+    list-style: none;
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-2);
+  }
+
+  .pdf__cards[data-size="1"] { --card: 6rem; }
+  .pdf__cards[data-size="2"] { --card: 7.5rem; }
+  .pdf__cards[data-size="3"] { --card: 9rem; }
+  .pdf__cards[data-size="4"] { --card: 12rem; }
+  .pdf__cards[data-size="5"] { --card: 16rem; }
+
+  .pdf__card {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
+    min-inline-size: 0;
+    gap: var(--space-1);
+    padding: var(--space-2);
+    border: 2px solid transparent;
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+  }
+
+  .pdf__card.is-selected {
+    border-color: var(--color-accent);
+    background: var(--color-accent-soft);
+  }
+
+  .pdf__card.is-dragging {
+    opacity: 0.5;
+  }
+
+  /* Where a dragged card will land: a bar in the gap before or after the card under the pointer. */
+  .pdf__card.is-drop-before::before,
+  .pdf__card.is-drop-after::after {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    inline-size: 4px;
+    border-radius: 2px;
+    background: var(--color-accent);
+  }
+
+  .pdf__card.is-drop-before::before {
+    inset-inline-start: calc(-1 * var(--space-3));
+  }
+
+  .pdf__card.is-drop-after::after {
+    inset-inline-end: calc(-1 * var(--space-3));
+  }
+
+  /* The canvas holds the page's shape from its own width and height before the preview arrives, so nothing jumps.
+     Paper is white in both themes. */
+  /* A canvas is as wide as its drawing unless told otherwise: minmax(0, 1fr) and min-inline-size: 0 keep it inside a
+     narrow card. */
+  .pdf__thumb {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    place-items: center;
+  }
+
+  .pdf__thumb > * {
+    grid-area: 1 / 1;
+    min-inline-size: 0;
+  }
+
+  .pdf__canvas,
+  .pdf__result-canvas {
+    display: block;
+    inline-size: 100%;
+    block-size: auto;
+    background: #ffffff;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .pdf__outline {
+    display: none;
+    padding: var(--space-1);
+    color: #4a4a4a;
+    font-size: var(--step--1);
+    text-align: center;
+  }
+
+  .pdf__card.is-outline .pdf__canvas {
+    outline: 1px dashed var(--color-border-strong);
+    outline-offset: -1px;
+  }
+
+  .pdf__card.is-outline .pdf__outline {
+    display: block;
+  }
+
+  /* Sign and stamp: the page large, with what is added drawn on a second canvas above it. */
+  .pdf__stage:not([hidden]) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3);
+    padding: var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+  }
+
+  /* Zoomed, the page is wider than the view, which scrolls; the canvases are drawn again at the new size. */
+  .pdf__view {
+    display: grid;
+    justify-content: safe center;
+    max-block-size: 85vh;
+    padding: var(--space-1);
+    overflow: auto;
+  }
+
+  .pdf__view > canvas {
+    grid-area: 1 / 1;
+    display: block;
+    inline-size: 100%;
+    block-size: auto;
+  }
+
+  .pdf__view[data-zoom="1"] { grid-template-columns: minmax(0, 1fr); }
+  .pdf__view[data-zoom="1.5"] { grid-template-columns: 150%; }
+  .pdf__view[data-zoom="2"] { grid-template-columns: 200%; }
+  .pdf__view[data-zoom="3"] { grid-template-columns: 300%; }
+  .pdf__view[data-zoom="4"] { grid-template-columns: 400%; }
+
+  .pdf__view-page {
+    background: #ffffff;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .pdf__view-items {
+    touch-action: none;
+  }
+
+  .pdf__pad:not([hidden]),
+  .pdf__props:not([hidden]) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-2);
+  }
+
+  .pdf__pad-canvas {
+    display: block;
+    inline-size: 100%;
+    block-size: auto;
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-sm);
+    background: #ffffff;
+    touch-action: none;
+  }
+
+  /* In a narrow card the grip and the menu wrap below the checkbox. */
+  .pdf__card-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1);
+  }
+
+  .pdf__card-tools {
+    display: flex;
+    gap: var(--space-1);
+  }
+
+  .pdf__check {
+    display: flex;
+    flex: 1 0 auto;
+    align-items: center;
+    gap: var(--space-1);
+    min-inline-size: 0;
+    font-size: var(--step--1);
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+  }
+
+  .pdf__grip {
+    touch-action: none;
+    cursor: grab;
+  }
+
+  .pdf__more {
+    position: relative;
+  }
+
+  .pdf__more > summary {
+    list-style: none;
+  }
+
+  .pdf__more > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .pdf__menu {
+    position: absolute;
+    z-index: 2;
+    inset-block-start: 100%;
+    inset-inline-end: 0;
+    display: grid;
+    gap: var(--space-1);
+    min-inline-size: 14rem;
+    padding: var(--space-2);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+    box-shadow: var(--shadow);
+  }
+
+  .pdf__menu .button {
+    justify-content: flex-start;
+  }
+
+  .pdf__source {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: var(--step--1);
+    overflow-wrap: anywhere;
+  }
+
+  .pdf__progress {
+    inline-size: 100%;
+  }
+
+  .pdf__result {
+    display: grid;
+    gap: var(--space-3);
+    padding-block-start: var(--space-4);
+    border-block-start: 1px solid var(--color-border);
+  }
+
+  .pdf__result-canvas {
+    inline-size: min(12rem, 100%);
+  }
+
+  .pdf__list {
+    display: grid;
+    gap: var(--space-1);
+    margin: 0;
+    padding-inline-start: var(--space-5);
+  }
+
+  .pdf__warnings {
+    padding-inline-start: 0;
+    list-style: none;
+  }
+
+  .pdf__warnings li {
+    display: flex;
+    gap: var(--space-2);
+  }
+
+  .pdf__files {
+    display: grid;
+    gap: var(--space-1);
+    margin: 0;
+    padding-inline-start: var(--space-5);
+    overflow-wrap: anywhere;
   }
 }

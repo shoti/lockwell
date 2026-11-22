@@ -16,7 +16,9 @@ For content, read [docs/CONTENT-GUIDE.md](docs/CONTENT-GUIDE.md) first.
 ## Run it locally
 
 Requires [Node.js](https://nodejs.org) 22 or newer. There is nothing to
-install: the project has **no dependencies**.
+install: Lockwell's own code has **no dependencies**. (One page, the PDF tools,
+uses a self-hosted copy of Mozilla's PDF.js to draw page previews. It is
+vendored in `src/vendor/pdfjs/`, not installed.)
 
 ```sh
 npm run dev     # build, serve at http://localhost:4000, rebuild on changes
@@ -40,7 +42,10 @@ These are deliberate. Please keep them in pull requests.
 
 1. **No dependencies.** The build and dev server use only Node's built-in
    modules; the site uses plain HTML, CSS and JavaScript. Proposing a
-   dependency needs an issue and a strong reason first.
+   dependency needs an issue and a strong reason first. The one exception: the
+   PDF tools page draws page previews with a self-hosted copy of Mozilla's
+   PDF.js (`src/vendor/pdfjs/`, updated with `node scripts/update-pdfjs.mjs`).
+   Lockwell's own code still writes every file the tools save.
 2. **No third-party requests.** No CDNs, analytics, external fonts or embeds.
    Everything is served from our own domain. The tests enforce this.
 3. **Works without JavaScript.** Pages are complete static HTML. JS only adds
@@ -97,6 +102,7 @@ src/build/        static site generator (Node, no dependencies)
   templates/        page templates
 src/client/       browser JavaScript (ES modules); tool-*.mjs load only on their tool's page
 src/styles/       CSS, concatenated in file-name order
+src/vendor/pdfjs/ Mozilla's PDF.js, vendored for the PDF tools' previews (see VERSION)
 src/public/       files copied as-is (fonts, icons, social images)
 scripts/          one-off maintenance scripts (font subsetting)
 tests/            node:test tests

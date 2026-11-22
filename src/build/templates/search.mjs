@@ -33,7 +33,7 @@ export function searchPage(ctx) {
   <h2 class="visually-hidden">${t('search.all')}</h2>
   <ul class="search-results" role="list" data-js="search-results">
     ${searchEntries(content, lang, t).map(
-      (entry) => html`<li class="search-result" data-js="search-entry" data-title="${entry.title.toLowerCase()}" data-text="${compactSearchText(entry.text.toLowerCase(), entry.title.toLowerCase())}">
+      (entry) => html`<li class="search-result" data-js="search-entry" data-text="${compactSearchText(entry.text.toLowerCase(), entry.title.toLowerCase())}">
       <p class="search-result__kind">${t(`search.kind.${entry.kind}`)}${entry.context ? html` · ${entry.context}` : null}</p>
       <a class="search-result__link" href="${url(entry.route)}${entry.hash ? `#${entry.hash}` : ''}">${entry.title}</a>
       ${entry.summary ? html`<p class="search-result__summary">${entry.summary}</p>` : null}

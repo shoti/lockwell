@@ -61,6 +61,7 @@ export async function writeAssets(outDir, site) {
   const css = await readStyles();
   await writeFile(join(outDir, 'assets', 'site.css'), css);
   const jsVersion = await writeClientModules(join(outDir, 'assets', 'js'));
+  await writeVendor(join(outDir, 'assets', 'vendor'));
 
   /** @type {Record<string, string | null>} */
   const ogImages = {};
@@ -107,6 +108,31 @@ async function writeClientModules(dir) {
   const sources = await Promise.all(files.map((name) => readFile(join(PATHS.client, name), 'utf8')));
   const version = shortHash(sources.join('\n'));
   await Promise.all(files.map((name, i) => writeFile(join(dir, name), versionImports(sources[i], version))));
+  return version;
+}
+
+/**
+ * Copies third-party code that is vendored unchanged (src/vendor/, today only PDF.js for the PDF tools' previews)
+ * into a folder named with its version, `pdfjs-6.5.438`: the library loads some files by putting a name after a
+ * folder URL, so a version in the folder, not a ?v= query, is what keeps a cached old copy from being used. The
+ * files are copied byte for byte; `versionImports` never touches them.
+ * @param {string} dir  dist/assets/vendor
+ */
+async function writeVendor(dir) {
+  for (const name of await readdir(PATHS.vendor).catch(() => [])) {
+    if (name.startsWith('.')) continue;
+    const version = vendorVersion(await readFile(join(PATHS.vendor, name, 'VERSION'), 'utf8'));
+    await cp(join(PATHS.vendor, name), join(dir, `${name}-${version}`), { recursive: true, filter: (source) => basename(source) !== '.DS_Store' });
+  }
+}
+
+/**
+ * The version on the first line of a vendored folder's VERSION file ("pdfjs-dist 6.5.438").
+ * @param {string} text
+ */
+export function vendorVersion(text) {
+  const version = /^\S+ (\d+\.\d+\.\d+)$/m.exec(text.split('\n')[0])?.[1];
+  if (!version) throw new Error('src/vendor/*/VERSION must start with "<package> <x.y.z>"; run the update script again.');
   return version;
 }
 

@@ -8,9 +8,10 @@ node_modules/
 .dist-build-*
 
 # Internal notes kept out of the repository: AI assistant config, planning,
-# research logs and reviews. Only the contributor guide in docs/ is published.
+# research logs and reviews. Only the contributor guide and the encrypted-file format in docs/ are published.
 .claude/
 CLAUDE.md
 REVIEW.md
 /docs/*
 !/docs/CONTENT-GUIDE.md
+!/docs/ENCRYPTED-FORMAT.md

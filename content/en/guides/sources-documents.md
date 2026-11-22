@@ -103,9 +103,10 @@ FPF says sharing information can be less risky than sharing documents. Ask wheth
 
 1. Publish only what the story needs. OpenNews warns that details which don't identify anyone on their own can be pieced together with public information.
 2. Send files over Signal rather than email. Ordinary email isn't end-to-end encrypted; FPF compares it to a postcard.
-3. Clean or recreate a copy before you show it to anyone outside the team. Keep in mind that a cleaned copy holds less of what's needed to check where a document came from.
-4. Signal warns that disappearing messages don't stop the other person from photographing the screen: see [Set disappearing messages as the default](/guides/sensitive-conversations/#disappearing-default).
-5. Don't scan QR codes inside documents you receive with a device that is online. [SecureDrop warns](https://docs.securedrop.org/en/stable/journalist/documents.html) they can contain malicious links that reveal who your sources are.
+3. If a file has to go by email or another channel that isn't end-to-end encrypted, lock it first with our [file encryption tool](/tools/file-encryption/) and give the password another way, such as in person or over Signal. It hides the file's content and name, not that you sent something, to whom or when.
+4. Clean or recreate a copy before you show it to anyone outside the team. Keep in mind that a cleaned copy holds less of what's needed to check where a document came from.
+5. Signal warns that disappearing messages don't stop the other person from photographing the screen: see [Set disappearing messages as the default](/guides/sensitive-conversations/#disappearing-default).
+6. Don't scan QR codes inside documents you receive with a device that is online. [SecureDrop warns](https://docs.securedrop.org/en/stable/journalist/documents.html) they can contain malicious links that reveal who your sources are.
 
 Encryption protects a file on its way, not what the recipient does with it afterwards.
 

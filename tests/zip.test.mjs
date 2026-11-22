@@ -8,7 +8,8 @@
 import assert from 'node:assert/strict';
 import { deflateRawSync } from 'node:zlib';
 import { describe, it } from 'node:test';
-import { ZipError, readZip, scanZip, unzip } from '../src/client/zip.mjs';
+import { crc32 } from '../src/client/bytes.mjs';
+import { FLAG_UTF8, ZipError, readZip, scanZip, unzip, writeZip, zipBlob } from '../src/client/zip.mjs';
 
 /** @param {number} n */
 const u16 = (n) => [n & 0xff, (n >>> 8) & 0xff];
@@ -103,5 +104,32 @@ describe('readZip and unzip', () => {
   it('never decompresses an encrypted entry', async () => {
     const { entries } = scanZip(archive([{ name: 'a', text: 'x', flags: 1 }]));
     await assert.rejects(unzip(entries[0], 1000), (error) => error instanceof ZipError && error.code === 'locked');
+  });
+});
+
+describe('zipBlob (review C8, C9)', () => {
+  const encoder = new TextEncoder();
+  /** @param {string} name @param {Uint8Array} data */
+  const entry = (name, data) => ({ name, rawName: encoder.encode(name), flags: FLAG_UTF8, method: 0, crc: crc32(data), size: data.length, data });
+
+  it('writes the same bytes as writeZip, with the entries left as Blobs', async () => {
+    const a = new Uint8Array(3000).map((_, i) => i % 251);
+    const b = encoder.encode('second file');
+    const inMemory = writeZip([entry('a.bin', a), entry('b.txt', b)]);
+    const blob = zipBlob([{ ...entry('a.bin', a), data: new Blob([a]) }, { ...entry('b.txt', b), data: new Blob([b]) }]);
+    assert.equal(blob.type, 'application/zip');
+    assert.deepEqual(new Uint8Array(await blob.arrayBuffer()), inMemory);
+  });
+
+  it('checksums a piece at a time to the same value', () => {
+    const data = encoder.encode('The quick brown fox jumps over the lazy dog');
+    assert.equal(crc32(data), 0x414fa339);
+    assert.equal(crc32(data.subarray(10), crc32(data.subarray(0, 10))), 0x414fa339);
+  });
+
+  it('refuses more entries than a ZIP without ZIP64 can count', () => {
+    const one = entry('x', new Uint8Array(0));
+    assert.throws(() => writeZip(Array.from({ length: 65_536 }, () => one)), RangeError);
+    assert.equal(readZip(writeZip(['x', 'y', 'z'].map((name) => entry(name, new Uint8Array(0))))).length, 3);
   });
 });

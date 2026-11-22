@@ -30,6 +30,10 @@ describe('save: file names', () => {
     assert.equal(savedName('IMG_1234.JPG', { ...options, neutral: false }), 'IMG_1234-clean.jpg');
     assert.equal(savedName('IMG_1234.JPG', { ...options, neutral: true }), 'photo.jpg');
     assert.equal(savedName('.jpg', { ...options, neutral: false }), 'photo-clean.jpg');
+    const exact = { extension: 'lockwell', fallback: 'locked', suffix: '' };
+    assert.equal(savedName('report.pdf.lockwell', { ...exact, neutral: false }), 'report.pdf.lockwell', 'an empty suffix keeps the name');
+    assert.equal(savedName('', { ...exact, neutral: false }), 'locked.lockwell');
+    assert.equal(savedName('notes', { extension: '', fallback: 'unlocked', suffix: '', neutral: true }), 'unlocked', 'no extension, no dot');
   });
 });
 
