@@ -118,7 +118,7 @@ describe('email header analyzer page', () => {
       assert.match(part('verdict').textContent, /^სათაურებში საეჭვო ნიშნები არ ჩანს\./);
       assert.equal(part('verdict-card').dataset.state, 'ok');
       assert.deepEqual(shownFindings(tool), ['spfFail', 'forwarded', 'bulkSender', 'messageIdElsewhere', 'encryptedInTransit']);
-      assert.equal(part('checks').children.find((item) => item.querySelector('[data-js="email-check-method"]')?.textContent === 'ARC')?.querySelector('[data-js="email-check-meaning"]')?.textContent, 'გადაგზავნის ჩანაწერი მთელია: იმის წაკითხვა, რაც წინა შუამავლებმა ჩაწერეს, შეიძლება. ის იმდენად სანდოა, რამდენადაც ეს შუამავლები.');
+      assert.equal(part('checks').children.find((item) => item.querySelector('[data-js="email-check-method"]')?.textContent === 'ARC')?.querySelector('[data-js="email-check-meaning"]')?.textContent, 'გადაგზავნის ჩანაწერი მთელია: წინა შუამავლების ჩანაწერების წაკითხვა შესაძლებელია. იგი იმდენად სანდოა, რამდენადაც თავად ეს შუამავლები.');
     } finally {
       page.restore();
     }
