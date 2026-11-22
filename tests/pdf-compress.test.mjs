@@ -148,6 +148,31 @@ describe('compression: building', () => {
     assert.equal(maskless.report.pictures?.done, 1);
   });
 
+  it('keeps a picture in its layer, and leaves alone one whose mask has a /Decode array (review P5)', async () => {
+    const pixels = deflateSync(Buffer.alloc(300 * 300 * 3, 0x40));
+    const mask = deflateSync(Buffer.alloc(300 * 300, 0x80));
+    const file = (/** @type {string} */ extra, /** @type {string} */ maskDict) => pdfFile({ objects: [
+      { num: 1, body: '<< /Type /Catalog /Pages 2 0 R /OCProperties << /OCGs [11 0 R] /D << /OFF [11 0 R] >> >> >>' },
+      { num: 2, body: '<< /Type /Pages /Kids [3 0 R] /Count 1 >>' },
+      { num: 3, body: '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 300] /Contents 5 0 R /Resources << /XObject << /Im1 8 0 R >> >> >>' },
+      { num: 5, stream: { data: 'q 300 0 0 300 0 0 cm /Im1 Do Q' } },
+      { num: 8, stream: { dict: `/Type /XObject /Subtype /Image /Width 300 /Height 300 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode ${extra}`, data: pixels } },
+      { num: 9, stream: { dict: `/Type /XObject /Subtype /Image /Width 300 /Height 300 /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /FlateDecode ${maskDict}`, data: mask } },
+      { num: 11, body: '<< /Type /OCG /Name (Hidden layer) >>' },
+    ] });
+    const run = async (/** @type {Uint8Array} */ bytes) => {
+      const source = await openPdf(bytes);
+      return build({ pages: [{ key: 1, origin: { source: 1, index: 0 }, turn: 0 }], sources: new Map([[1, { file: source, pages: pageList(source) }]]), compress: { level: LEVELS.small, recode: fakeRecoder().recode } });
+    };
+    const layered = await run(file('/OC 11 0 R /Intent /Perceptual', ''));
+    assert.equal(layered.report.pictures?.done, 1);
+    const [picture] = (await images(layered.bytes)).filter((image) => /** @type {PdfName} */ (image.dict.get('Filter')).value === 'DCTDecode');
+    assert.ok(picture.dict.has('OC'), 'still in its hidden layer');
+    assert.equal(/** @type {PdfName} */ (picture.dict.get('Intent')).value, 'Perceptual');
+    const inverted = await run(file('/SMask 9 0 R', '/Decode [1 0]'));
+    assert.equal(inverted.report.pictures?.done, 0, 'a mask with /Decode would come out inverted: left alone');
+  });
+
   it('counts what it leaves alone, and changes nothing without a level', async () => {
     const cmyk = await openPdf(scan({ image: '/Type /XObject /Subtype /Image /Width 600 /Height 800 /ColorSpace /DeviceCMYK /BitsPerComponent 8 /Filter /DCTDecode', data: latin1('\xff\xd8 not decoded \xff\xd9') }));
     const { jobs, recode } = fakeRecoder();

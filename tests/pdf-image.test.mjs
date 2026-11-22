@@ -22,6 +22,25 @@ import { SCAN, TABLES, be32, chunk, jfif, join, jpegFile as jpeg, latin1, pngFil
 /** @param {Uint8Array} haystack @param {Uint8Array} needle */
 const includes = (haystack, needle) => Buffer.from(haystack).includes(Buffer.from(needle));
 
+describe('jpegForPdf: nothing between scans or after the end (review P18)', () => {
+  const exif = segment(0xe1, join(latin1('Exif\0\0'), latin1('MM\0*\0\0\0\x08'), latin1('GPS-SECRET-LOCATION')));
+  const has = (/** @type {Uint8Array | null} */ bytes, /** @type {string} */ word) => Buffer.from(/** @type {Uint8Array} */ (bytes)).toString('latin1').includes(word);
+
+  it('drops a second picture appended after the end of the first, with its EXIF', () => {
+    const appended = jpeg({ tail: Array.from(jpeg({ head: [exif] })) });
+    const out = jpegForPdf(appended);
+    assert.ok(out && !has(out, 'GPS-SECRET'));
+    assert.deepEqual([...out.subarray(-2)], [0xff, 0xd9], 'ends at the first picture’s end');
+  });
+
+  it('drops application segments and comments between progressive scans, keeping the scans and their tables', () => {
+    const progressive = join([0xff, 0xd8], jfif(1, 300), TABLES, segment(0xc2, [8, 0, 30, 0, 40, 3, 1, 0x11, 0, 2, 0x11, 0, 3, 0x11, 0]), SCAN, exif, segment(0xfe, latin1('COMMENT-SECRET')), TABLES, SCAN, [0xff, 0xd9]);
+    const out = jpegForPdf(progressive);
+    assert.ok(out && !has(out, 'GPS-SECRET') && !has(out, 'COMMENT-SECRET'));
+    assert.equal(out.length, progressive.length - exif.length - segment(0xfe, latin1('COMMENT-SECRET')).length, 'only those two segments are gone');
+  });
+});
+
 describe('pictures: JPEG', () => {
   it('reads the size, colours, frame and density from the header', () => {
     assert.deepEqual(jpegInfo(jpeg({ width: 640, height: 480 })), { frame: 0xc0, bits: 8, height: 480, width: 640, components: 3, density: 300 });

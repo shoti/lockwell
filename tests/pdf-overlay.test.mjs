@@ -129,6 +129,30 @@ describe('overlays: written into the page', () => {
     assert.ok(second.dict.get('Contents') instanceof PdfRef, 'and its content as it was');
   });
 
+  it('splices a /Contents that refers to an array of streams, keeping every stream (review P1)', async () => {
+    const bytes = pdfFile({ objects: [
+      { num: 1, body: '<< /Type /Catalog /Pages 2 0 R >>' },
+      { num: 2, body: '<< /Type /Pages /Kids [3 0 R] /Count 1 >>' },
+      { num: 3, body: '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 600 800] /Resources << >> /Contents 4 0 R >>' },
+      { num: 4, body: '[5 0 R 6 0 R]' },
+      { num: 5, stream: { data: '0 0 1 rg' } },
+      { num: 6, stream: { data: '0 0 10 10 re f' } },
+    ] });
+    const source = await openPdf(bytes);
+    const result = await build({ pages: [{ key: 1, origin: { source: 1, index: 0 }, turn: 0, overlays: [overlays[1]] }], sources: new Map([[1, { file: source, pages: pageList(source) }]]) });
+    const file = await openPdf(result.bytes);
+    const [page] = pageList(file);
+    const contents = /** @type {PdfRef[]} */ (file.resolve(page.dict.get('Contents')));
+    const texts = [];
+    for (const ref of contents) {
+      const stream = file.resolve(ref);
+      assert.ok(stream instanceof PdfStream, 'every entry is a stream, never an array');
+      texts.push(Buffer.from(await file.decode(stream)).toString('latin1').split('\n')[0]);
+    }
+    assert.deepEqual(texts.slice(0, 3), ['q', '0 0 1 rg', '0 0 10 10 re f']);
+    assert.match(texts[3], /^Q/);
+  });
+
   it('works on blank pages and picture pages, and writes each distinct mask once', async () => {
     const twice = /** @type {Overlay} */ ({ type: 'text', text: 'x', font: 'site', bold: false, color: 'black', mask, x: 0, y: 0, w: 0.1, h: 0.1, rotation: 0, opacity: 1 });
     const { bytes, report } = await build({

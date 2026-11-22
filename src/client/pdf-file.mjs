@@ -681,16 +681,32 @@ export class PdfFile {
   }
 
   /**
-   * The objects of object streams found by the repair scan, unless a plain copy of them exists.
-   * @param {number[]} packs
+   * The objects of object streams found by the repair scan. Where an object is defined more than once, the definition
+   * later in the file wins, as in an incremental update; an object inside an object stream counts as where that stream
+   * is (review P10: an update saved compressed must not lose to the version it replaced).
+   * @param {number[]} packs  In file order.
    */
   async addPacks(packs) {
+    /** @param {Entry | undefined} entry */
+    const at = (entry) => {
+      if (entry?.type === 'plain') return entry.offset;
+      if (entry?.type === 'packed') {
+        const holder = this.entries.get(entry.stream);
+        return holder?.type === 'plain' ? holder.offset : -1;
+      }
+      return -1;
+    };
     for (const num of packs) {
       try {
         const pack = await this.readPack(num);
         this.packs.set(num, pack);
+        const packAt = at(this.entries.get(num));
         pack.pairs.forEach(([n], index) => {
-          if (!this.entries.has(n)) this.keepRepaired(n, { type: 'packed', stream: num, index });
+          if (n === num) return;
+          const existing = this.entries.get(n);
+          if (existing && at(existing) > packAt) return;
+          this.keepRepaired(n, { type: 'packed', stream: num, index });
+          this.cache.delete(n);
         });
       } catch (error) {
         if (!(error instanceof PdfError) || error.code === 'tooLarge') throw error;
@@ -700,7 +716,7 @@ export class PdfFile {
 
   /** @param {number} num @param {Entry} entry */
   keepRepaired(num, entry) {
-    if (this.entries.size >= LIMITS.objects) throw new PdfError('tooLarge', 'too many objects');
+    if (!this.entries.has(num) && this.entries.size >= LIMITS.objects) throw new PdfError('tooLarge', 'too many objects');
     this.entries.set(num, entry);
   }
 

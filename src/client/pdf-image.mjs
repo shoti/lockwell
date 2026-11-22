@@ -111,13 +111,42 @@ export const jpegEmbeddable = (info) => FRAMES.has(info.frame) && info.bits === 
 
 /**
  * The JPEG with only what decoding needs: every application segment except JFIF (APP0) and Adobe (APP14, which says
- * how the colours were stored) is left out, and every comment, and anything after the end of the image. The photo
- * tool's cleaner has already run; this is the second, independent pass, so no EXIF block (not even the orientation
- * it keeps) reaches the PDF.
+ * how the colours were stored) is left out, and every comment, before the first scan and between later ones, and
+ * anything after the first end of the image (a second picture with its own EXIF, review P18). The photo tool's
+ * cleaner has already run; this is the second, independent pass, so no EXIF block (not even the orientation it
+ * keeps) reaches the PDF.
  * @param {Uint8Array} bytes
- * @returns {Uint8Array | null}
+ * @returns {Uint8Array | null}  null when the JPEG can't be followed or never ends.
  */
 export function jpegForPdf(bytes) {
+  const cleaned = jpegClean(bytes);
+  return cleaned && cleaned.ended ? cleaned.bytes : null;
+}
+
+/**
+ * A JPEG found inside a PDF, without metadata: as jpegForPdf, but one cut short keeps what it has (some readers
+ * still draw it). The bytes as they are when the JPEG can't be followed at all.
+ * @param {Uint8Array} bytes
+ */
+export function jpegWithoutMetadata(bytes) {
+  return jpegClean(bytes)?.bytes ?? bytes;
+}
+
+/**
+ * Whether a JPEG still holds something jpegForPdf leaves out (metadata, comments, a second picture): a result's
+ * pictures never do. False when it can't be followed.
+ * @param {Uint8Array} bytes
+ */
+export function jpegHasExtras(bytes) {
+  const cleaned = jpegClean(bytes);
+  return cleaned !== null && cleaned.bytes.length < bytes.length;
+}
+
+/**
+ * @param {Uint8Array} bytes
+ * @returns {{ bytes: Uint8Array, ended: boolean } | null}
+ */
+function jpegClean(bytes) {
   const parsed = jpegSegments(bytes);
   if (!parsed) return null;
   const keep = parsed.segments.filter(({ marker, data, end }) => {
@@ -126,17 +155,59 @@ export function jpegForPdf(bytes) {
     if (marker === 0xe0) return end - data >= 5 && String.fromCharCode(...bytes.subarray(data, data + 5)) === 'JFIF\0';
     return true;
   });
-  let end = bytes.length;
-  while (end > parsed.scan + 1 && !(bytes[end - 2] === 0xff && bytes[end - 1] === EOI)) end -= 1;
-  if (end <= parsed.scan + 1) return null;
-  const parts = [Uint8Array.of(0xff, SOI), ...keep.filter((segment) => segment.marker !== SOS).map(({ start, end: stop }) => bytes.subarray(start, stop)), bytes.subarray(parsed.scan, end)];
+  const scans = afterFirstScan(bytes, parsed.scan);
+  if (!scans) return null;
+  const parts = [Uint8Array.of(0xff, SOI), ...keep.filter((segment) => segment.marker !== SOS).map(({ start, end: stop }) => bytes.subarray(start, stop)), ...scans.parts];
   const out = new Uint8Array(parts.reduce((sum, part) => sum + part.length, 0));
   let at = 0;
   for (const part of parts) {
     out.set(part, at);
     at += part.length;
   }
-  return out;
+  return { bytes: out, ended: scans.ended };
+}
+
+/**
+ * The scans of a JPEG from its first SOS marker, walked marker by marker: the entropy-coded data (with its stuffed
+ * zero bytes and restart markers) and the tables and scan headers between scans are kept; application segments and
+ * comments are left out; the walk stops at the first end of the image.
+ * @param {Uint8Array} bytes @param {number} from  Offset of the first SOS marker.
+ * @returns {{ parts: Uint8Array[], ended: boolean } | null}  null when a segment's length runs past the data.
+ */
+function afterFirstScan(bytes, from) {
+  /** @type {Uint8Array[]} */
+  const parts = [];
+  let keepFrom = from;
+  let i = from;
+  while (i + 1 < bytes.length) {
+    if (bytes[i] !== 0xff) {
+      i += 1;
+      continue;
+    }
+    const marker = bytes[i + 1];
+    if (marker === 0xff) {
+      i += 1; // fill byte
+      continue;
+    }
+    if (marker === 0x00 || (marker >= 0xd0 && marker <= 0xd7)) {
+      i += 2; // a stuffed 0xFF in the data, or a restart marker
+      continue;
+    }
+    if (marker === EOI) {
+      parts.push(bytes.subarray(keepFrom, i + 2));
+      return { parts, ended: true };
+    }
+    if (i + 3 >= bytes.length) break;
+    const stop = i + 2 + ((bytes[i + 2] << 8) | bytes[i + 3]);
+    if (stop < i + 4 || stop > bytes.length) return null;
+    if ((marker >= 0xe0 && marker <= 0xef) || marker === 0xfe) {
+      parts.push(bytes.subarray(keepFrom, i));
+      keepFrom = stop;
+    }
+    i = stop;
+  }
+  parts.push(bytes.subarray(keepFrom));
+  return { parts, ended: false };
 }
 
 /**

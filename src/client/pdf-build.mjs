@@ -9,9 +9,9 @@ import { SourceCopier, documentLosses, layersOf, newReport, pageDictionary, plan
 import { compressImages } from './pdf-compress.mjs';
 import { applyOverlays, shownSize } from './pdf-overlay.mjs';
 import { normaliseRotation, pageBox, pageList } from './pdf-pages.mjs';
-import { IMAGE_PAGE, imageLayout, imageStream } from './pdf-image.mjs';
+import { IMAGE_PAGE, imageLayout, imageStream, jpegHasExtras } from './pdf-image.mjs';
 import { PdfWriter, pause } from './pdf-write.mjs';
-import { PdfDict, PdfName, PdfRef, PdfStream, PdfString, formatNumber, textOf } from './pdf-syntax.mjs';
+import { PdfDict, PdfName, PdfRef, PdfStream, PdfString, formatNumber, isName, textOf } from './pdf-syntax.mjs';
 import { stillThere } from './tool-photo.mjs';
 
 /** @typedef {import('./pdf-syntax.mjs').PdfObject} PdfObject */
@@ -80,7 +80,7 @@ export async function build({ pages, sources, imagePage = IMAGE_PAGE, compress =
   for (const [num, map] of firsts) {
     const { file } = sourceOf(sources, num);
     if (file.encrypted && !file.unlocked) throw new PdfError('locked', 'encrypted source');
-    const copier = new SourceCopier(file, writer, map);
+    const copier = new SourceCopier(file, writer, map, sourceOf(sources, num).pages);
     copiers.set(num, copier);
     documentLosses(file, copier.report);
     forms.set(num, planFields(copier, widgetsOn(sources, num, pages, firstCopies)));
@@ -90,7 +90,7 @@ export async function build({ pages, sources, imagePage = IMAGE_PAGE, compress =
       // A source whose pages are all written directly in Kids: nothing can refer to them.
       const { file } = sourceOf(sources, page.origin.source);
       if (file.encrypted && !file.unlocked) throw new PdfError('locked', 'encrypted source');
-      const copier = new SourceCopier(file, writer, new Map());
+      const copier = new SourceCopier(file, writer, new Map(), sourceOf(sources, page.origin.source).pages);
       documentLosses(file, copier.report);
       copiers.set(page.origin.source, copier);
     }
@@ -140,6 +140,7 @@ export async function build({ pages, sources, imagePage = IMAGE_PAGE, compress =
   if (form) catalog.set('AcroForm', form);
   const layers = await layerDictionary(copiers, isCancelled);
   if (layers) catalog.set('OCProperties', layers);
+  await carryFirst(catalog, copiers, isCancelled);
   const root = writer.add(catalog);
 
   const pictures = compress
@@ -343,9 +344,14 @@ async function layerDictionary(copiers, isCancelled) {
 /* ---------- The check before a result is offered (plan §6.9) ---------- */
 
 /** Keys whose presence means something was carried that never may be. */
-const FORBIDDEN = new Set(['Metadata', 'JavaScript', 'JS', 'OpenAction', 'AA', 'EmbeddedFiles', 'PieceInfo']);
+const FORBIDDEN = new Set(['Metadata', 'JavaScript', 'JS', 'OpenAction', 'AA', 'EmbeddedFiles', 'PieceInfo', 'AF', 'EF', 'RF', 'ByteRange']);
+/** Object types never in a result: a carried file, a signature (review P3, P6). */
+const FORBIDDEN_TYPES = new Set(['EmbeddedFile', 'Sig']);
 /** Strings where the visitor's own words may repeat a title or a name: comments, field values and names. */
 const OWN_WORDS = new Set(['Contents', 'V', 'DV', 'RV', 'RC', 'T', 'TU', 'TM', 'Subj']);
+/** Strings that are a document's working parts, not its metadata: links, layer names, choices, annotation names
+ * and appearances. A link to "Report.html" in a file titled "Report" is ordinary (review P9). */
+const NOT_METADATA = new Set(['URI', 'Name', 'Opt', 'NM', 'DA', 'D', 'Dest']);
 
 /**
  * The sources' information-dictionary strings: what a result must not repeat.
@@ -392,27 +398,54 @@ export async function checkResult(bytes, { pages, secrets, findings = [] }) {
   if (list.length !== pages) throw fail(`${list.length} pages instead of ${pages}`);
   for (const page of list) {
     if (!page.dict.has('MediaBox') || !page.dict.has('Resources')) throw fail('a page without its box or resources');
+    // An array inside the contents array is drawn by no reader: the page would come out empty (review P1).
+    const contents = file.resolve(page.dict.get('Contents'));
+    if (Array.isArray(contents) && contents.some((item) => Array.isArray(file.resolve(item)))) throw fail('a page’s contents hold an array');
   }
   /** @param {PdfObject | undefined} value @param {string} key @param {number} depth */
   const visit = (value, key, depth) => {
     if (depth > 100) return;
     if (value instanceof PdfString) {
-      if (!OWN_WORDS.has(key) && secrets.size > 0) {
+      if (!OWN_WORDS.has(key) && !NOT_METADATA.has(key) && secrets.size > 0) {
         const text = textOf(value);
         for (const secret of secrets) if (text.includes(secret)) throw fail(`a source's ${secret.length}-character metadata string is still in the file`);
       }
     } else if (Array.isArray(value)) {
       for (const item of value) visit(item, key, depth + 1);
     } else if (value instanceof PdfDict) {
+      const type = value.get('Type');
+      if (type instanceof PdfName && FORBIDDEN_TYPES.has(type.value)) throw fail(`a /${type.value} object is in the file`);
       for (const [name, item] of value.entries()) {
         if (FORBIDDEN.has(name)) throw fail(`/${name} is in the file`);
         visit(item, name, depth + 1);
       }
     } else if (value instanceof PdfStream) {
       visit(value.dict, key, depth + 1);
+      const filter = file.resolve(value.dict.get('Filter'));
+      if ((isName(filter, 'DCTDecode') || isName(filter, 'DCT')) && jpegHasExtras(value.data)) throw fail('a picture still carries metadata');
     }
   };
   for (const num of file.entries.keys()) visit(file.get(num), '', 0);
+}
+
+/**
+ * From the first PDF source, what says how the whole document is read and printed: its language, which screen
+ * readers use, and its output intents, the printing conditions it was made for (review P11).
+ * @param {PdfDict} catalog
+ * @param {Map<number, SourceCopier>} copiers
+ * @param {() => boolean} isCancelled
+ */
+async function carryFirst(catalog, copiers, isCancelled) {
+  const [copier] = copiers.values();
+  if (!copier) return;
+  const source = copier.file.catalog();
+  const lang = copier.file.resolve(source.get('Lang'));
+  if (lang instanceof PdfString) catalog.set('Lang', lang);
+  const intents = copier.file.resolve(source.get('OutputIntents'));
+  if (Array.isArray(intents) && intents.length > 0) {
+    catalog.set('OutputIntents', copier.copy(intents, 'OutputIntents'));
+    await copier.drain(isCancelled);
+  }
 }
 
 /* ---------- Save choices → groups of pages (plan §9 item 6) ---------- */

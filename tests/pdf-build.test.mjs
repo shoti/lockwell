@@ -12,9 +12,9 @@ import { describe, it } from 'node:test';
 import { build, checkResult, interleave, parseRanges, secretsOf, splitPages } from '../src/client/pdf-build.mjs';
 import { COUNTS, PdfError, openPdf } from '../src/client/pdf-file.mjs';
 import { pageList } from '../src/client/pdf-pages.mjs';
-import { PdfDict, PdfName, PdfRef, PdfStream, PdfString, textOf } from '../src/client/pdf-syntax.mjs';
+import { PdfDict, PdfName, PdfRef, PdfStream, PdfString, serialise, textOf } from '../src/client/pdf-syntax.mjs';
 import { PdfWriter, YIELD_MS, pause } from '../src/client/pdf-write.mjs';
-import { latin1, pdfFile, simplePdf } from './build-files.mjs';
+import { jfif, join, jpegFile, latin1, pdfFile, segment, simplePdf } from './build-files.mjs';
 
 /** @typedef {import('../src/client/pdf-build.mjs').PlanPage} PlanPage */
 /** @typedef {import('./build-files.mjs').PdfPart} PdfPart */
@@ -493,5 +493,141 @@ describe('PDF build: privacy', () => {
         assert.ok(!source.includes(word), `${module}: ${word}`);
       }
     }
+  });
+});
+
+describe('PDF build: what never travels (review P3–P11)', () => {
+  const font = '<< /Font << /F1 << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> >> >>';
+  /**
+   * Everything a result holds, as text: every object written out and every stream's data decoded where it can be.
+   * The writer packs objects into compressed object streams, so the raw bytes alone would hide a leak.
+   * @param {{ bytes: Uint8Array }} result
+   */
+  const text = async (result) => {
+    const file = await openPdf(result.bytes);
+    const parts = [Buffer.from(result.bytes).toString('latin1')];
+    for (const num of file.entries.keys()) {
+      const value = file.get(num);
+      parts.push(serialise(value instanceof PdfStream ? value.dict : value));
+      if (value instanceof PdfStream) {
+        const data = await file.decode(value).catch(() => value.data);
+        parts.push(Buffer.from(data).toString('latin1'));
+      }
+    }
+    return parts.join('\n');
+  };
+
+  it('drops associated files (/AF) on annotations and pictures, and says so (P3)', async () => {
+    const bytes = pdfFile({ objects: [
+      { num: 1, body: '<< /Type /Catalog /Pages 2 0 R >>' },
+      { num: 2, body: '<< /Type /Pages /Kids [3 0 R] /Count 1 >>' },
+      { num: 3, body: '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 300] /Contents 5 0 R /Resources << /XObject << /Im1 8 0 R >> >> /Annots [7 0 R] >>' },
+      { num: 5, stream: { data: 'q 100 0 0 100 0 0 cm /Im1 Do Q' } },
+      { num: 7, body: '<< /Type /Annot /Subtype /Square /Rect [0 0 20 20] /AF [9 0 R] >>' },
+      { num: 8, stream: { dict: '/Type /XObject /Subtype /Image /Width 1 /Height 1 /ColorSpace /DeviceGray /BitsPerComponent 8 /AF [9 0 R]', data: '\x80' } },
+      { num: 9, body: '<< /Type /Filespec /F (secret.txt) /UF (secret.txt) /AFRelationship /Source /EF << /F 10 0 R >> >>' },
+      { num: 10, stream: { dict: '/Type /EmbeddedFile', data: 'EMBEDDED-SECRET-ATTACHMENT' } },
+    ] });
+    const result = await run(new Map([[1, await source(bytes)]]), plan([[1, 0]]));
+    assert.ok(!(await text(result)).includes('EMBEDDED-SECRET') && !(await text(result)).includes('secret.txt'));
+    assert.ok(result.report.dropped.includes('attachments'));
+  });
+
+  it('takes the camera’s details out of JPEG pictures copied from a PDF (P4)', async () => {
+    const exif = segment(0xe1, join(latin1('Exif\0\0'), latin1('MM\0*\0\0\0\x08'), latin1('GPS-SECRET-LOCATION-48.8584N')));
+    const xmp = segment(0xe1, join(latin1('http://ns.adobe.com/xap/1.0/\0'), latin1('<x:xmpmeta>XMP-SECRET</x:xmpmeta>')));
+    const picture = jpegFile({ head: [jfif(1, 300), exif, xmp, segment(0xfe, latin1('COMMENT-SECRET'))] });
+    const bytes = pdfFile({ objects: [
+      { num: 1, body: '<< /Type /Catalog /Pages 2 0 R >>' },
+      { num: 2, body: '<< /Type /Pages /Kids [3 0 R] /Count 1 >>' },
+      { num: 3, body: '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 300] /Contents 5 0 R /Resources << /XObject << /Im1 8 0 R >> >> >>' },
+      { num: 5, stream: { data: 'q 300 0 0 300 0 0 cm /Im1 Do Q' } },
+      { num: 8, stream: { dict: '/Type /XObject /Subtype /Image /Width 40 /Height 30 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode', data: picture } },
+    ] });
+    const result = await run(new Map([[1, await source(bytes)]]), plan([[1, 0]]));
+    for (const secret of ['GPS-SECRET', 'XMP-SECRET', 'COMMENT-SECRET', 'Exif']) assert.ok(!(await text(result)).includes(secret), secret);
+    const file = await openPdf(result.bytes);
+    const image = /** @type {PdfStream} */ (file.resolve(/** @type {PdfDict} */ (file.resolve(/** @type {PdfDict} */ (file.resolve(pageList(file)[0].dict.get('Resources'))).get('XObject'))).get('Im1')));
+    assert.deepEqual([...image.data.subarray(0, 4)], [0xff, 0xd8, 0xff, 0xe0], 'still a JPEG, starting with its JFIF segment');
+  });
+
+  it('drops a signature’s value even without a form dictionary, and warns (P6)', async () => {
+    const bytes = pdfFile({ objects: [
+      { num: 1, body: '<< /Type /Catalog /Pages 2 0 R >>' },
+      { num: 2, body: '<< /Type /Pages /Kids [3 0 R] /Count 1 >>' },
+      { num: 3, body: '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 300] /Resources << >> /Annots [7 0 R] >>' },
+      { num: 7, body: '<< /Type /Annot /Subtype /Widget /FT /Sig /T (Signature1) /Rect [10 10 100 40] /P 3 0 R /V 8 0 R /F 4 >>' },
+      { num: 8, body: '<< /Type /Sig /Filter /Adobe.PPKLite /SubFilter /adbe.pkcs7.detached /Name (SIGNER-JANE-DOE) /Location (SIGNER-HOME) /ByteRange [0 1 2 3] /Contents <3082DEADBEEF> >>' },
+    ] });
+    const result = await run(new Map([[1, await source(bytes)]]), plan([[1, 0]]));
+    assert.ok(!(await text(result)).includes('SIGNER'));
+    assert.ok(result.report.warnings.includes('signatures'));
+  });
+
+  it('never copies a page that is left out, even one without /Type or reached through an action (P7, P8)', async () => {
+    const untyped = pdfFile({ objects: [
+      { num: 1, body: '<< /Type /Catalog /Pages 2 0 R >>' },
+      { num: 2, body: '<< /Type /Pages /Kids [3 0 R 4 0 R] /Count 2 >>' },
+      { num: 3, body: `<< /Parent 2 0 R /MediaBox [0 0 300 300] /Contents 5 0 R /Resources ${font} /Annots [7 0 R] >>` },
+      { num: 4, body: `<< /Parent 2 0 R /MediaBox [0 0 300 300] /Contents 6 0 R /Resources ${font} >>` },
+      { num: 5, stream: { data: 'BT /F1 24 Tf 20 200 Td (KEPTPAGE) Tj ET' } },
+      { num: 6, stream: { data: 'BT /F1 24 Tf 20 200 Td (SECRETDROPPEDPAGE) Tj ET' } },
+      { num: 7, body: '<< /Type /Annot /Subtype /Text /Rect [0 0 20 20] /Contents (note) /P 4 0 R >>' },
+    ] });
+    const one = await run(new Map([[1, await source(untyped)]]), plan([[1, 0]]));
+    assert.ok((await text(one)).includes('KEPTPAGE') && !(await text(one)).includes('SECRETDROPPEDPAGE'));
+    const hidden = pdfFile({ objects: [
+      { num: 1, body: '<< /Type /Catalog /Pages 2 0 R >>' },
+      { num: 2, body: '<< /Type /Pages /Kids [3 0 R 4 0 R] /Count 2 >>' },
+      { num: 3, body: '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 300] /Resources << >> /Annots [7 0 R] >>' },
+      { num: 4, body: '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 300] /Resources << >> /Annots [8 0 R] >>' },
+      { num: 7, body: '<< /Type /Annot /Subtype /Link /Rect [0 0 20 20] /A << /S /Hide /T 8 0 R >> >>' },
+      { num: 8, body: '<< /Type /Annot /Subtype /FreeText /Rect [0 0 20 20] /Contents (SECRET-NOTE-ON-DROPPED-PAGE) /P 4 0 R /AP << /N 9 0 R >> >>' },
+      { num: 9, stream: { dict: '/Type /XObject /Subtype /Form /BBox [0 0 20 20]', data: 'BT (APPEARANCE-ON-DROPPED) Tj ET' } },
+    ] });
+    const two = await run(new Map([[1, await source(hidden)]]), plan([[1, 0]]));
+    assert.ok(!(await text(two)).includes('SECRET-NOTE') && !(await text(two)).includes('APPEARANCE-ON-DROPPED'));
+  });
+
+  it('saves a file whose links contain its own title, and still refuses a title copied into other text (P9)', async () => {
+    const bytes = pdfFile({ objects: [
+      { num: 1, body: '<< /Type /Catalog /Pages 2 0 R >>' },
+      { num: 2, body: '<< /Type /Pages /Kids [3 0 R] /Count 1 >>' },
+      { num: 3, body: '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 300] /Resources << >> /Annots [7 0 R] >>' },
+      { num: 7, body: '<< /Type /Annot /Subtype /Link /Rect [0 0 20 20] /A << /S /URI /URI (https://example.com/Report.html) >> >>' },
+      { num: 8, body: '<< /Title (Report) >>' },
+    ], trailer: '/Info 8 0 R' });
+    const result = await run(new Map([[1, await source(bytes)]]), plan([[1, 0]]));
+    assert.ok((await text(result)).includes('Report.html'));
+  });
+
+  it('after a repair, an update saved in an object stream wins over the version it replaced (P10)', async () => {
+    const base = pdfFile({ objects: [
+      { num: 1, body: '<< /Type /Catalog /Pages 2 0 R >>' },
+      { num: 2, body: '<< /Type /Pages /Kids [3 0 R] /Count 1 >>' },
+      { num: 3, body: `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 300] /Contents 4 0 R /Resources ${font} >>` },
+      { num: 4, stream: { data: 'BT /F1 24 Tf 20 200 Td (OLD-UNREDACTED) Tj ET' } },
+    ] });
+    const updated = pdfFile({ base, xref: 'stream', objects: [{ num: 5, stream: { data: 'BT /F1 24 Tf 20 200 Td (NEW-REDACTED) Tj ET' } }],
+      packed: { num: 6, objects: [{ num: 3, body: `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 300] /Contents 5 0 R /Resources ${font} >>` }] } });
+    const damaged = latin1(String.fromCharCode(...updated).replace(/startxref\n(\d+)\n%%EOF\n$/, (_, n) => `startxref\n${Number(n) + 7}\n%%EOF\n`));
+    const repaired = await source(damaged);
+    assert.equal(repaired.file.repaired, true);
+    const result = await run(new Map([[1, repaired]]), plan([[1, 0]]));
+    assert.ok((await text(result)).includes('NEW-REDACTED') && !(await text(result)).includes('OLD-UNREDACTED'));
+  });
+
+  it('reports scripts it leaves out of fields, pages and chained actions, and keeps the document’s language (P11)', async () => {
+    const bytes = pdfFile({ objects: [
+      { num: 1, body: '<< /Type /Catalog /Pages 2 0 R /Lang (ka-GE) /AcroForm << /Fields [7 0 R] >> >>' },
+      { num: 2, body: '<< /Type /Pages /Kids [3 0 R] /Count 1 >>' },
+      { num: 3, body: '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 300] /Resources << >> /Annots [7 0 R] /AA << /O << /S /JavaScript /JS (app.alert(1)) >> >> >>' },
+      { num: 7, body: '<< /Type /Annot /Subtype /Widget /FT /Tx /T (total) /Rect [10 10 200 40] /AA << /C << /S /JavaScript /JS (calc) >> >> >>' },
+    ] });
+    const result = await run(new Map([[1, await source(bytes)]]), plan([[1, 0]]));
+    assert.ok(result.report.dropped.includes('scripts'));
+    const file = await openPdf(result.bytes);
+    const lang = file.catalog().get('Lang');
+    assert.ok(lang instanceof PdfString && textOf(lang) === 'ka-GE');
   });
 });

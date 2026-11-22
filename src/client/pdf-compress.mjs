@@ -196,7 +196,8 @@ export async function compressImages(writer, pages, level, recode, isCancelled =
     if (maskRef instanceof PdfRef) {
       const maskNum = writer.alias.get(maskRef.num) ?? maskRef.num;
       const stream = writer.objects.get(maskNum);
-      const ok = stream instanceof PdfStream && (maskUses.get(maskNum) ?? 0) === 1 && !stream.dict.has('Matte') && filterOf(writer, stream.dict) === 'FlateDecode' && colorsOf(writer, stream.dict) === 1 && resolve(writer, stream.dict.get('BitsPerComponent')) === 8;
+      // A /Decode array would invert the mask once rewritten without it (review P5).
+      const ok = stream instanceof PdfStream && (maskUses.get(maskNum) ?? 0) === 1 && !stream.dict.has('Matte') && !stream.dict.has('Decode') && filterOf(writer, stream.dict) === 'FlateDecode' && colorsOf(writer, stream.dict) === 1 && resolve(writer, stream.dict.get('BitsPerComponent')) === 8;
       const data = ok ? await samples(writer, /** @type {PdfStream} */ (stream), 1) : null;
       if (!data) {
         count.left.kind += 1;
@@ -235,7 +236,8 @@ export async function compressImages(writer, pages, level, recode, isCancelled =
       ['Type', new PdfName('XObject')], ['Subtype', new PdfName('Image')], ['Width', recoded.width], ['Height', recoded.height],
       ['ColorSpace', new PdfName('DeviceRGB')], ['BitsPerComponent', 8], ['Filter', new PdfName('DCTDecode')],
     ]);
-    if (dict.has('Interpolate')) replaced.set('Interpolate', /** @type {PdfObject} */ (dict.get('Interpolate')));
+    // Its layer above all: a picture in a hidden layer must stay hidden (review P5).
+    for (const key of ['Interpolate', 'OC', 'Intent', 'Alternates']) if (dict.has(key)) replaced.set(key, /** @type {PdfObject} */ (dict.get(key)));
     if (mask && recoded.mask && newMask) {
       replaced.set('SMask', new PdfRef(mask.num, 0));
       writer.objects.set(mask.num, new PdfStream(new PdfDict([

@@ -209,7 +209,11 @@ export async function applyOverlays(writer, dict, page, overlays) {
   const text = `${ops.join('\n')}\n`;
   await writer.setStream(after, new PdfStream(new PdfDict(), Uint8Array.from(text, (char) => char.charCodeAt(0))));
   const contents = dict.get('Contents');
-  dict.set('Contents', [before, ...(Array.isArray(contents) ? contents : contents ? [contents] : []), after]);
+  // /Contents may be a reference to an array of streams (ISO 32000-1 §7.7.3.3): its items join the new array, never
+  // the array itself, which no reader would draw (review P1).
+  const held = contents instanceof PdfRef ? writer.get(contents) : contents;
+  const list = Array.isArray(held) ? held : contents ? [contents] : [];
+  dict.set('Contents', [before, ...list, after]);
   dict.set('Resources', resources);
 }
 

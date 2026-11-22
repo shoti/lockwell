@@ -5,6 +5,7 @@
  * (`CARRY`) drives this module, the save report and the tests.
  */
 import { pause, BATCH } from './pdf-write.mjs';
+import { jpegWithoutMetadata } from './pdf-image.mjs';
 import { PdfDict, PdfError, PdfName, PdfRef, PdfStream, PdfString, isName, textOf } from './pdf-syntax.mjs';
 
 /** @typedef {import('./pdf-syntax.mjs').PdfObject} PdfObject */
@@ -50,10 +51,12 @@ export class SourceCopier {
    * @param {PdfWriter} writer
    * @param {Map<number, PdfRef>} pages  Source page object number → the output page that is its first copy.
    */
-  constructor(file, writer, pages) {
+  constructor(file, writer, pages, sourcePages = /** @type {PageInfo[]} */ ([])) {
     this.file = file;
     this.writer = writer;
     this.pages = pages;
+    /** Every page of the source by number, whatever its /Type says: never copied as an orphan (review P7). */
+    this.sourcePages = new Set(sourcePages.flatMap((page) => (page.ref ? [page.ref.num] : [])));
     /** @type {Map<number, PdfRef | null>} */
     this.map = new Map();
     /** @type {number[]} */
@@ -65,6 +68,45 @@ export class SourceCopier {
     /** Named destinations, read once. @type {Map<string, PdfObject> | null} */
     this.names = null;
     this.report = newReport();
+    this.blockUnkept(sourcePages);
+  }
+
+  /**
+   * Blocks the annotations of every source page that is not in the output, before anything is copied: actions,
+   * replies and popups could otherwise pull them in (review P8). One also listed on a kept page stays.
+   * @param {PageInfo[]} sourcePages
+   */
+  blockUnkept(sourcePages) {
+    /** @param {PageInfo} page */
+    const annots = (page) => {
+      const list = this.file.resolve(page.dict.get('Annots'));
+      return Array.isArray(list) ? list.flatMap((item) => (item instanceof PdfRef ? [item.num] : [])) : [];
+    };
+    const kept = new Set(sourcePages.filter((page) => page.ref && this.pages.has(page.ref.num)).flatMap(annots));
+    for (const page of sourcePages) {
+      if (page.ref && this.pages.has(page.ref.num)) continue;
+      for (const num of annots(page)) if (!kept.has(num)) this.blocked.add(num);
+    }
+  }
+
+  /**
+   * Whether a source object must never be copied, and why: a file it carries (an embedded file or a file
+   * specification holding one), or a signature (review P3, P6).
+   * @param {PdfObject} value
+   * @returns {'attachments' | 'signatures' | null}
+   */
+  forbidden(value) {
+    const dict = value instanceof PdfStream ? value.dict : value;
+    if (!(dict instanceof PdfDict)) return null;
+    if (isName(dict.get('Type'), 'EmbeddedFile') || dict.has('EF') || dict.has('RF')) return 'attachments';
+    if (isName(dict.get('Type'), 'Sig') || dict.has('ByteRange')) return 'signatures';
+    return null;
+  }
+
+  /** @param {'attachments' | 'signatures'} why */
+  noteForbidden(why) {
+    if (why === 'attachments') this.report.dropped.add('attachments');
+    else this.report.warnings.add('signatures');
   }
 
   /**
@@ -79,9 +121,13 @@ export class SourceCopier {
     let out = null;
     const value = this.file.get(num);
     const type = value instanceof PdfDict ? value.get('Type') : null;
-    if (isName(type, 'Page')) out = this.pages.get(num) ?? null;
+    const why = this.forbidden(value);
+    if (isName(type, 'Page') || this.sourcePages.has(num)) out = this.pages.get(num) ?? null;
     else if (isName(type, 'Pages') || isName(type, 'Catalog') || this.blocked.has(num) || value === null) out = null;
-    else {
+    else if (why) {
+      this.noteForbidden(why);
+      out = null;
+    } else {
       out = this.writer.reserve();
       this.queue.push(num);
     }
@@ -105,15 +151,37 @@ export class SourceCopier {
       return LISTS.has(key) ? items.filter((item, i) => item !== null || value[i] === null) : items;
     }
     if (value instanceof PdfDict) {
+      const why = this.forbidden(value);
+      if (why) {
+        this.noteForbidden(why);
+        return null;
+      }
+      // A signature field's value is the signature itself: who signed, where, when, the certificate (review P6).
+      const signature = isName(value.get('FT'), 'Sig');
       const out = new PdfDict();
       for (const [name, item] of value.entries()) {
-        if (DROPPED_KEYS.has(name) || skip?.has(name)) continue;
+        if (DROPPED_KEYS.has(name) || skip?.has(name)) {
+          if (name === 'AA') this.report.dropped.add('scripts');
+          continue;
+        }
+        if (name === 'AF') {
+          // Files associated with an object (PDF 2.0): attachments by another name (review P3).
+          this.report.dropped.add('attachments');
+          continue;
+        }
+        if (signature && (name === 'V' || name === 'Lock' || name === 'SV')) {
+          this.report.warnings.add('signatures');
+          continue;
+        }
         if (name === 'A' || name === 'PA') {
           const action = this.action(item);
           if (action !== null) out.set(name, action);
           continue;
         }
-        if (name === 'Next') continue; // chained actions are not followed
+        if (name === 'Next') {
+          this.report.dropped.add('scripts'); // chained actions are not followed
+          continue;
+        }
         if (name === 'Dest') {
           const dest = this.destination(item);
           if (dest !== null) out.set(name, dest);
@@ -145,6 +213,7 @@ export class SourceCopier {
       if (dest === null) return null;
       return new PdfDict([['S', kind], ['D', dest]]);
     }
+    if (dict.has('Next')) this.report.dropped.add('scripts');
     return this.copy(new PdfDict([...dict.entries()].filter(([name]) => name !== 'Next')));
   }
 
@@ -192,7 +261,10 @@ export class SourceCopier {
       const skip = this.without.get(num);
       if (value instanceof PdfStream) {
         const dict = /** @type {PdfDict} */ (this.copy(value.dict, '', STREAM_SKIP));
-        await this.writer.setStream(ref, new PdfStream(dict, value.data));
+        // A JPEG picture loses its EXIF and XMP (camera, place, dates) and comments, without being decoded (review P4).
+        const filter = this.file.resolve(value.dict.get('Filter'));
+        const jpeg = isName(filter, 'DCTDecode') || isName(filter, 'DCT') || (Array.isArray(filter) && filter.length === 1 && (isName(this.file.resolve(filter[0]), 'DCTDecode') || isName(this.file.resolve(filter[0]), 'DCT')));
+        await this.writer.setStream(ref, new PdfStream(dict, jpeg ? jpegWithoutMetadata(value.data) : value.data));
       } else {
         this.writer.set(ref, this.copy(value, '', skip));
       }
@@ -252,6 +324,7 @@ export function pageDictionary(copier, page, turn, first) {
   if (page.userUnit !== 1) dict.set('UserUnit', page.userUnit);
   dict.set('Resources', page.resources === null ? new PdfDict() : copier.copy(page.resources, 'Resources'));
   for (const key of PAGE_KEYS) if (page.dict.has(key)) dict.set(key, copier.copy(page.dict.get(key), key));
+  if (page.dict.has('AA')) copier.report.dropped.add('scripts'); // the page's own automatic actions (review P11)
   const annots = copier.file.resolve(page.dict.get('Annots'));
   if (Array.isArray(annots) && annots.length > 0) {
     if (!first) {
