@@ -1455,14 +1455,17 @@
       },
       "pdf": {
         "title": "PDF tools",
-        "summary": "Merge, split, reorder and rotate the pages of PDF files in your browser. Your documents are never uploaded.",
+        "summary": "Merge, split, reorder and rotate the pages of PDF files, and turn photos and scans into a PDF, in your browser. Your documents are never uploaded.",
         "description": "Merge, split, reorder and rotate PDF pages in your browser, without uploading them.",
-        "file": "PDF files",
-        "dropHint": "Or drop files here. You can add several: their pages join the board one file after another.",
+        "file": "PDF files and pictures",
+        "dropHint": "Or drop files here, or paste a picture. You can add several PDFs and pictures: their pages join the board one file after another.",
         "messages": {
           "added": "{name}: {pages} pages added.",
           "addedOne": "{name}: 1 page added.",
           "unsupported": "{name} is not a PDF file this tool can read.",
+          "pictureUnsupported": "{name} is a picture this browser cannot open. Save it as JPEG or PNG and add it again.",
+          "blocked": "{name} was not added: this browser does not let the page read pictures, and this kind of picture needs it. JPEG photos and simple PNG pictures can still be added.",
+          "resized": "{name} was larger than this browser can handle, so the picture was made smaller.",
           "damaged": "{name} is damaged and could not be opened.",
           "tooLarge": "{name} is too large for this device. The limit here is {limit}.",
           "tooMany": "The board holds up to {limit} pages, so {name} was not added.",
@@ -1517,6 +1520,19 @@
         "interleave": "Interleave the two halves",
         "interleaveReversed": "The second half is in reverse order (back sides scanned from the last)",
         "help": "Arrow keys move between pages, Space selects, Shift with an arrow selects more, Alt with an arrow moves the selected pages, R rotates, Delete removes, Ctrl or Command with Z undoes. Every action also has a button.",
+        "picturesHeading": "Pages for pictures",
+        "pictureSize": "Page size",
+        "pictureSizes": {
+          "fit": "The shape of the picture",
+          "a4": "A4",
+          "letter": "Letter (US)"
+        },
+        "pictureMargin": "Margin",
+        "pictureMargins": {
+          "none": "None",
+          "small": "Small",
+          "large": "Large"
+        },
         "saveHeading": "Save",
         "makeLabel": "What to make",
         "make": {
@@ -1550,6 +1566,7 @@
         "linksRemoved": "{count} links to pages that are not in this file",
         "linkRemoved": "1 link to a page that is not in this file",
         "kept": {
+          "pictures": "Pictures were added without their location, camera or date details.",
           "comments": "Comments travel with their pages.",
           "fields": "Form fields travel with their pages.",
           "layers": "Layers travel too; hidden layers stay hidden."

@@ -7,18 +7,25 @@
 import { PdfError, openPdf } from './pdf-file.mjs';
 import { SourceCopier, documentLosses, layersOf, newReport, pageDictionary, planFields } from './pdf-copy.mjs';
 import { pageList } from './pdf-pages.mjs';
+import { IMAGE_PAGE, imageLayout, imageStream } from './pdf-image.mjs';
 import { PdfWriter, pause } from './pdf-write.mjs';
-import { PdfDict, PdfName, PdfRef, PdfStream, PdfString, textOf } from './pdf-syntax.mjs';
+import { PdfDict, PdfName, PdfRef, PdfStream, PdfString, formatNumber, textOf } from './pdf-syntax.mjs';
+import { stillThere } from './tool-photo.mjs';
 
 /** @typedef {import('./pdf-syntax.mjs').PdfObject} PdfObject */
 /** @typedef {import('./pdf-file.mjs').PdfFile} PdfFile */
 /** @typedef {import('./pdf-pages.mjs').PageInfo} PageInfo */
 /** @typedef {import('./pdf-copy.mjs').Report} Report */
+/** @typedef {import('./pdf-image.mjs').Picture} Picture */
+/** @typedef {import('./pdf-image.mjs').ImagePageOptions} ImagePageOptions */
+/** @typedef {import('./tool-photo.mjs').Findings} Findings */
 
 /**
  * @typedef {{ source: number, index: number } | { blank: { width: number, height: number } }} PageOrigin
  * @typedef {{ key: number, origin: PageOrigin, turn: 0 | 90 | 180 | 270, overlays?: unknown[] }} PlanPage
  * @typedef {{ file: PdfFile, pages: PageInfo[] }} PdfSource
+ * @typedef {{ picture: Picture, findings: Findings | null }} ImageSource  A picture added by the visitor; `findings`
+ *   is what the photo tool found in the original, searched for in the result.
  * @typedef {{ pages: number, size: number, dropped: string[], kept: string[], warnings: string[], linksRemoved: number }} Result
  */
 
@@ -29,12 +36,12 @@ const MIN_SECRET = 4;
 
 /**
  * Builds one PDF.
- * @param {{ pages: PlanPage[], sources: Map<number, PdfSource>, id?: Uint8Array, isCancelled?: () => boolean,
- *   onProgress?: (done: number, total: number) => void }} job
+ * @param {{ pages: PlanPage[], sources: Map<number, PdfSource | ImageSource>, imagePage?: ImagePageOptions,
+ *   id?: Uint8Array, isCancelled?: () => boolean, onProgress?: (done: number, total: number) => void }} job
  * @returns {Promise<{ bytes: Uint8Array, report: Result }>}
  * @throws {PdfError}  `locked` for an encrypted source (until milestone 7), `cancelled`, `buildFailed`.
  */
-export async function build({ pages, sources, id, isCancelled = () => false, onProgress }) {
+export async function build({ pages, sources, imagePage = IMAGE_PAGE, id, isCancelled = () => false, onProgress }) {
   if (pages.length === 0) throw new PdfError('buildFailed', 'no pages');
   const writer = new PdfWriter();
   const pageRefs = pages.map(() => writer.reserve());
@@ -46,7 +53,7 @@ export async function build({ pages, sources, id, isCancelled = () => false, onP
   /** @type {Set<PlanPage>} */
   const firstCopies = new Set();
   pages.forEach((page, i) => {
-    if (!('source' in page.origin)) return;
+    if (!('source' in page.origin) || isImage(sources, page.origin.source)) return;
     const { source, index } = page.origin;
     const ref = sourceOf(sources, source).pages[index]?.ref;
     if (!ref) {
@@ -74,7 +81,7 @@ export async function build({ pages, sources, id, isCancelled = () => false, onP
     forms.set(num, planFields(copier, widgetsOn(sources, num, pages, firstCopies)));
   }
   for (const page of pages) {
-    if ('source' in page.origin && !copiers.has(page.origin.source)) {
+    if ('source' in page.origin && !isImage(sources, page.origin.source) && !copiers.has(page.origin.source)) {
       // A source whose pages are all written directly in Kids: nothing can refer to them.
       const { file } = sourceOf(sources, page.origin.source);
       if (file.encrypted) throw new PdfError('locked', 'encrypted source');
@@ -84,12 +91,24 @@ export async function build({ pages, sources, id, isCancelled = () => false, onP
     }
   }
 
+  /** Each picture's image object, written once however many pages show it. @type {Map<number, PdfRef>} */
+  const images = new Map();
   for (let i = 0; i < pages.length; i += 1) {
     const page = pages[i];
     let dict;
     if ('blank' in page.origin) {
       const { width, height } = page.origin.blank;
       dict = new PdfDict([['Type', new PdfName('Page')], ['MediaBox', [0, 0, width, height]], ['Resources', new PdfDict()]]);
+      if (page.turn !== 0) dict.set('Rotate', page.turn);
+    } else if (isImage(sources, page.origin.source)) {
+      const { picture } = /** @type {ImageSource} */ (sources.get(page.origin.source));
+      let image = images.get(page.origin.source);
+      if (!image) {
+        image = writer.reserve();
+        await writer.setStream(image, imageStream(picture));
+        images.set(page.origin.source, image);
+      }
+      dict = await picturePage(writer, picture, image, imagePage);
       if (page.turn !== 0) dict.set('Rotate', page.turn);
     } else {
       const copier = /** @type {SourceCopier} */ (copiers.get(page.origin.source));
@@ -122,23 +141,49 @@ export async function build({ pages, sources, id, isCancelled = () => false, onP
     report.linksRemoved += copier.report.linksRemoved;
   }
   if (layers) report.kept.add('layers');
-  await checkResult(bytes, { pages: pages.length, secrets: secretsOf([...copiers.values()].map((copier) => copier.file)) });
+  if (images.size > 0) report.kept.add('pictures');
+  const findings = [...images.keys()].flatMap((num) => /** @type {ImageSource} */ (sources.get(num)).findings ?? []);
+  await checkResult(bytes, { pages: pages.length, secrets: secretsOf([...copiers.values()].map((copier) => copier.file)), findings });
   return {
     bytes,
     report: { pages: pages.length, size: bytes.length, dropped: [...report.dropped].sort(), kept: [...report.kept].sort(), warnings: [...report.warnings].sort(), linksRemoved: report.linksRemoved },
   };
 }
 
-/** @param {Map<number, PdfSource>} sources @param {number} num */
+/** @param {Map<number, PdfSource | ImageSource>} sources @param {number} num @returns {PdfSource} */
 function sourceOf(sources, num) {
   const source = sources.get(num);
-  if (!source) throw new PdfError('buildFailed', `no source ${num}`);
+  if (!source || 'picture' in source) throw new PdfError('buildFailed', `no PDF source ${num}`);
   return source;
+}
+
+/** @param {Map<number, PdfSource | ImageSource>} sources @param {number} num */
+const isImage = (sources, num) => {
+  const source = sources.get(num);
+  if (!source) throw new PdfError('buildFailed', `no source ${num}`);
+  return 'picture' in source;
+};
+
+/**
+ * A page that shows one picture: its box, the picture drawn by one matrix (camera orientation included), nothing else.
+ * @param {PdfWriter} writer @param {Picture} picture @param {PdfRef} image @param {ImagePageOptions} options
+ */
+async function picturePage(writer, picture, image, options) {
+  const { width, height, matrix } = imageLayout(picture, options);
+  const content = writer.reserve();
+  const text = `q ${matrix.map(formatNumber).join(' ')} cm /Im1 Do Q\n`;
+  await writer.setStream(content, new PdfStream(new PdfDict(), Uint8Array.from(text, (char) => char.charCodeAt(0))));
+  return new PdfDict([
+    ['Type', new PdfName('Page')],
+    ['MediaBox', [0, 0, Number(formatNumber(width)), Number(formatNumber(height))]],
+    ['Resources', new PdfDict([['XObject', new PdfDict([['Im1', image]])]])],
+    ['Contents', content],
+  ]);
 }
 
 /**
  * Widget annotations on the first copies of a source's kept pages.
- * @param {Map<number, PdfSource>} sources @param {number} num @param {PlanPage[]} pages @param {Set<PlanPage>} firstCopies
+ * @param {Map<number, PdfSource | ImageSource>} sources @param {number} num @param {PlanPage[]} pages @param {Set<PlanPage>} firstCopies
  */
 function widgetsOn(sources, num, pages, firstCopies) {
   const { file, pages: info } = sourceOf(sources, num);
@@ -292,12 +337,13 @@ export function secretsOf(files) {
 
 /**
  * Opens a result again and checks it: no repair needed, the planned number of pages, a box and resources on every
- * page, no /Info and nothing in `FORBIDDEN`, no source secret in any string outside the visitor's own words.
+ * page, no /Info and nothing in `FORBIDDEN`, no source secret in any string outside the visitor's own words, and
+ * nothing the photo tool found in an added picture (its location, names, numbers) anywhere in the bytes.
  * @param {Uint8Array} bytes
- * @param {{ pages: number, secrets: Set<string> }} expected
+ * @param {{ pages: number, secrets: Set<string>, findings?: Findings[] }} expected
  * @throws {PdfError}  `buildFailed`, saying what failed.
  */
-export async function checkResult(bytes, { pages, secrets }) {
+export async function checkResult(bytes, { pages, secrets, findings = [] }) {
   /** @param {string} why */
   const fail = (why) => new PdfError('buildFailed', why);
   let file;
@@ -307,6 +353,7 @@ export async function checkResult(bytes, { pages, secrets }) {
     throw fail(`does not open: ${error instanceof Error ? error.message : String(error)}`);
   }
   if (file.repaired) throw fail('needed repair');
+  if (findings.some((found) => stillThere(bytes, found))) throw fail("a picture's location or camera details are in the file");
   if (file.trailer.has('Info') || file.trailer.has('Encrypt')) throw fail('trailer has /Info or /Encrypt');
   const list = pageList(file);
   if (list.length !== pages) throw fail(`${list.length} pages instead of ${pages}`);

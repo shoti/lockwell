@@ -17,9 +17,10 @@ import { build } from '../src/build/build.mjs';
 import { COUNTS, openPdf } from '../src/client/pdf-file.mjs';
 import { pageList } from '../src/client/pdf-pages.mjs';
 import { PDFJS_VERSION } from '../src/client/pdf-view.mjs';
+import { examplePhoto } from '../src/client/tool-photo.mjs';
 import { BOARD_LIMIT, examplePdf, init, insertBlanks, interleaveHalves, movePages, removePages, rotatePages } from '../src/client/tool-pdf.mjs';
 import { readZip } from '../src/client/zip.mjs';
-import { pdfFile, simplePdf } from './build-files.mjs';
+import { jpegFile, pdfFile, pngFile, simplePdf } from './build-files.mjs';
 import { installDom } from './fake-dom.mjs';
 import { PageElement, toolSection } from './page-dom.mjs';
 
@@ -71,13 +72,13 @@ function open(lang) {
     const pattern = template.split(/\{\w+\}/).map((piece) => piece.replace(/[.*+?^$()|[\]\\]/g, '\\$&')).join('.*');
     return Boolean(template) && new RegExp(`^${pattern}$`).test(part('message').textContent);
   };
-  /** @param {Uint8Array} bytes @param {string} [name] */
-  const add = async (bytes, name = 'report.pdf') => {
+  /** @param {Uint8Array} bytes @param {string} [name] @param {string} [type] */
+  const add = async (bytes, name = 'report.pdf', type = 'application/pdf') => {
     const before = cards().length;
     part('message').textContent = '';
-    part('file').files = [new File([/** @type {Uint8Array<ArrayBuffer>} */ (bytes)], name, { type: 'application/pdf' })];
+    part('file').files = [new File([/** @type {Uint8Array<ArrayBuffer>} */ (bytes)], name, { type })];
     part('file').dispatchEvent({ type: 'change' });
-    await until(() => cards().length !== before || /damaged|unsupported|locked|tooMany|tooLarge/.test(Object.keys(part('message').dataset).find((key) => said(key)) ?? ''), 'the file to be read');
+    await until(() => cards().length !== before || /damaged|unsupported|pictureUnsupported|blocked|locked|tooMany|tooLarge/.test(Object.keys(part('message').dataset).find((key) => said(key)) ?? ''), 'the file to be read');
   };
   /** @param {string} name */
   const press = (name) => part(name).click();
@@ -134,12 +135,12 @@ describe('PDF tools page: content', () => {
         assert.ok(tool.querySelector(`[data-js="pdf-${name}"]`) ?? tool.querySelector(`[data-js="${name}"]`), `${lang}: pdf-${name}`);
       }
       const message = /** @type {PageElement} */ (tool.querySelector('[data-js="pdf-message"]'));
-      for (const key of ['added', 'addedOne', 'unsupported', 'damaged', 'tooLarge', 'tooMany', 'locked', 'repaired', 'noPreview', 'buildFailed', 'nothingSelected', 'cancelled', 'badRanges', 'badEvery', 'badPosition', 'saved', 'busy']) {
+      for (const key of ['added', 'addedOne', 'unsupported', 'pictureUnsupported', 'blocked', 'resized', 'damaged', 'tooLarge', 'tooMany', 'locked', 'repaired', 'noPreview', 'buildFailed', 'nothingSelected', 'cancelled', 'badRanges', 'badEvery', 'badPosition', 'saved', 'busy']) {
         assert.ok(message.dataset[key], `${lang}: message ${key}`);
       }
       const units = /** @type {PageElement} */ (tool.querySelector('[data-js="pdf-units"]'));
       for (const unit of ['b', 'kb', 'mb', 'gb']) assert.match(units.dataset[unit] ?? '', /\{n\}/, `${lang}: unit ${unit}`);
-      for (const key of ['bookmarks', 'pageLabels', 'articles', 'structure', 'scripts', 'attachments', 'encryption']) assert.ok(tool.querySelector(`[data-key="${key}"]`), `${lang}: dropped ${key}`);
+      for (const key of ['bookmarks', 'pageLabels', 'articles', 'structure', 'scripts', 'attachments', 'encryption', 'pictures']) assert.ok(tool.querySelector(`[data-key="${key}"]`), `${lang}: report item ${key}`);
       assert.doesNotMatch(pages[lang], /\sstyle="/);
       for (const element of tool.descendants()) {
         if (!element.classList.contains('button--icon') && !/button--icon/.test(element.getAttribute('class') ?? '')) continue;
@@ -459,6 +460,68 @@ describe('PDF tools page: saving', () => {
       await page.saved();
       page.press('reverse');
       assert.equal(page.part('result').hidden, true);
+    } finally {
+      page.restore();
+    }
+  });
+});
+
+describe('PDF tools page: pictures', () => {
+  it('adds a phone photo as one page, shows the picture settings, and saves it on A4 without the photo\'s details', async () => {
+    const page = open('en');
+    try {
+      const photo = examplePhoto(jpegFile({ width: 64, height: 48 }), jpegFile({ width: 8, height: 6 }));
+      assert.equal(page.part('pictures').hidden, true, 'no settings without a picture');
+      await page.add(photo, 'IMG_2041.jpg', 'image/jpeg');
+      assert.equal(page.part('message').textContent, 'IMG_2041.jpg: 1 page added.');
+      assert.deepEqual(page.board(), ['IMG_2041.jpg'], 'a picture card names its file only');
+      assert.equal(page.part('pictures').hidden, false);
+      assert.equal(page.part('name').value, 'IMG_2041');
+      const a4 = /** @type {PageElement} */ (page.tool.querySelectorAll('[data-js="pdf-picture-size"]').find((radio) => radio.value === 'a4'));
+      for (const radio of page.tool.querySelectorAll('[data-js="pdf-picture-size"]')) radio.checked = radio === a4;
+      a4.dispatchEvent({ type: 'change' });
+      page.press('create');
+      const { bytes } = await page.saved();
+      const [first] = pageList(await openPdf(bytes));
+      assert.ok(Math.abs(first.mediaBox[2] - 841.8898) < 0.01 && Math.abs(first.mediaBox[3] - 595.2756) < 0.01, 'A4, landscape');
+      const text = Buffer.from(bytes).toString('latin1');
+      for (const word of ['Exif', 'GPS', 'iPhone', 'Nino']) assert.ok(!text.includes(word), word);
+      const kept = page.tool.querySelectorAll('[data-js="pdf-kept-item"]').filter((item) => !item.hidden).map((item) => item.dataset.key);
+      assert.deepEqual(kept, ['pictures']);
+      page.check(0);
+      page.press('remove');
+      assert.equal(page.part('pictures').hidden, true, 'gone with the last picture page');
+    } finally {
+      page.restore();
+    }
+  });
+
+  it('takes a simple PNG unchanged, and puts PDFs and pictures added together in name order', async () => {
+    const page = open('en');
+    try {
+      const before = page.cards().length;
+      page.part('file').files = [
+        new File([/** @type {Uint8Array<ArrayBuffer>} */ (pngFile())], 'scan 10.png', { type: 'image/png' }),
+        new File([/** @type {Uint8Array<ArrayBuffer>} */ (simplePdf(2))], 'scan 2.pdf', { type: 'application/pdf' }),
+        new File([/** @type {Uint8Array<ArrayBuffer>} */ (jpegFile())], 'scan 1.jpg', { type: 'image/jpeg' }),
+      ];
+      page.part('file').dispatchEvent({ type: 'change' });
+      await until(() => page.cards().length === before + 4, 'three files');
+      assert.deepEqual(page.board(), ['scan 1.jpg', '1', '2', 'scan 10.png']);
+      page.press('create');
+      assert.equal(pageList(await openPdf((await page.saved()).bytes)).length, 4);
+    } finally {
+      page.restore();
+    }
+  });
+
+  it('says when this browser cannot open a picture, and adds nothing', async () => {
+    const page = open('ka');
+    try {
+      const webp = Uint8Array.from([...'RIFF'].map((c) => c.charCodeAt(0)).concat([20, 0, 0, 0], [...'WEBPVP8 '].map((c) => c.charCodeAt(0)), new Array(12).fill(0)));
+      await page.add(webp, 'sticker.webp', 'image/webp');
+      assert.ok(page.said('pictureUnsupported'));
+      assert.equal(page.cards().length, 0);
     } finally {
       page.restore();
     }

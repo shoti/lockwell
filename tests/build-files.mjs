@@ -2,7 +2,8 @@
 /**
  * @file Builds small test files byte by byte, from the format specifications, independently of the site's readers:
  * ZIP (APPNOTE 6.3.10 §4.3), compound files (MS-CFB §2), Windows shortcuts (MS-SHLLINK §2), ISO 9660 images
- * (ECMA-119) and PDF files (ISO 32000-1 §7.5), with the PDF filters' encoders (§7.4). No real-world sample is used:
+ * (ECMA-119), PDF files (ISO 32000-1 §7.5) with the PDF filters' encoders (§7.4), and JPEG (ITU T.81 markers) and PNG
+ * (chunks, with zlib image data) headers around placeholder data. No real-world sample is used:
  * nothing here can run.
  */
 import { crc32, deflateRawSync, deflateSync } from 'node:zlib';
@@ -508,4 +509,37 @@ export function ascii85Encode(input) {
     out += digits.slice(0, n + 1).join('');
   }
   return `${out}~>`;
+}
+
+/* ---------- Pictures: JPEG and PNG ---------- */
+
+/** @param {number} marker @param {number[] | Uint8Array} data */
+export const segment = (marker, data) => join([0xff, marker, (data.length + 2) >> 8, (data.length + 2) & 0xff], data);
+/** JFIF with a density: units 1 = per inch, 2 = per centimetre. @param {number} units @param {number} x @param {number} [y] */
+export const jfif = (units, x, y = x) => segment(0xe0, join(latin1('JFIF\0'), [1, 2, units, x >> 8, x & 0xff, y >> 8, y & 0xff, 0, 0]));
+/** A frame header: precision, height, width, components. */
+const frame = (/** @type {number} */ marker, /** @type {{ bits?: number, width: number, height: number, components?: number }} */ { bits = 8, width, height, components = 3 }) =>
+  segment(marker, [bits, height >> 8, height & 0xff, width >> 8, width & 0xff, components, ...Array.from({ length: components }, (_, i) => [i + 1, 0x11, 0]).flat()]);
+export const TABLES = join(segment(0xdb, [0, ...new Array(64).fill(1)]), segment(0xc4, [0, ...new Array(16).fill(0)]));
+// Scan data with a stuffed 0xFF00 and a restart marker, which are not segments.
+export const SCAN = join(segment(0xda, [1, 1, 0, 0, 0x3f, 0]), [0x12, 0xff, 0x00, 0x34, 0xff, 0xd0, 0x56]);
+/** @param {{ width?: number, height?: number, components?: number, marker?: number, bits?: number, head?: Uint8Array[], tail?: number[] }} [spec] */
+export function jpegFile({ width = 40, height = 30, components = 3, marker = 0xc0, bits = 8, head = [jfif(1, 300)], tail = [] } = {}) {
+  return join([0xff, 0xd8], ...head, TABLES, frame(marker, { bits, width, height, components }), SCAN, [0xff, 0xd9], tail);
+}
+
+/** @param {string} type @param {Uint8Array | number[]} data */
+export const chunk = (type, data) => {
+  const crc = crc32(join(latin1(type), data));
+  return join(be32(data.length), latin1(type), data, be32(crc));
+};
+/** @param {number} n */
+export const be32 = (n) => [n >>> 24, (n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff];
+/** @param {{ width?: number, height?: number, colorType?: number, bitDepth?: number, interlace?: number, extra?: Uint8Array[] }} [spec] */
+export function pngFile({ width = 3, height = 2, colorType = 2, bitDepth = 8, interlace = 0, extra = [] } = {}) {
+  const channels = colorType === 0 ? 1 : colorType === 2 ? 3 : 4;
+  const raw = new Uint8Array(height * (1 + width * channels)).map((_, i) => (i % (1 + width * channels) === 0 ? 0 : (i * 37) & 0xff));
+  const z = deflateSync(raw);
+  return join([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], chunk('IHDR', [...be32(width), ...be32(height), bitDepth, colorType, 0, 0, interlace]), ...extra,
+    chunk('IDAT', z.subarray(0, 5)), chunk('IDAT', z.subarray(5)), chunk('IEND', []));
 }

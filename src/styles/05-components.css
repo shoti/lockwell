@@ -3160,7 +3160,8 @@
   .pdf,
   .pdf__board,
   .pdf__save,
-  .pdf__pick {
+  .pdf__pick,
+  .pdf__pictures:not([hidden]) {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     gap: var(--space-4);

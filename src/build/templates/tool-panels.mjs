@@ -1518,13 +1518,16 @@ function encryptPanel(ctx) {
 
 /** Content some tools show above their controls, readable without JavaScript. */
 /** Messages the PDF tools' message line can show. */
-const PDF_MESSAGES = ['added', 'addedOne', 'unsupported', 'damaged', 'tooLarge', 'tooMany', 'locked', 'repaired', 'noPreview', 'buildFailed', 'nothingSelected', 'cancelled', 'badRanges', 'badEvery', 'badPosition', 'saved', 'busy'];
+const PDF_MESSAGES = ['added', 'addedOne', 'unsupported', 'pictureUnsupported', 'blocked', 'resized', 'damaged', 'tooLarge', 'tooMany', 'locked', 'repaired', 'noPreview', 'buildFailed', 'nothingSelected', 'cancelled', 'badRanges', 'badEvery', 'badPosition', 'saved', 'busy'];
 /** What a saved PDF leaves behind, kept and warns about (pdf-copy.mjs, plan §6.5), in the order listed. */
 const PDF_DROPPED = ['bookmarks', 'pageLabels', 'articles', 'structure', 'scripts', 'attachments', 'encryption'];
-const PDF_KEPT = ['comments', 'fields', 'layers'];
+const PDF_KEPT = ['pictures', 'comments', 'fields', 'layers'];
 const PDF_WARNINGS = ['signatures', 'annotationsOnce'];
 /** How a saved result is cut into files (pdf-build.mjs `splitPages`). */
 const PDF_MAKE = ['all', 'selected', 'ranges', 'every', 'single', 'source'];
+/** Pages made from pictures (pdf-image.mjs `imageLayout`). */
+const PDF_PICTURE_SIZES = ['fit', 'a4', 'letter'];
+const PDF_PICTURE_MARGINS = [['0', 'none'], ['5', 'small'], ['10', 'large']];
 
 /** @param {Ctx} ctx */
 function pdfPanel(ctx) {
@@ -1547,7 +1550,7 @@ function pdfPanel(ctx) {
   };
   return html`<div class="field">
         <label class="field__label" for="pdf__file">${s('file')}</label>
-        ${filePicker(ctx, 'pdf__file', 'pdf-file', 'application/pdf,.pdf', true)}
+        ${filePicker(ctx, 'pdf__file', 'pdf-file', 'application/pdf,.pdf,image/*,.heic,.heif', true)}
         <p class="facts__why">${s('dropHint')}</p>
         <div class="tool__actions">
           <button class="button button--ghost button--small" type="button" data-js="pdf-example">${icons.eye}<span>${t('tools.example')}</span></button>
@@ -1636,6 +1639,17 @@ function pdfPanel(ctx) {
           <p class="facts__why" id="pdf__help">${s('help')}</p>
         </div>
         <div class="pdf__save">
+          <div class="pdf__pictures" data-js="pdf-pictures" hidden>
+            <h2 class="file-report__title">${s('picturesHeading')}</h2>
+            <fieldset class="field">
+              <legend class="field__label">${s('pictureSize')}</legend>
+              ${PDF_PICTURE_SIZES.map((key, i) => radio('pdf-picture-size', `pdf__picture-size-${key}`, key, 'pdf-picture-size', s(`pictureSizes.${key}`), i === 0))}
+            </fieldset>
+            <fieldset class="field">
+              <legend class="field__label">${s('pictureMargin')}</legend>
+              ${PDF_PICTURE_MARGINS.map(([value, key], i) => radio('pdf-picture-margin', `pdf__picture-margin-${value}`, value, 'pdf-picture-margin', s(`pictureMargins.${key}`), i === 0))}
+            </fieldset>
+          </div>
           <h2 class="file-report__title">${s('saveHeading')}</h2>
           <fieldset class="field">
             <legend class="field__label">${s('makeLabel')}</legend>

@@ -1,25 +1,32 @@
 // @ts-check
 /**
- * @file The PDF tools page (plan docs/tools-plan/pdf-toolkit.md §9): files added to a board of page cards,
+ * @file The PDF tools page (plan docs/tools-plan/pdf-toolkit.md §9): PDFs and pictures added to a board of page cards,
  * selected, reordered (buttons, keys or dragging), rotated, duplicated, deleted, with undo; saved as one PDF or
  * split by a rule, every result built by pdf-build.mjs and checked before it is offered. Previews come from
  * pdf-view.mjs; without them the board still works with outline cards. Every label is in the panel template.
  */
+import { canReadBack } from './canvas.mjs';
 import { receiveFiles } from './files.mjs';
 import { commit, createHistory, redo, undo } from './history.mjs';
 import { build, interleave, parseRanges, splitPages } from './pdf-build.mjs';
 import { PdfError, openPdf } from './pdf-file.mjs';
+import { IMAGE_PAGE, imageLayout, jpegPicture, pngPicture } from './pdf-image.mjs';
 import { pageBox, pageList } from './pdf-pages.mjs';
+import { decodePicture, drawPicturePage, rasterPicture, thumbnailOf } from './pdf-raster.mjs';
 import { PdfDict, PdfName, PdfStream } from './pdf-syntax.mjs';
 import { closePreview, drawPage, openPreview } from './pdf-view.mjs';
 import { PdfWriter } from './pdf-write.mjs';
 import { initSave } from './save.mjs';
+import { PhotoError, detectType as photoType, inspectPhoto } from './tool-photo.mjs';
 import { cleanArchive } from './zip.mjs';
 
 /** @typedef {import('./pdf-build.mjs').PlanPage} PlanPage */
 /** @typedef {import('./pdf-build.mjs').SplitRule} SplitRule */
 /** @typedef {import('./pdf-pages.mjs').PageInfo} PageInfo */
 /** @typedef {import('./pdf-view.mjs').Preview} Preview */
+/** @typedef {import('./pdf-image.mjs').Picture} Picture */
+/** @typedef {import('./pdf-image.mjs').ImagePageOptions} ImagePageOptions */
+/** @typedef {import('./tool-photo.mjs').Findings} Findings */
 
 /** Pages the board holds (plan §6.3). */
 export const BOARD_LIMIT = 5000;
@@ -119,6 +126,24 @@ const fill = (template, values) => template.replace(/\{(\w+)\}/g, (_, key) => St
 /** A file's name without its extension. @param {string} name */
 const baseName = (name) => name.replace(/\.[^.]*$/, '') || FALLBACK;
 
+/**
+ * Files added together, in name order ("scan 2" before "scan 10"), so a batch of photos or scans lands as numbered.
+ * @template {{ name: string }} T @param {T[]} files
+ */
+export const byName = (files) => files.slice().sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+
+/**
+ * Whether a file is a picture rather than a PDF: by its first bytes (the formats the photo tool reads, GIF, BMP), or
+ * by the type the browser gives it when the bytes say nothing a PDF would.
+ * @param {Uint8Array} bytes @param {string} type
+ */
+export function isPicture(bytes, type) {
+  if (photoType(bytes)) return true;
+  const head = String.fromCharCode(...bytes.subarray(0, 6));
+  if (head.startsWith('GIF8') || head.startsWith('BM')) return true;
+  return type.startsWith('image/') && !String.fromCharCode(...bytes.subarray(0, 1024)).includes('%PDF-');
+}
+
 /* ---------- The example ---------- */
 
 /**
@@ -146,14 +171,12 @@ export async function examplePdf() {
 /* ---------- The page ---------- */
 
 /**
- * @typedef {object} Source
- * @property {number} id
- * @property {string} name
- * @property {number} size
- * @property {Uint8Array} bytes
- * @property {import('./pdf-file.mjs').PdfFile} file
- * @property {PageInfo[]} pages
- * @property {Promise<Preview | null> | null} preview
+ * A file on the board: a PDF with its pages, or a picture that makes one page.
+ * @typedef {{ kind: 'pdf', id: number, name: string, size: number, bytes: Uint8Array, file: import('./pdf-file.mjs').PdfFile,
+ *   pages: PageInfo[], preview: Promise<Preview | null> | null }} PdfSourceView
+ * @typedef {{ kind: 'image', id: number, name: string, size: number, picture: Picture, findings: Findings | null,
+ *   thumb: ImageBitmap | null }} ImageSourceView
+ * @typedef {PdfSourceView | ImageSourceView} Source
  */
 
 /** @param {HTMLElement} root */
@@ -189,6 +212,10 @@ export function init(root) {
   let cancelled = false;
   let size = 3;
   let previewsUnavailable = false;
+  /** @type {ImagePageOptions} */
+  let imagePage = { ...IMAGE_PAGE };
+  /** @type {boolean | null} */
+  let readBack = null;
   const key = () => nextKey++;
   const pages = () => history.entries[history.index];
 
@@ -218,11 +245,15 @@ export function init(root) {
       const { width, height } = page.origin.blank;
       return page.turn % 180 === 0 ? { width, height } : { width: height, height: width };
     }
-    const info = sources.get(page.origin.source)?.pages[page.origin.index];
-    if (!info) return { width: 612, height: 792 };
-    const { width, height } = pageBox(info);
+    const source = sources.get(page.origin.source);
+    const info = source?.kind === 'pdf' ? source.pages[page.origin.index] : null;
+    const { width, height } = source?.kind === 'image' ? imageLayout(source.picture, imagePage) : info ? pageBox(info) : { width: 612, height: 792 };
     return page.turn % 180 === 0 ? { width, height } : { width: height, height: width };
   };
+  /** @param {PlanPage} page */
+  const isImagePage = (page) => 'source' in page.origin && sources.get(page.origin.source)?.kind === 'image';
+  /** What a card was drawn for: picture pages also depend on the page settings. @param {PlanPage} page */
+  const drawKey = (page) => (isImagePage(page) ? `${page.turn}:${size}:${imagePage.size}:${imagePage.margin}` : `${page.turn}:${size}`);
 
   /** @param {PlanPage} page */
   const cardFor = (page) => {
@@ -269,7 +300,7 @@ export function init(root) {
       const page = pages().find((item) => item.key === keyValue);
       const card = cardViews.get(keyValue);
       if (!page || !card) continue;
-      const wanted = `${page.turn}:${size}`;
+      const wanted = drawKey(page);
       if (card.drawn === wanted) continue;
       if ('blank' in page.origin) {
         card.drawn = wanted;
@@ -277,6 +308,13 @@ export function init(root) {
       }
       const source = sources.get(page.origin.source);
       if (!source) continue;
+      const ratio = Math.min(2, globalThis.devicePixelRatio || 1);
+      if (source.kind === 'image') {
+        card.element.classList.toggle('is-outline', !source.thumb);
+        if (source.thumb) drawPicturePage(card.canvas, source.thumb, imageLayout(source.picture, imagePage), { width: card.canvas.clientWidth || CARD_REM[size - 1] * 16, turn: page.turn, ratio });
+        card.drawn = wanted;
+        continue;
+      }
       drawing += 1;
       const { index } = page.origin;
       (async () => {
@@ -289,7 +327,6 @@ export function init(root) {
           }
           return;
         }
-        const ratio = Math.min(2, globalThis.devicePixelRatio || 1);
         const width = card.canvas.clientWidth || CARD_REM[size - 1] * 16;
         const task = drawPage(preview, index, card.canvas, { width, turn: page.turn, ratio });
         card.task = task;
@@ -361,8 +398,8 @@ export function init(root) {
       card.element.classList.toggle('is-selected', selected.has(page.key));
       card.element.setAttribute('tabindex', page.key === (focusKey ?? list[0]?.key) ? '0' : '-1');
       /** @type {HTMLElement} */ (card.element.querySelector('[data-js="pdf-card-number"]')).textContent = String(i + 1);
-      /** @type {HTMLElement} */ (card.element.querySelector('[data-js="pdf-card-source"]')).textContent = source && 'source' in page.origin ? `${source.name} · ${page.origin.index + 1}` : '';
-      if (card.drawn !== `${page.turn}:${size}`) {
+      /** @type {HTMLElement} */ (card.element.querySelector('[data-js="pdf-card-source"]')).textContent = !source || !('source' in page.origin) ? '' : source.kind === 'image' ? source.name : `${source.name} · ${page.origin.index + 1}`;
+      if (card.drawn !== drawKey(page)) {
         if (!card.drawn) placeholder(card, page);
         if (!observer || card.visible) want(page.key);
       }
@@ -378,6 +415,7 @@ export function init(root) {
     cards.dataset.size = String(size);
     status.textContent = fill((list.length === 1 ? status.dataset.templateOne : status.dataset.template) ?? '', { pages: list.length, selected: selected.size });
     work.hidden = sources.size === 0;
+    find('pictures').hidden = !list.some(isImagePage);
     button('undo').disabled = history.index === 0;
     button('redo').disabled = history.index === history.entries.length - 1;
     button('smaller').disabled = size === 1;
@@ -398,12 +436,17 @@ export function init(root) {
     render();
   };
 
+  /** @param {Source} source */
+  const letGo = (source) => {
+    if (source.kind === 'pdf') void source.preview?.then(closePreview);
+    else source.thumb?.close();
+  };
   /** Lets go of sources no step of the history refers to. */
   const releaseUnused = () => {
     const used = new Set(history.entries.flatMap((list) => list.flatMap((page) => ('source' in page.origin ? [page.origin.source] : []))));
     for (const [id, source] of sources) {
       if (used.has(id)) continue;
-      void source.preview?.then(closePreview);
+      letGo(source);
       sources.delete(id);
     }
   };
@@ -639,7 +682,7 @@ export function init(root) {
     busy = true;
     render();
     try {
-      for (const file of files) await addFile(file.name, file.size, () => file.arrayBuffer());
+      for (const file of byName(files)) await addFile(file.name, file.size, () => file.arrayBuffer(), file.type);
     } finally {
       busy = false;
       render();
@@ -647,9 +690,9 @@ export function init(root) {
   };
 
   /**
-   * @param {string} name @param {number} bytesSize @param {() => Promise<ArrayBuffer>} read
+   * @param {string} name @param {number} bytesSize @param {() => Promise<ArrayBuffer>} read @param {string} [type]
    */
-  const addFile = async (name, bytesSize, read) => {
+  const addFile = async (name, bytesSize, read, type = '') => {
     if (bytesSize > fileLimit) return say('tooLarge', { name, limit: sizeText(fileLimit) });
     /** @type {Uint8Array} */
     let bytes;
@@ -657,6 +700,7 @@ export function init(root) {
     let list;
     try {
       bytes = new Uint8Array(await read());
+      if (isPicture(bytes, type)) return addPicture(name, bytesSize, bytes);
       file = await openPdf(bytes);
       list = pageList(file);
     } catch (error) {
@@ -669,14 +713,62 @@ export function init(root) {
     if (file.encrypted) return say('locked', { name });
     if (pages().length + list.length > BOARD_LIMIT) return say('tooMany', { name, limit: BOARD_LIMIT });
     const id = nextSource++;
-    sources.set(id, { id, name, size: bytesSize, bytes, file, pages: list, preview: openPreview(bytes) });
+    sources.set(id, { kind: 'pdf', id, name, size: bytesSize, bytes, file, pages: list, preview: openPreview(bytes) });
     const added = list.map((_, index) => ({ key: key(), origin: { source: id, index }, turn: /** @type {const} */ (0) }));
     if (!input('name').value) input('name').value = baseName(name);
     change([...pages(), ...added]);
     say(file.repaired ? 'repaired' : list.length === 1 ? 'addedOne' : 'added', { name, pages: list.length });
   };
 
-  receiveFiles(root, (_, all) => void addFiles(all));
+  /**
+   * A picture as one page (plan §6.8). JPEG and simple PNG go in unchanged once the photo tool has cleaned them; the
+   * rest is decoded and drawn again, which carries nothing of the original file.
+   * @param {string} name @param {number} bytesSize @param {Uint8Array} bytes
+   */
+  const addPicture = async (name, bytesSize, bytes) => {
+    if (pages().length + 1 > BOARD_LIMIT) return say('tooMany', { name, limit: BOARD_LIMIT });
+    const kind = photoType(bytes);
+    /** @type {Picture | null} */
+    let picture = null;
+    /** @type {Findings | null} */
+    let findings = null;
+    if (kind === 'jpeg' || kind === 'png') {
+      try {
+        const report = await inspectPhoto(/** @type {Uint8Array<ArrayBuffer>} */ (bytes.slice()), { dropProfile: true });
+        findings = report.findings;
+        if (report.clean && report.verified) picture = kind === 'jpeg' ? jpegPicture(report.clean, report.orientation) : pngPicture(report.clean);
+      } catch (error) {
+        // A file the cleaner cannot follow is decoded and drawn again below instead.
+        if (!(error instanceof PhotoError)) console.error('[lockwell] A picture could not be read.', error);
+      }
+    }
+    const bitmap = await decodePicture(bytes);
+    let scaled = false;
+    /** @type {ImageBitmap | null} */
+    let thumb = null;
+    try {
+      if (!picture) {
+        if (!bitmap) return say('pictureUnsupported', { name });
+        readBack ??= canReadBack();
+        if (!readBack) return say('blocked', { name });
+        // Photos stay JPEG; drawings, screenshots and the rest are kept without loss.
+        ({ picture, scaled } = await rasterPicture(bitmap, { lossless: !['jpeg', 'webp', 'heic', 'avif'].includes(kind ?? '') }));
+      }
+      if (bitmap) thumb = await thumbnailOf(bitmap);
+    } catch (error) {
+      console.error('[lockwell] A picture could not be prepared for the PDF.', error);
+      return say('pictureUnsupported', { name });
+    } finally {
+      bitmap?.close();
+    }
+    const id = nextSource++;
+    sources.set(id, { kind: 'image', id, name, size: bytesSize, picture, findings, thumb });
+    if (!input('name').value) input('name').value = baseName(name);
+    change([...pages(), { key: key(), origin: { source: id, index: 0 }, turn: 0 }]);
+    say(scaled ? 'resized' : 'addedOne', { name, pages: 1 });
+  };
+
+  receiveFiles(root, (_, all) => void addFiles(all), { paste: true });
   input('file').addEventListener('change', () => {
     const files = [...(input('file').files ?? [])];
     if (files.length) void addFiles(files);
@@ -694,6 +786,26 @@ export function init(root) {
     }
   });
 
+  /* ----- Pages for pictures ----- */
+
+  for (const radio of ['size', 'margin'].flatMap((name) => [...root.querySelectorAll(`[data-js="pdf-picture-${name}"]`)])) {
+    radio.addEventListener('change', () => {
+      const chosen = (/** @type {string} */ name) => /** @type {HTMLInputElement | undefined} */ ([...root.querySelectorAll(`[data-js="pdf-picture-${name}"]`)].find((item) => /** @type {HTMLInputElement} */ (item).checked))?.value;
+      const sizeName = chosen('size');
+      const margin = Number(chosen('margin'));
+      imagePage = {
+        size: sizeName === 'a4' || sizeName === 'letter' ? sizeName : 'fit',
+        margin: margin === 5 || margin === 10 ? margin : 0,
+      };
+      clearResult();
+      for (const page of pages()) {
+        const card = cardViews.get(page.key);
+        if (card && isImagePage(page)) placeholder(card, page);
+      }
+      render();
+    });
+  }
+
   /* ----- Starting again ----- */
 
   const restart = find('restart');
@@ -706,7 +818,7 @@ export function init(root) {
   });
   button('restart-yes').addEventListener('click', () => {
     restart.hidden = true;
-    for (const source of sources.values()) void source.preview?.then(closePreview);
+    for (const source of sources.values()) letGo(source);
     sources.clear();
     for (const card of cardViews.values()) card.task?.cancel();
     cardViews.clear();
@@ -787,9 +899,9 @@ export function init(root) {
     /** @type {{ bytes: Uint8Array, report: import('./pdf-build.mjs').Result }[]} */
     const results = [];
     try {
-      const inputs = new Map([...sources].map(([id, source]) => [id, { file: source.file, pages: source.pages }]));
+      const inputs = new Map([...sources].map(([id, source]) => [id, source.kind === 'pdf' ? { file: source.file, pages: source.pages } : { picture: source.picture, findings: source.findings }]));
       for (const [i, group] of groups.entries()) {
-        results.push(await build({ pages: group, sources: inputs, isCancelled: () => cancelled, onProgress: (done, total) => { progress.value = (i + done / total) / groups.length; } }));
+        results.push(await build({ pages: group, sources: inputs, imagePage, isCancelled: () => cancelled, onProgress: (done, total) => { progress.value = (i + done / total) / groups.length; } }));
       }
     } catch (error) {
       const code = error instanceof PdfError ? error.code : 'buildFailed';
