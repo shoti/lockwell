@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, before, describe, it } from 'node:test';
 import { build } from '../src/build/build.mjs';
-import { ARMOUR_BEGIN, COUNTS, unarmour } from '../src/client/lockbox.mjs';
+import { ARMOUR_BEGIN, COUNTS, KIND, sealBytes, unarmour } from '../src/client/lockbox.mjs';
 import { init } from '../src/client/tool-encrypt.mjs';
 import { installDom } from './fake-dom.mjs';
 import { PageElement, toolSection } from './page-dom.mjs';
@@ -150,6 +150,58 @@ describe('file encryption page', () => {
       assert.equal(page.part('plain').value, 'Recovery code: 4417-2291');
       assert.equal(page.part('kind').textContent, page.part('kind').dataset.text);
       assert.equal(page.part('name-row').hidden, true);
+    } finally {
+      page.restore();
+    }
+  });
+
+  it('withdraws the result when the password in force changes after locking (review C1)', async () => {
+    const page = open('en');
+    try {
+      await until(() => Boolean(page.part('passphrase').textContent), 'the passphrase');
+      page.type('text', 'Recovery code: 4417-2291');
+      const lockAndWait = async () => {
+        page.part('lock-button').click();
+        await until(() => page.said('locked'), 'locking');
+        assert.equal(page.part('locked').hidden, false);
+        assert.ok(page.download('lock').getAttribute('href'), 'a file is offered');
+      };
+      await lockAndWait();
+      const before = page.part('passphrase').textContent;
+      page.part('another').click();
+      await until(() => page.part('passphrase').textContent !== before, 'another passphrase');
+      assert.equal(page.part('locked').hidden, true, 'Another one: the result no longer matches the password shown');
+      assert.ok(!page.download('lock').getAttribute('href'), 'and its download is gone');
+      assert.equal(page.message(), '', '"Locked and checked" no longer stands');
+
+      await lockAndWait();
+      page.choose('password-kind', 'own');
+      assert.equal(page.part('locked').hidden, true, 'switching to a typed password');
+
+      page.type('password', 'a long and private sentence');
+      page.type('repeat', 'a long and private sentence');
+      await lockAndWait();
+      page.type('password', 'a long and private sentence!');
+      assert.equal(page.part('locked').hidden, true, 'editing the typed password');
+    } finally {
+      page.restore();
+    }
+  });
+
+  it('holds what is being locked still while the job runs (review C2)', async () => {
+    const page = open('en');
+    try {
+      await until(() => Boolean(page.part('passphrase').textContent), 'the passphrase');
+      page.type('text', 'IBAN GE00 0001');
+      page.part('lock-button').click();
+      assert.equal(page.part('text').readOnly, true, 'the text can’t be edited during the job');
+      assert.equal(page.part('file').disabled, true);
+      page.tool.dispatchEvent({ type: 'drop', preventDefault() {}, dataTransfer: { files: [new File(['other'], 'final.pdf')] } });
+      await until(() => page.said('busy') || page.said('locked'), 'the dropped file to be turned down');
+      await until(() => page.said('locked'), 'locking');
+      assert.equal(page.part('text').readOnly, false);
+      assert.equal(page.part('file').disabled, false);
+      assert.equal(page.part('text').value, 'IBAN GE00 0001');
     } finally {
       page.restore();
     }
@@ -457,6 +509,56 @@ describe('file encryption page: large and several files', () => {
       assert.equal(page.part('locked').hidden, true);
     } finally {
       picker.remove();
+      page.restore();
+    }
+  });
+
+  it('empties the chosen file when the job is cancelled during the check (review C4)', async () => {
+    const page = open('en');
+    const target = savedFile('locked.lockwell');
+    const picker = withPicker(async () => target.handle);
+    try {
+      await until(() => Boolean(page.part('passphrase').textContent), 'the passphrase');
+      page.part('file').files = [new File([bytesOf(33 * 1024 * 1024)], 'big.bin')];
+      page.part('file').dispatchEvent({ type: 'change' });
+      await until(() => page.part('lock-button').disabled === false, 'the file');
+      page.part('lock-button').click();
+      await until(() => page.said('checking'), 'the check');
+      page.part('cancel').click();
+      await until(() => page.said('cancelled'), 'the cancel');
+      await until(() => target.state.writers === 2, 'the file to be emptied');
+      assert.equal(/** @type {Blob} */ (target.state.written).size, 0, '"Nothing was saved" is true: no unchecked file is left');
+      assert.equal(page.part('locked').hidden, true);
+    } finally {
+      picker.remove();
+      page.restore();
+    }
+  });
+
+  it('opens a file claiming several files as a ZIP, warns about a risky name for any kind, and never uses the claimed type (review C6)', async () => {
+    const page = open('en');
+    try {
+      const password = 'a long and private sentence';
+      const forged = await sealBytes({ password, meta: { kind: KIND.files, name: 'invoice.pdf.exe', type: 'text/html' }, content: new TextEncoder().encode('<script>1</script>') });
+      page.choose('mode', 'open');
+      page.part('locked-file').files = [new File([forged], 'invoice.lockwell')];
+      page.part('locked-file').dispatchEvent({ type: 'change' });
+      page.type('open-password', password);
+      page.part('open-button').click();
+      await until(() => page.said('opened'), 'opening');
+      assert.equal(page.download('open').getAttribute('download') ?? page.download('open').download, 'files.zip');
+      const blob = resolveObjectURL(page.download('open').getAttribute('href') ?? '');
+      assert.equal(blob?.type, 'application/octet-stream');
+      assert.equal(page.part('zip-note').hidden, false);
+
+      const named = await sealBytes({ password, meta: { kind: KIND.file, name: 'invoice.pdf.exe', type: 'text/html' }, content: new Uint8Array(4) });
+      page.part('locked-file').files = [new File([named], 'invoice2.lockwell')];
+      page.part('locked-file').dispatchEvent({ type: 'change' });
+      page.type('open-password', password);
+      page.part('open-button').click();
+      await until(() => page.said('opened') && page.part('risky').hidden === false, 'opening the second');
+      assert.equal(resolveObjectURL(page.download('open').getAttribute('href') ?? '')?.type, 'application/octet-stream');
+    } finally {
       page.restore();
     }
   });

@@ -1349,7 +1349,7 @@ const ENCRYPT_WARNINGS = ['tooShort', 'short', 'oneClass', 'run', 'name', 'text'
 /** What the message line can say (data-* in kebab case on it; see MESSAGES in tool-encrypt.mjs). */
 const ENCRYPT_MESSAGES = [
   'locking', 'checking', 'opening', 'locked', 'opened', 'needsInput', 'wrongPassword', 'damaged', 'notLocked', 'newerVersion', 'tooLarge',
-  'bundleTooLarge', 'unsupported', 'readFailed', 'cancelled', 'verifyFailed', 'pressAgain',
+  'bundleTooLarge', 'unsupported', 'readFailed', 'cancelled', 'verifyFailed', 'pressAgain', 'busy',
 ];
 const ENCRYPT_UNITS = ['b', 'kb', 'mb', 'gb'];
 /** The example's password: shown to everyone, so it is a demonstration and nothing else. */

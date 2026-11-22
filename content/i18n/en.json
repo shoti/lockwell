@@ -1774,7 +1774,8 @@
           "readFailed": "The file couldn’t be read. If it’s on a cloud drive, save it to this device first.",
           "cancelled": "Stopped. Nothing was saved.",
           "verifyFailed": "The check failed: the result didn’t open back to what you locked, so it isn’t offered. Try again.",
-          "pressAgain": "Press Open again, and choose where to save the file first."
+          "pressAgain": "Press Open again, and choose where to save the file first.",
+          "busy": "Wait until this job ends, or press Cancel, before changing what to lock."
         },
         "units": {
           "b": "{n} bytes",

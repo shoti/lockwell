@@ -462,8 +462,26 @@ describe('lockbox: hiding the exact size with Padmé', () => {
     assert.deepEqual((await openBytes({ password: PASSWORD, bytes: locked })).content, content);
     const ends = await openEnds({ password: PASSWORD, read: readBytes(locked), size: locked.length });
     assert.equal(ends.meta.size, content.length);
-    assert.deepEqual(ends.last.bytes.length, 0);
-    assert.equal(ends.last.offset, content.length);
+    // The end of the content sits in chunk 128, before the three chunks of padding: it is opened and returned, so the
+    // "start and end" check really compares the end (review C5; this test used to expect nothing at the end).
+    assert.equal(ends.last.offset, content.length - CHUNK);
+    assert.deepEqual(ends.last.bytes, content.subarray(content.length - CHUNK));
+  });
+
+  it('refuses non-zero bytes after the content where the content ends and in the last chunk, at its ends too', async () => {
+    const content = pattern(3 * CHUNK);
+    // Content ends inside chunk 3; padding runs on through chunk 5. A stray byte right after the content, or one in the
+    // last chunk only: both are refused by the ends check alone.
+    for (const at of [0, 2 * CHUNK]) {
+      const padding = new Uint8Array(2 * CHUNK + 100);
+      padding[at] = 1;
+      const bytes = refWrite({ kind: KIND.file, name: 'a.bin', type: '', content, padding });
+      await assert.rejects(openEnds({ password: PASSWORD, read: readBytes(bytes), size: bytes.length }), (error) => error instanceof LockboxError && error.code === 'damaged', `stray byte at ${at}`);
+    }
+    const clean = refWrite({ kind: KIND.file, name: 'a.bin', type: '', content, padding: new Uint8Array(2 * CHUNK + 100) });
+    const ends = await openEnds({ password: PASSWORD, read: readBytes(clean), size: clean.length });
+    assert.deepEqual(ends.last.bytes, content.subarray(ends.last.offset));
+    assert.ok(ends.last.offset > 0 && ends.last.bytes.length > 0);
   });
 });
 

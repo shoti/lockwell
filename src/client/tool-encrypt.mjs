@@ -123,7 +123,8 @@ export const mediaType = (type) => (/^[\x20-\x7e]{0,255}$/.test(type) ? type : '
  * @param {import('./lockbox.mjs').Meta} meta
  */
 export function savedAs(meta) {
-  const name = cleanName(meta.name || (meta.kind === KIND.files ? 'files.zip' : ''));
+  // Several files are always a ZIP archive, whatever name the file claims (review C6).
+  const name = cleanName(meta.kind === KIND.files ? 'files.zip' : meta.name);
   const dot = name.lastIndexOf('.');
   return { original: name, extension: dot > 0 ? name.slice(dot + 1) : '' };
 }
@@ -381,6 +382,14 @@ export function init(root) {
   };
 
   const update = () => {
+    if (!locked.hidden && currentPassword() !== lockedWith) {
+      hideLocked();
+      say('');
+    }
+    // What is being locked can't change while a job runs: the result would hold the old content (review C2).
+    text.readOnly = busy;
+    fileInput.disabled = busy;
+    for (const radio of whats) radio.disabled = busy;
     const typed = password.value;
     const found = own() ? passwordWarnings(typed, { name: lockFiles[0]?.name ?? '', text: what() === 'text' ? text.value : '' }) : [];
     const mismatch = own() && !shown() && repeat.value !== '' && repeat.value !== typed;
@@ -406,10 +415,13 @@ export function init(root) {
     newPassphrase().catch((error) => console.error('[lockwell] Could not make a passphrase: the word list did not load.', error));
   };
 
+  /** The password the offered result was checked with: when the one in force changes, the result goes (review C1). */
+  let lockedWith = /** @type {string | null} */ (null);
   const hideLocked = () => {
     locked.hidden = true;
     lockSave.clear();
     lockSaved.hidden = true;
+    lockedWith = null;
   };
   const clearLock = () => {
     text.value = '';
@@ -490,10 +502,12 @@ export function init(root) {
    * @param {Blob} result
    * @param {Blob} source
    * @param {() => boolean} stop
+   * @param {(password: string) => void} used  Told the password the check uses.
    * @returns {Promise<'full' | 'ends' | null>}
    */
-  const checkLocked = async (result, source, stop) => {
+  const checkLocked = async (result, source, stop, used) => {
     const again = currentPassword();
+    used(again);
     /** @type {import('./lockbox.mjs').Read} */
     const read = (offset, length) => readRange(result, offset, length);
     try {
@@ -529,7 +543,8 @@ export function init(root) {
     if (job !== ticket) return;
     say('checking');
     // Derived again from the field as it is now, not from the key in hand.
-    const back = await openBytes({ password: currentPassword(), bytes: sealed }).catch(() => null);
+    const checkedWith = currentPassword();
+    const back = await openBytes({ password: checkedWith, bytes: sealed }).catch(() => null);
     if (job !== ticket) return;
     if (!back || !sameBytes(back.content, content)) {
       say('verifyFailed');
@@ -545,7 +560,9 @@ export function init(root) {
     lockSaveBox.hidden = false;
     lockSave.offer({ blob: new Blob([sealed], { type: 'application/octet-stream' }), original: '', extension: 'lockwell', fallback: 'locked', suffix: '', neutral: true });
     locked.hidden = false;
+    lockedWith = checkedWith;
     say('locked');
+    update();
   };
 
   const lock = async () => {
@@ -581,6 +598,9 @@ export function init(root) {
     }
     /** @type {Awaited<ReturnType<typeof fileSink>> | null} */
     let file = null;
+    // A file written through the save dialog but not yet checked: emptied unless the check passes (review C4).
+    let unchecked = false;
+    let checkedWith = '';
     const stop = () => cancelled || job !== ticket;
     say('locking');
     try {
@@ -599,27 +619,34 @@ export function init(root) {
       await seal({ password: currentPassword(), meta: { ...meta, size: source.size }, read: (offset, length) => readRange(source, offset, length), write, pad: pad.checked, onProgress: showProgress, isCancelled: stop });
       if (file) await file.finish();
       file = null;
+      unchecked = Boolean(handle);
       const result = handle ? await handle.getFile() : /** @type {ReturnType<typeof blobSink>} */ (blob).finish('application/octet-stream');
       if (job !== ticket) return;
       say('checking');
-      const check = await checkLocked(result, source, stop);
+      const check = await checkLocked(result, source, stop, (password) => {
+        checkedWith = password;
+      });
       if (job !== ticket) return;
       if (!check) {
-        if (handle) await (await fileSink(handle)).finish().catch((error) => console.warn('[lockwell] Could not empty the chosen file after the check failed.', error));
         say('verifyFailed');
         return;
       }
+      unchecked = false;
       verified.textContent = verified.dataset[check] ?? '';
       armourBox.hidden = true;
       lockSaveBox.hidden = Boolean(handle);
       lockSaved.hidden = !handle;
       if (!handle) lockSave.offer({ blob: result, original: `${several ? 'files.zip' : chosen[0].name}.lockwell`, extension: 'lockwell', fallback: 'locked', suffix: '', neutral: true });
       locked.hidden = false;
+      lockedWith = checkedWith;
       say('locked');
     } catch (error) {
       if (file) await file.abort();
       if (job === ticket) fail(error, 'lock');
     } finally {
+      if (unchecked && handle) {
+        await (await fileSink(handle)).finish().catch((error) => console.warn('[lockwell] Could not empty the chosen file after its check did not finish.', error));
+      }
       if (job === ticket) {
         busy = false;
         progressBox.hidden = true;
@@ -651,10 +678,11 @@ export function init(root) {
   const showInside = (meta) => {
     const kind = part('kind');
     kind.textContent = kind.dataset[meta.kind === KIND.text ? 'text' : meta.kind === KIND.file ? 'file' : 'files'] ?? '';
-    const { visible, risky } = riskyName(meta.name || (meta.kind === KIND.files ? 'files.zip' : ''));
+    const { visible, risky } = riskyName(meta.kind === KIND.files ? 'files.zip' : meta.name);
     part('name-row').hidden = meta.kind === KIND.text;
     part('name').textContent = visible;
-    part('risky').hidden = meta.kind !== KIND.file || !risky;
+    // Every kind that is saved as a file is checked: a crafted file can claim any kind (review C6).
+    part('risky').hidden = meta.kind === KIND.text || !risky;
     part('zip-note').hidden = meta.kind !== KIND.files;
     part('size').textContent = sizeText(meta.size);
   };
@@ -728,7 +756,8 @@ export function init(root) {
         plain.textContent = value;
       } else if (blob) {
         const { original, extension } = savedAs(meta);
-        openSave.offer({ blob: blob.finish(meta.type || 'application/octet-stream'), original, extension, fallback: 'unlocked', suffix: '', neutral: false });
+        // Never the type the file claims: a page type would let an opened file act as a page of this site (review C6).
+        openSave.offer({ blob: blob.finish('application/octet-stream'), original, extension, fallback: 'unlocked', suffix: '', neutral: false });
       }
       opened.hidden = false;
       say('opened');
@@ -785,6 +814,10 @@ export function init(root) {
   };
   /** @param {File[]} files */
   const takeLock = (files) => {
+    if (busy) {
+      say('busy');
+      return;
+    }
     if (files.length) takeForLock(files).catch((error) => console.error('[lockwell] Could not take the chosen files.', error));
   };
 

@@ -424,27 +424,39 @@ async function unlock(password, read, size) {
 }
 
 /**
- * Opens a locked file at its two ends only: the header, the first chunk and the last chunk. It tells the metadata
- * before a save dialog is opened, and checks results too large to open twice. The middle is not verified, so this
- * never releases content to the visitor.
+ * Opens a locked file at its two ends only: the header, the first chunk, the chunk where the content ends and the last
+ * chunk. It tells the metadata before a save dialog is opened, and checks results too large to open twice. The
+ * middle is not verified, so this never releases content to the visitor.
  * @param {{ password: string, read: Read, size: number }} options
  * @returns {Promise<{ meta: Meta, first: Uint8Array<ArrayBuffer>, last: { offset: number, bytes: Uint8Array<ArrayBuffer> } }>}
- *   first: the content held by the first chunk; last: the content held by the last chunk and its offset in the content.
+ *   first: the content held by the first chunk; last: the content held by the chunk where it ends, and that part's
+ *   offset in the content.
  */
 export async function openEnds({ password, read, size }) {
   const { dataKey, count } = await unlock(password, read, size);
   const firstPlain = await openChunk(dataKey, 0, count === 1, await readExactly(read, HEADER_LENGTH, Math.min(SEALED_CHUNK, size - HEADER_LENGTH)));
   const { meta, length } = decodeMeta(firstPlain);
-  const first = firstPlain.subarray(length, Math.min(firstPlain.length, length + meta.size));
-  if (count === 1) return { meta, first, last: { offset: 0, bytes: first } };
-  const at = HEADER_LENGTH + (count - 1) * SEALED_CHUNK;
-  const lastPlain = await openChunk(dataKey, count - 1, true, await readExactly(read, at, size - at));
-  const offset = (count - 1) * CHUNK - length;
-  const take = Math.max(0, Math.min(lastPlain.length, meta.size - offset));
-  for (let i = take; i < lastPlain.length; i += 1) if (lastPlain[i] !== 0) throw new LockboxError('damaged', 'bytes after the content');
-  // The content ends in this chunk, or (padding) before it; it can't run past the file.
-  if (offset + lastPlain.length < meta.size) throw new LockboxError('damaged', 'content shorter than its size');
-  return { meta, first, last: { offset: Math.min(offset, meta.size), bytes: lastPlain.subarray(0, take) } };
+  // The plain bytes are the metadata, the content, then padding; `end` is where the content stops in them.
+  const end = length + meta.size;
+  const first = firstPlain.subarray(length, Math.min(firstPlain.length, end));
+  const lastIndex = count - 1;
+  const lastAt = HEADER_LENGTH + lastIndex * SEALED_CHUNK;
+  const lastPlain = count === 1 ? firstPlain : await openChunk(dataKey, lastIndex, true, await readExactly(read, lastAt, size - lastAt));
+  // The content can't run past the file.
+  if (lastIndex * CHUNK + lastPlain.length < end) throw new LockboxError('damaged', 'content shorter than its size');
+  // With padding the content's last byte can sit in an earlier chunk than the last: that chunk is opened too, so the
+  // end of the content is really compared (review C5).
+  const endIndex = Math.floor(Math.max(0, end - 1) / CHUNK);
+  const endPlain =
+    endIndex === 0 ? firstPlain : endIndex === lastIndex ? lastPlain : await openChunk(dataKey, endIndex, false, await readExactly(read, HEADER_LENGTH + endIndex * SEALED_CHUNK, SEALED_CHUNK));
+  const within = end - endIndex * CHUNK;
+  const zerosFrom = (/** @type {Uint8Array} */ plain, /** @type {number} */ from) => {
+    for (let i = from; i < plain.length; i += 1) if (plain[i] !== 0) throw new LockboxError('damaged', 'bytes after the content');
+  };
+  zerosFrom(endPlain, within);
+  if (lastIndex !== endIndex) zerosFrom(lastPlain, 0);
+  const from = Math.max(0, length - endIndex * CHUNK);
+  return { meta, first, last: { offset: Math.max(0, endIndex * CHUNK - length), bytes: endPlain.subarray(from, within) } };
 }
 
 /** @param {Uint8Array<ArrayBuffer>} bytes @returns {Read} */
