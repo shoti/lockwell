@@ -31,6 +31,7 @@ import {
   cleanName,
   open,
   openBytes,
+  openEnds,
   readBytes,
   seal,
   sealBytes,
@@ -410,6 +411,39 @@ describe('lockbox: operation counts', () => {
   it('a source that gives fewer bytes than asked for is a read failure, not a shorter file', async () => {
     const content = pattern(1000);
     await rejectsWith(seal({ password: PASSWORD, meta: { kind: KIND.text, size: 2000, name: '', type: '' }, read: readBytes(content), write: () => {}, iterations: FAST }), 'readFailed');
+  });
+});
+
+/* ---------- Opening at the ends ---------- */
+
+describe('lockbox: opening a file at its two ends', () => {
+  it('gives the metadata and the content of the first and last chunks, after one key derivation', async () => {
+    const content = pattern(5 * CHUNK + 300);
+    const bytes = refWrite({ kind: KIND.file, name: 'video.mp4', type: 'video/mp4', content });
+    resetCounts();
+    const { meta, first, last } = await openEnds({ password: PASSWORD, read: readBytes(bytes), size: bytes.length });
+    assert.deepEqual(COUNTS, { kdf: 1, sealed: 0, opened: 2 });
+    assert.deepEqual(meta, { kind: KIND.file, size: content.length, name: 'video.mp4', type: 'video/mp4' });
+    assert.deepEqual(first, content.subarray(0, first.length));
+    assert.equal(first.length, CHUNK - (13 + 'video.mp4'.length + 'video/mp4'.length));
+    assert.equal(last.offset + last.bytes.length, content.length);
+    assert.deepEqual(last.bytes, content.subarray(last.offset));
+  });
+
+  it('works for a one-chunk file, and refuses a wrong password, a changed last chunk and a cut file', async () => {
+    const small = refWrite({ content: utf8('tiny') });
+    const one = await openEnds({ password: PASSWORD, read: readBytes(small), size: small.length });
+    assert.deepEqual(one.first, utf8('tiny'));
+    assert.deepEqual(one.last, { offset: 0, bytes: utf8('tiny') });
+    const big = refWrite({ content: pattern(3 * CHUNK) });
+    resetCounts();
+    await rejectsWith(openEnds({ password: 'wrong', read: readBytes(big), size: big.length }), 'wrongPassword');
+    assert.deepEqual(COUNTS, { kdf: 1, sealed: 0, opened: 0 });
+    const changed = big.slice();
+    changed[changed.length - 3] ^= 1;
+    await rejectsWith(openEnds({ password: PASSWORD, read: readBytes(changed), size: changed.length }), 'damaged');
+    const cut = big.slice(0, HEADER_LENGTH + 2 * (CHUNK + 16));
+    await rejectsWith(openEnds({ password: PASSWORD, read: readBytes(cut), size: cut.length }), 'damaged');
   });
 });
 

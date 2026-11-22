@@ -334,15 +334,8 @@ export async function seal({ password, meta, read, write, iterations = ITERATION
  * @returns {Promise<Meta>}
  */
 export async function open({ password, read, size, start, batch = BATCH, onProgress, isCancelled }) {
-  const header = parseHeader(await read(0, Math.min(size, HEADER_LENGTH)));
-  const payload = size - HEADER_LENGTH;
-  const count = Math.ceil(payload / SEALED_CHUNK);
-  const lastLength = payload - (count - 1) * SEALED_CHUNK;
   if (isCancelled?.()) throw new LockboxError('cancelled');
-  const { macKey, dataKey } = await deriveKeys(password, header.salt, header.iterations);
-  if (!(await crypto.subtle.verify('HMAC', macKey, header.mac, header.signed))) throw new LockboxError('wrongPassword');
-  // No chunk at all, or a final chunk with no plaintext: a valid file never ends so (its metadata is never empty).
-  if (count === 0 || lastLength <= TAG) throw new LockboxError('damaged', 'no final chunk');
+  const { dataKey, count } = await unlock(password, read, size);
   /** @type {Meta | null} */
   let meta = null;
   /** @type {Write | null} */
@@ -379,6 +372,48 @@ export async function open({ password, read, size, start, batch = BATCH, onProgr
   }
   if (!meta || written !== meta.size) throw new LockboxError('damaged', `content is ${written} bytes, not ${meta?.size}`);
   return meta;
+}
+
+/**
+ * The first step of opening: reads and verifies the header (one key derivation, no content read) and works out the
+ * chunks from the file's size.
+ * @param {string} password
+ * @param {Read} read
+ * @param {number} size
+ */
+async function unlock(password, read, size) {
+  const header = parseHeader(await read(0, Math.min(size, HEADER_LENGTH)));
+  const payload = size - HEADER_LENGTH;
+  const count = Math.ceil(payload / SEALED_CHUNK);
+  const lastLength = payload - (count - 1) * SEALED_CHUNK;
+  const { macKey, dataKey } = await deriveKeys(password, header.salt, header.iterations);
+  if (!(await crypto.subtle.verify('HMAC', macKey, header.mac, header.signed))) throw new LockboxError('wrongPassword');
+  // No chunk at all, or a final chunk with no plaintext: a valid file never ends so (its metadata is never empty).
+  if (count === 0 || lastLength <= TAG) throw new LockboxError('damaged', 'no final chunk');
+  return { dataKey, count };
+}
+
+/**
+ * Opens a locked file at its two ends only: the header, the first chunk and the last chunk. It tells the metadata
+ * before a save dialog is opened, and checks results too large to open twice. The middle is not verified, so this
+ * never releases content to the visitor.
+ * @param {{ password: string, read: Read, size: number }} options
+ * @returns {Promise<{ meta: Meta, first: Uint8Array<ArrayBuffer>, last: { offset: number, bytes: Uint8Array<ArrayBuffer> } }>}
+ *   first: the content held by the first chunk; last: the content held by the last chunk and its offset in the content.
+ */
+export async function openEnds({ password, read, size }) {
+  const { dataKey, count } = await unlock(password, read, size);
+  const firstPlain = await openChunk(dataKey, 0, count === 1, await readExactly(read, HEADER_LENGTH, Math.min(SEALED_CHUNK, size - HEADER_LENGTH)));
+  const { meta, length } = decodeMeta(firstPlain);
+  const first = firstPlain.subarray(length, Math.min(firstPlain.length, length + meta.size));
+  if (count === 1) return { meta, first, last: { offset: 0, bytes: first } };
+  const at = HEADER_LENGTH + (count - 1) * SEALED_CHUNK;
+  const lastPlain = await openChunk(dataKey, count - 1, true, await readExactly(read, at, size - at));
+  const offset = (count - 1) * CHUNK - length;
+  const take = Math.max(0, Math.min(lastPlain.length, meta.size - offset));
+  for (let i = take; i < lastPlain.length; i += 1) if (lastPlain[i] !== 0) throw new LockboxError('damaged', 'bytes after the content');
+  if (offset + take !== meta.size) throw new LockboxError('damaged', 'content shorter than its size');
+  return { meta, first, last: { offset, bytes: lastPlain.subarray(0, take) } };
 }
 
 /** @param {Uint8Array<ArrayBuffer>} bytes @returns {Read} */

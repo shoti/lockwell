@@ -1349,7 +1349,7 @@ const ENCRYPT_WARNINGS = ['tooShort', 'short', 'oneClass', 'run', 'name', 'text'
 /** What the message line can say (data-* in kebab case on it; see MESSAGES in tool-encrypt.mjs). */
 const ENCRYPT_MESSAGES = [
   'locking', 'checking', 'opening', 'locked', 'opened', 'needsInput', 'wrongPassword', 'damaged', 'notLocked', 'newerVersion', 'tooLarge',
-  'bundleTooLarge', 'unsupported', 'readFailed', 'cancelled', 'verifyFailed',
+  'bundleTooLarge', 'unsupported', 'readFailed', 'cancelled', 'verifyFailed', 'pressAgain',
 ];
 const ENCRYPT_UNITS = ['b', 'kb', 'mb', 'gb'];
 /** The example's password: shown to everyone, so it is a demonstration and nothing else. */
@@ -1393,8 +1393,10 @@ function encryptPanel(ctx) {
         </div>
         <div class="field" data-js="encrypt-file-box" hidden>
           <label class="field__label" for="encrypt__file">${s('file')}</label>
-          ${filePicker(ctx, 'encrypt__file', 'encrypt-file', '')}
+          ${filePicker(ctx, 'encrypt__file', 'encrypt-file', '', true)}
           <p class="facts__why" data-js="encrypt-file-size">${s('fileHint')}</p>
+          <ul class="encrypt__files" data-js="encrypt-files" hidden></ul>
+          <template data-js="encrypt-file-template"><li><span data-js="encrypt-file-name" translate="no" dir="ltr"></span> <span class="encrypt__bytes" data-js="encrypt-file-bytes"></span></li></template>
         </div>
         <fieldset class="field">
           <legend class="field__label">${s('passwordKind')}</legend>
@@ -1439,8 +1441,11 @@ function encryptPanel(ctx) {
             <p class="tool__status" role="status" data-js="encrypt-armour-status"></p>
             <p class="facts__why" data-js="encrypt-long" data-template="${s('long')}" hidden></p>
           </div>
-          <div data-js="encrypt-lock-save">${saveBox(ctx, s('saveLocked'))}</div>
-          <p class="facts__why">${s('nameHint')}</p>
+          <div data-js="encrypt-lock-save">
+            ${saveBox(ctx, s('saveLocked'))}
+            <p class="facts__why">${s('nameHint')}</p>
+          </div>
+          <p class="encrypt__verified" data-js="encrypt-lock-saved" hidden>${s('savedLock')}</p>
           <section class="encrypt__how" aria-labelledby="encrypt__how">
             <h3 class="file-report__title" id="encrypt__how">${s('howTitle')}</h3>
             <ol class="encrypt__steps">
@@ -1479,6 +1484,8 @@ function encryptPanel(ctx) {
             <div class="facts__row" data-js="encrypt-name-row"><dt>${s('name')}</dt><dd data-js="encrypt-name" translate="no" dir="ltr"></dd></div>
             <div class="facts__row"><dt>${s('size')}</dt><dd data-js="encrypt-size"></dd></div>
           </dl>
+          <p class="tool__note" data-js="encrypt-risky" hidden>${s('risky')} <a href="${ctx.url('/tools/attachment-checker/')}">${t('tools.items.attachment.title')}</a></p>
+          <p class="facts__why" data-js="encrypt-zip-note" hidden>${s('zipNote')}</p>
           <div class="field" data-js="encrypt-plain-box" hidden>
             <label class="field__label" for="encrypt__plain">${s('plain')}</label>
             <textarea class="textarea" id="encrypt__plain" rows="6" readonly dir="auto" spellcheck="false" data-js="encrypt-plain"></textarea>
@@ -1488,6 +1495,14 @@ function encryptPanel(ctx) {
             <p class="tool__status" role="status" data-js="encrypt-plain-status"></p>
           </div>
           <div data-js="encrypt-open-save">${saveBox(ctx, s('saveOpened'))}</div>
+          <p class="encrypt__verified" data-js="encrypt-open-saved" hidden>${s('savedOpen')}</p>
+        </div>
+      </div>
+      <div class="encrypt__progress" data-js="encrypt-progress-box" hidden>
+        <progress class="encrypt__bar" max="1" value="0" data-js="encrypt-progress" aria-label="${s('progressLabel')}"></progress>
+        <p class="facts__why" data-js="encrypt-progress-text" data-template="${s('progress')}"></p>
+        <div class="tool__actions">
+          <button class="button button--ghost button--small" type="button" data-js="encrypt-cancel">${s('cancel')}</button>
         </div>
       </div>
       <p class="tool__message" role="status" data-js="encrypt-message"${ENCRYPT_MESSAGES.map((key) => html` data-${kebab(key)}="${s(`messages.${key}`)}"`)}></p>

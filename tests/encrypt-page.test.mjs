@@ -69,7 +69,12 @@ function open(lang) {
     part(name).dispatchEvent({ type: 'input' });
   };
   const message = () => part('message').textContent;
-  const said = (/** @type {string} */ key) => message() === part('message').dataset[key];
+  /** Whether the message line says `key`, with its {placeholders} filled by anything. @param {string} key */
+  const said = (key) => {
+    const template = part('message').dataset[key] ?? '';
+    const pattern = template.split(/\{\w+\}/).map((piece) => piece.replace(/[.*+?^$()|[\]\\]/g, '\\$&')).join('.+');
+    return Boolean(template) && new RegExp(`^${pattern}$`).test(message());
+  };
   /** The download link in one of the two save boxes. @param {'lock' | 'open'} which */
   const download = (which) => /** @type {PageElement} */ (part(`${which}-save`).querySelector('[data-js="save-download"]'));
   /** @param {'lock' | 'open'} which */
@@ -280,6 +285,234 @@ describe('file encryption page', () => {
       assert.equal(page.part('opened').hidden, true);
       assert.equal(page.part('plain').value, '');
       assert.equal(page.message(), '');
+    } finally {
+      page.restore();
+    }
+  });
+});
+
+/**
+ * A stand-in for the handle Chromium's save dialog returns: it records what is written, closed or discarded.
+ * @param {string} name
+ */
+function savedFile(name) {
+  const state = { written: /** @type {Blob | null} */ (null), aborted: 0, writers: 0 };
+  const handle = {
+    name,
+    async createWritable() {
+      state.writers += 1;
+      /** @type {Uint8Array<ArrayBuffer>[]} */
+      const parts = [];
+      return {
+        async write(/** @type {Uint8Array<ArrayBuffer>} */ bytes) {
+          parts.push(bytes.slice());
+        },
+        async close() {
+          state.written = new Blob(parts);
+        },
+        async abort() {
+          state.aborted += 1;
+        },
+      };
+    },
+    async getFile() {
+      return new File([state.written ?? new Blob([])], name);
+    },
+  };
+  return { handle, state };
+}
+
+/**
+ * Installs a save dialog that answers with `answer` and records what it was asked.
+ * @param {(options: { suggestedName?: string }) => Promise<unknown>} answer
+ */
+function withPicker(answer) {
+  /** @type {{ suggestedName?: string }[]} */
+  const calls = [];
+  const g = /** @type {Record<string, unknown>} */ (globalThis);
+  g.showSaveFilePicker = async (/** @type {{ suggestedName?: string }} */ options) => {
+    calls.push(options);
+    return answer(options);
+  };
+  return { calls, remove: () => delete g.showSaveFilePicker };
+}
+
+/** A file of `size` bytes that is never read: for limits that must refuse before reading. @param {string} name @param {number} size */
+const unread = (name, size) => /** @type {File} */ (/** @type {unknown} */ ({ name, size, type: '', slice: () => new Blob([new Uint8Array(8)]) }));
+
+/** @param {number} size */
+const bytesOf = (size) => new Uint8Array(size).map((_, i) => (i * 13 + 5) % 251);
+
+describe('file encryption page: large and several files', () => {
+  it('puts several files in one ZIP archive, and gives the archive back when opened', async () => {
+    const { readZip } = await import('../src/client/zip.mjs');
+    const page = open('en');
+    try {
+      await until(() => Boolean(page.part('passphrase').textContent), 'the passphrase');
+      const passphrase = page.part('passphrase').textContent;
+      const a = new File([bytesOf(3000)], 'scan.pdf');
+      const b = new File([bytesOf(5000)], 'Scan.PDF');
+      page.part('lock').dispatchEvent({ type: 'drop', preventDefault() {}, dataTransfer: { files: [a, b] } });
+      await until(() => page.part('lock-button').disabled === false, 'the files');
+      assert.equal(page.part('files').hidden, false);
+      assert.equal(page.part('files').children.length, 2);
+      page.part('lock-button').click();
+      await until(() => page.said('locked'), 'locking');
+      const lockedBytes = await page.saved('lock');
+      page.part('lock').dispatchEvent({ type: 'drop', preventDefault() {}, dataTransfer: { files: [new File([lockedBytes], 'locked.lockwell')] } });
+      await until(() => page.part('open').hidden === false, 'the move to Open');
+      page.type('open-password', passphrase);
+      page.part('open-button').click();
+      await until(() => page.said('opened'), 'opening');
+      assert.equal(page.part('kind').textContent, page.part('kind').dataset.files);
+      assert.equal(page.part('zip-note').hidden, false);
+      assert.equal(page.download('open').download, 'files.zip');
+      const names = readZip(await page.saved('open')).map((entry) => entry.name);
+      assert.deepEqual(names, ['scan.pdf', 'Scan-2.PDF'], 'names that differ only in case are numbered');
+    } finally {
+      page.restore();
+    }
+  });
+
+  it('refuses several files over 200 MB together, and one file over the limit without a save dialog, before any work', async () => {
+    const page = open('en');
+    try {
+      await until(() => Boolean(page.part('passphrase').textContent), 'the passphrase');
+      COUNTS.kdf = 0;
+      page.part('lock').dispatchEvent({ type: 'drop', preventDefault() {}, dataTransfer: { files: [unread('a.mov', 150 * 1024 ** 2), unread('b.mov', 150 * 1024 ** 2)] } });
+      await until(() => page.part('lock-button').disabled === false, 'the files');
+      page.part('lock-button').click();
+      assert.ok(page.said('bundleTooLarge'));
+      assert.match(page.message(), /200 MB/);
+      page.part('lock').dispatchEvent({ type: 'drop', preventDefault() {}, dataTransfer: { files: [unread('disk.iso', 2 * 1024 ** 3)] } });
+      await until(() => page.part('files').hidden === true, 'the one file');
+      page.part('lock-button').click();
+      await until(() => page.said('tooLarge'), 'the limit');
+      assert.match(page.message(), /1 GB/);
+      assert.equal(COUNTS.kdf, 0, 'nothing was derived');
+    } finally {
+      page.restore();
+    }
+  });
+
+  it('streams a large file into the file chosen in the save dialog, checks it, and opens it back the same way', async () => {
+    const page = open('en');
+    const lockTarget = savedFile('locked.lockwell');
+    const openTarget = savedFile('big.bin');
+    let target = lockTarget;
+    const picker = withPicker(async () => target.handle);
+    try {
+      await until(() => Boolean(page.part('passphrase').textContent), 'the passphrase');
+      const passphrase = page.part('passphrase').textContent;
+      const content = bytesOf(33 * 1024 * 1024);
+      page.part('file').files = [new File([content], 'big.bin')];
+      page.part('file').dispatchEvent({ type: 'change' });
+      await until(() => page.part('lock-button').disabled === false, 'the file');
+      page.part('lock-button').click();
+      assert.deepEqual(picker.calls, [{ suggestedName: 'locked.lockwell', types: [{ description: 'Lockwell', accept: { 'application/octet-stream': ['.lockwell'] } }] }], 'the dialog opens with the click');
+      await until(() => page.part('progress-box').hidden === false, 'the progress bar');
+      await until(() => page.said('locked'), 'locking');
+      assert.equal(page.part('progress-box').hidden, true);
+      assert.equal(page.part('lock-saved').hidden, false);
+      assert.equal(page.part('lock-save').hidden, true, 'no download link: the file is already saved');
+      assert.equal(page.part('verified').textContent, page.part('verified').dataset.full);
+      const lockedFile = new File([/** @type {Blob} */ (lockTarget.state.written)], 'big.bin.lockwell');
+      assert.ok(lockedFile.size > content.length);
+
+      target = openTarget;
+      page.choose('mode', 'open');
+      page.part('locked-file').files = [lockedFile];
+      page.part('locked-file').dispatchEvent({ type: 'change' });
+      page.type('open-password', 'not the password');
+      page.part('open-button').click();
+      await until(() => page.said('wrongPassword'), 'the wrong password');
+      assert.equal(picker.calls.length, 1, 'no dialog for a wrong password');
+      page.type('open-password', passphrase);
+      page.part('open-button').click();
+      await until(() => page.said('opened'), 'opening');
+      assert.deepEqual(picker.calls.at(-1), { suggestedName: 'big.bin' }, 'the dialog suggests the name locked inside');
+      assert.equal(page.part('open-saved').hidden, false);
+      assert.deepEqual(new Uint8Array(await /** @type {Blob} */ (openTarget.state.written).arrayBuffer()), content);
+    } finally {
+      picker.remove();
+      page.restore();
+    }
+  });
+
+  it('stops on Cancel and leaves nothing half-written in the chosen file', async () => {
+    const page = open('en');
+    const target = savedFile('locked.lockwell');
+    const picker = withPicker(async () => target.handle);
+    try {
+      await until(() => Boolean(page.part('passphrase').textContent), 'the passphrase');
+      page.part('file').files = [new File([bytesOf(40 * 1024 * 1024)], 'big.bin')];
+      page.part('file').dispatchEvent({ type: 'change' });
+      await until(() => page.part('lock-button').disabled === false, 'the file');
+      page.part('lock-button').click();
+      await until(() => /** @type {number} */ (/** @type {unknown} */ (page.part('progress').value)) > 0, 'the first batch');
+      page.part('cancel').click();
+      await until(() => page.said('cancelled'), 'the cancel');
+      assert.equal(target.state.aborted, 1, 'the writes were discarded');
+      assert.equal(target.state.written, null, 'nothing was committed');
+      assert.equal(page.part('locked').hidden, true);
+    } finally {
+      picker.remove();
+      page.restore();
+    }
+  });
+
+  it('asks for another press when the save dialog can no longer open after the password check, then opens it first', async () => {
+    const page = open('en');
+    const content = bytesOf(33 * 1024 * 1024);
+    const { sealBytes, KIND } = await import('../src/client/lockbox.mjs');
+    const lockedBytes = await sealBytes({ password: 'a long test password', meta: { kind: KIND.file, name: 'big.bin', type: '' }, content, iterations: 100_000 });
+    const target = savedFile('big.bin');
+    let refuse = true;
+    const picker = withPicker(async () => {
+      if (refuse) throw Object.assign(new Error('Must be handling a user gesture'), { name: 'SecurityError' });
+      return target.handle;
+    });
+    try {
+      page.choose('mode', 'open');
+      page.part('locked-file').files = [new File([lockedBytes], 'big.bin.lockwell')];
+      page.part('locked-file').dispatchEvent({ type: 'change' });
+      page.type('open-password', 'a long test password');
+      page.part('open-button').click();
+      await until(() => page.said('pressAgain'), 'the request for another press');
+      refuse = false;
+      COUNTS.kdf = 0;
+      page.part('open-button').click();
+      assert.equal(picker.calls.length, 2, 'the dialog opens with the click, before the key derivation');
+      assert.equal(picker.calls[1].suggestedName, 'big.bin');
+      await until(() => page.said('opened'), 'opening');
+      assert.deepEqual(new Uint8Array(await /** @type {Blob} */ (target.state.written).arrayBuffer()), content);
+    } finally {
+      picker.remove();
+      page.restore();
+    }
+  });
+
+  it('shows a disguised name with its direction control written out, and warns with a link to the attachment checker', async () => {
+    const page = open('en');
+    try {
+      await until(() => Boolean(page.part('passphrase').textContent), 'the passphrase');
+      const passphrase = page.part('passphrase').textContent;
+      page.part('file').files = [new File([bytesOf(100)], 'invoice‮fdp.exe')];
+      page.part('file').dispatchEvent({ type: 'change' });
+      await until(() => page.part('lock-button').disabled === false, 'the file');
+      page.part('lock-button').click();
+      await until(() => page.said('locked'), 'locking');
+      const lockedBytes = await page.saved('lock');
+      page.choose('mode', 'open');
+      page.part('locked-file').files = [new File([lockedBytes], 'x.lockwell')];
+      page.part('locked-file').dispatchEvent({ type: 'change' });
+      page.type('open-password', passphrase);
+      page.part('open-button').click();
+      await until(() => page.said('opened'), 'opening');
+      assert.equal(page.part('name').textContent, 'invoice⟨RLO⟩fdp.exe');
+      assert.equal(page.part('risky').hidden, false);
+      assert.match(/** @type {PageElement} */ (page.part('risky').querySelector('a')).getAttribute('href') ?? '', /\/tools\/attachment-checker\/$/);
+      assert.equal(page.download('open').download, 'invoicefdp.exe', 'saved without the direction control');
     } finally {
       page.restore();
     }

@@ -2405,6 +2405,30 @@
     gap: var(--space-3);
   }
 
+  .encrypt__files {
+    display: grid;
+    gap: var(--space-1);
+    padding: 0;
+    list-style: none;
+    font-size: var(--step--1);
+    overflow-wrap: anywhere;
+  }
+
+  .encrypt__bytes {
+    color: var(--color-text-muted);
+  }
+
+  .encrypt__progress {
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .encrypt__bar {
+    width: 100%;
+    height: 0.75rem;
+    accent-color: var(--color-accent);
+  }
+
   /* Attachment checker: names, addresses and commands under a finding, one per line, exactly as found. */
   .attachment__values {
     display: grid;
