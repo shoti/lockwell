@@ -159,6 +159,36 @@ describe('email header analyzer page', () => {
       page.restore();
     }
   });
+
+  it('announces the verdict, and Clear forgets the chosen file (review E18, E19)', async () => {
+    const page = open('ka');
+    try {
+      const { tool, part } = page;
+      const announce = part('announce');
+      assert.equal(announce.getAttribute('role'), 'status');
+      assert.equal(announce.textContent, '', 'nothing is said before the visitor acts');
+      tool.querySelectorAll('[data-js="email-example"]')[0].click();
+      assert.notEqual(part('verdict').textContent, '');
+      assert.equal(announce.textContent, part('verdict').textContent);
+      part('input').value = 'hello there';
+      part('check').click();
+      assert.equal(announce.textContent, '', 'an error is said by the message line, not as an old verdict');
+      tool.dispatchEvent({ type: 'drop', preventDefault() {}, dataTransfer: { files: [new File([exampleMessages()[2]], 'news.eml', { type: 'message/rfc822' })] } });
+      for (let i = 0; i < 100 && part('report').hidden; i += 1) await new Promise((resolve) => setTimeout(resolve, 5));
+      const name = /** @type {PageElement} */ (tool.querySelector('[data-js="file-name"]'));
+      name.textContent = 'news.eml'; // files.mjs fills it in a real page; the fake DOM has no HTMLElement for it.
+      assert.equal(announce.textContent, part('verdict').textContent);
+      part('file').value = 'C:\\fakepath\\news.eml';
+      part('clear').click();
+      assert.equal(part('file').value, '');
+      assert.equal(name.textContent, name.dataset.empty);
+      assert.equal(announce.textContent, '');
+      part('check').click();
+      assert.equal(part('report').hidden, true, 'the cleared file is not judged again');
+    } finally {
+      page.restore();
+    }
+  });
 });
 
 describe('email header analyzer page: whole messages and files', () => {

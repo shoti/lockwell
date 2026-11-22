@@ -6,8 +6,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
-import { KIND, MAX_NAME } from '../src/client/lockbox.mjs';
-import { MIN_PASSWORD, canUse, fitName, mediaType, passwordWarnings, savedAs, sizeParts } from '../src/client/tool-encrypt.mjs';
+import { KIND, LockboxError, MAX_NAME, openBytes, sealBytes } from '../src/client/lockbox.mjs';
+import { MIN_PASSWORD, canUse, fitName, mediaType, passwordWarnings, savedAs, sizeParts, withPassword, wrongPasswordMessage } from '../src/client/tool-encrypt.mjs';
 
 describe('file encryption: warnings about a typed password', () => {
   it('warns for each rule, and says nothing for an empty field', () => {
@@ -22,6 +22,12 @@ describe('file encryption: warnings about a typed password', () => {
     assert.deepEqual(passwordWarnings('My-passport-scan-2026!', { name: 'contract.pdf' }), []);
     assert.deepEqual(passwordWarnings('My-passport-scan-2026!', { name: 'ab.pdf' }), [], 'names under 3 characters are ignored');
     assert.deepEqual(passwordWarnings('Recovery code 4417-2291', { text: 'Recovery code 4417-2291' }), ['text']);
+  });
+
+  it('warns about white space at either end, never inside (review C7)', () => {
+    assert.deepEqual(passwordWarnings('pocket violin tundra spark '), ['edges']);
+    assert.deepEqual(passwordWarnings('\tpocket violin tundra spark'), ['edges']);
+    assert.deepEqual(passwordWarnings('pocket violin tundra spark'), []);
   });
 
   it('never calls a password strong: a rule cannot tell Tbilisi2026! from a good one', () => {
@@ -79,5 +85,54 @@ describe('file encryption: privacy', () => {
     for (const word of ['fetch(', 'XMLHttpRequest', 'sendBeacon', 'WebSocket', 'localStorage', 'sessionStorage', 'indexedDB', 'location.', 'history.', 'Math.random']) {
       assert.ok(!source.includes(word), word);
     }
+  });
+});
+
+describe('file encryption: a wrong password (review C7)', () => {
+  const PASSWORD = 'pocket violin tundra spark';
+  /** @type {Uint8Array<ArrayBuffer>} */
+  let sealed;
+  const ready = sealBytes({ password: PASSWORD, meta: { kind: KIND.text, name: '', type: '' }, content: new TextEncoder().encode('hi'), iterations: 100_000 }).then((bytes) => {
+    sealed = bytes;
+  });
+
+  it('tries once more without white space at the ends, and says which password opened it', async () => {
+    await ready;
+    let tries = 0;
+    /** @param {string} password */
+    const step = (password) => {
+      tries += 1;
+      return openBytes({ password, bytes: sealed });
+    };
+    const opened = await withPassword(` ${PASSWORD}\n`, step);
+    assert.equal(opened.password, PASSWORD);
+    assert.equal(new TextDecoder().decode(opened.result.content), 'hi');
+    assert.equal(tries, 2);
+    tries = 0;
+    assert.equal((await withPassword(PASSWORD, step)).password, PASSWORD);
+    assert.equal(tries, 1, 'a right password costs one try');
+    tries = 0;
+    await assert.rejects(withPassword('wrong password here', step), (error) => error instanceof LockboxError && error.code === 'wrongPassword');
+    assert.equal(tries, 1, 'nothing to trim: one try');
+    tries = 0;
+    await assert.rejects(withPassword(' wrong password here ', step), (error) => error instanceof LockboxError && error.code === 'wrongPassword');
+    assert.equal(tries, 2);
+  });
+
+  it('does not try again for any other failure', async () => {
+    let tries = 0;
+    const damaged = async () => {
+      tries += 1;
+      throw new LockboxError('damaged');
+    };
+    await assert.rejects(withPassword(' x ', damaged), (error) => error instanceof LockboxError && error.code === 'damaged');
+    assert.equal(tries, 1);
+  });
+
+  it('hints at Caps Lock first, then at Georgian letters typed for a password set in English', () => {
+    assert.equal(wrongPasswordMessage('Pocket', true), 'wrongPasswordCaps');
+    assert.equal(wrongPasswordMessage('ზჩბფი', true), 'wrongPasswordCaps');
+    assert.equal(wrongPasswordMessage('ზჩბფი ვიოლინო', false), 'wrongPasswordLayout');
+    assert.equal(wrongPasswordMessage('pocket violin', false), 'wrongPassword');
   });
 });

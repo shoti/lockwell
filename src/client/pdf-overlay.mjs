@@ -48,7 +48,7 @@ export const MARKS = {
  * The matrix that applies `first`, then `second`.
  * @param {Matrix} first @param {Matrix} second @returns {Matrix}
  */
-export function then([a1, b1, c1, d1, e1, f1], [a2, b2, c2, d2, e2, f2]) {
+export function compose([a1, b1, c1, d1, e1, f1], [a2, b2, c2, d2, e2, f2]) {
   return [a1 * a2 + b1 * c2, a1 * b2 + b1 * d2, c1 * a2 + d1 * c2, c1 * b2 + d1 * d2, e1 * a2 + f1 * c2 + e2, e1 * b2 + f1 * d2 + f2];
 }
 
@@ -92,7 +92,7 @@ export function overlayMatrix(overlay, page) {
   const [cos, sin] = [Math.cos(angle), Math.sin(angle)];
   const [cx, cy] = [bx + bw / 2, by + bh / 2];
   const turn = [cos, sin, -sin, cos, cx - cx * cos + cy * sin, cy - cx * sin - cy * cos];
-  return then(then(local, turn), shownToUser(page));
+  return compose(compose(local, turn), shownToUser(page));
 }
 
 /**

@@ -155,6 +155,36 @@ describe('file encryption page', () => {
     }
   });
 
+  it('opens with a space typed around the password, and hints at the keyboard when the password is wrong (review C7)', async () => {
+    const page = open('ka');
+    try {
+      await until(() => Boolean(page.part('passphrase').textContent), 'the passphrase');
+      const passphrase = page.part('passphrase').textContent;
+      page.type('text', 'Recovery code: 4417-2291');
+      page.part('lock-button').click();
+      await until(() => page.said('locked'), 'locking');
+      const block = page.part('armour').value;
+      page.choose('mode', 'open');
+      page.type('locked-text', block);
+      page.type('open-password', 'ზჩბფი-ვიოლინო');
+      page.part('open-button').click();
+      await until(() => !page.said('opening'), 'opening');
+      assert.ok(page.said('wrongPasswordLayout'), page.message());
+      page.type('open-password', 'POCKET-VIOLIN');
+      page.part('open-password').dispatchEvent({ type: 'keyup', getModifierState: (/** @type {string} */ key) => key === 'CapsLock' });
+      page.part('open-button').click();
+      await until(() => !page.said('opening'), 'opening');
+      assert.ok(page.said('wrongPasswordCaps'), page.message());
+      page.part('open-password').dispatchEvent({ type: 'keyup', getModifierState: () => false });
+      page.type('open-password', `${passphrase} `);
+      page.part('open-button').click();
+      await until(() => page.said('opened'), 'opening');
+      assert.equal(page.part('plain').value, 'Recovery code: 4417-2291');
+    } finally {
+      page.restore();
+    }
+  });
+
   it('withdraws the result when the password in force changes after locking (review C1)', async () => {
     const page = open('en');
     try {
@@ -404,6 +434,8 @@ describe('file encryption page: large and several files', () => {
       const passphrase = page.part('passphrase').textContent;
       const a = new File([bytesOf(3000)], 'scan.pdf');
       const b = new File([bytesOf(5000)], 'Scan.PDF');
+      // Read a slice at a time, never whole into memory (review C8).
+      for (const file of [a, b]) file.arrayBuffer = () => Promise.reject(new Error('read whole'));
       page.part('lock').dispatchEvent({ type: 'drop', preventDefault() {}, dataTransfer: { files: [a, b] } });
       await until(() => page.part('lock-button').disabled === false, 'the files');
       assert.equal(page.part('files').hidden, false);

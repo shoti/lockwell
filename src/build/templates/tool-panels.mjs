@@ -943,6 +943,7 @@ function emailPanel(ctx) {
         ${[1, 2, 3].map((n) => html`<button class="button button--ghost button--small" type="button" data-js="email-example" data-example="${n - 1}">${icons.eye}<span>${s(`example${n}`)}</span></button>`)}
       </div>
       <p class="tool__message" role="status" data-js="email-message" data-empty="${s('messages.empty')}" data-not-headers="${s('messages.notHeaders')}" data-too-large="${s('messages.tooLarge')}" data-read-failed="${s('messages.readFailed')}" data-msg-no-headers="${s('messages.msgNoHeaders')}" data-failed="${s('messages.failed')}"></p>
+      <p class="visually-hidden" role="status" data-js="email-announce"></p>
       <div class="email" data-js="email-report" hidden>
         <article class="verdict email__verdict" data-js="email-verdict-card">
           <p class="verdict__summary" data-js="email-verdict" data-warn="${s('verdicts.warn')}" data-unchecked="${s('verdicts.unchecked')}" data-none="${s('verdicts.none')}"></p>
@@ -1345,10 +1346,10 @@ function browserPanel(ctx) {
 }
 
 /** Warnings about a typed password (see passwordWarnings in tool-encrypt.mjs), in the order they are listed. */
-const ENCRYPT_WARNINGS = ['tooShort', 'short', 'oneClass', 'run', 'name', 'text', 'mismatch'];
+const ENCRYPT_WARNINGS = ['tooShort', 'short', 'oneClass', 'run', 'name', 'text', 'edges', 'mismatch'];
 /** What the message line can say (data-* in kebab case on it; see MESSAGES in tool-encrypt.mjs). */
 const ENCRYPT_MESSAGES = [
-  'locking', 'checking', 'opening', 'locked', 'opened', 'needsInput', 'wrongPassword', 'damaged', 'notLocked', 'newerVersion', 'tooLarge',
+  'locking', 'checking', 'opening', 'locked', 'opened', 'needsInput', 'wrongPassword', 'wrongPasswordCaps', 'wrongPasswordLayout', 'damaged', 'notLocked', 'newerVersion', 'tooLarge',
   'bundleTooLarge', 'unsupported', 'readFailed', 'cancelled', 'verifyFailed', 'pressAgain', 'busy',
 ];
 const ENCRYPT_UNITS = ['b', 'kb', 'mb', 'gb'];

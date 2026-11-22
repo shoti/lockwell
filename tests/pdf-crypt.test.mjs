@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 import { md5 } from '../src/client/md5.mjs';
 import { rc4 } from '../src/client/rc4.mjs';
-import { decrypt, passwordBytes } from '../src/client/pdf-crypt.mjs';
+import { PADDING, decrypt, objectKey, passwordBytes } from '../src/client/pdf-crypt.mjs';
 import { build } from '../src/client/pdf-build.mjs';
 import { PdfError, openPdf } from '../src/client/pdf-file.mjs';
 import { pageList } from '../src/client/pdf-pages.mjs';
@@ -265,5 +265,70 @@ describe('PDF crypt: privacy', () => {
         assert.ok(!source.includes(word), `${module}: ${word}`);
       }
     }
+  });
+});
+
+/**
+ * A revision 2 file (RC4, 40 bits, empty user password) built here, whose page content gives its /Length as a
+ * reference to an object kept inside an object stream: that one can only be read once the file is unlocked.
+ */
+function packedLengthFile() {
+  const latin = (/** @type {string} */ text) => Uint8Array.from(text, (c) => c.charCodeAt(0));
+  const id = fromHex('0123456789abcdef0123456789abcdef');
+  const o = Uint8Array.from({ length: 32 }, (_, i) => (i * 7 + 3) & 0xff);
+  const p = -4;
+  const key = md5(Uint8Array.of(...PADDING, ...o, p & 0xff, (p >> 8) & 0xff, (p >> 16) & 0xff, (p >>> 24) & 0xff, ...id)).subarray(0, 5);
+  const u = rc4(key, PADDING);
+  const content = latin(LETTER.content);
+  const packed = latin(`6 0 ${content.length}`);
+  const sealed = (/** @type {number} */ num, /** @type {Uint8Array} */ data) => rc4(objectKey(key, num, 0, 'rc4'), data);
+  /** @type {(Uint8Array | string)[][]} */
+  const objects = [
+    ['<< /Type /Catalog /Pages 2 0 R >>'],
+    ['<< /Type /Pages /Kids [3 0 R] /Count 1 >>'],
+    ['<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Contents 4 0 R >>'],
+    ['<< /Length 6 0 R >>\nstream\n', sealed(4, content), '\nendstream'],
+    [`<< /Type /ObjStm /N 1 /First 4 /Length ${packed.length} >>\nstream\n`, sealed(5, packed), '\nendstream'],
+    [],
+    [`<< /Filter /Standard /V 1 /R 2 /O <${hex(o)}> /U <${hex(u)}> /P ${p} >>`],
+  ];
+  /** @type {Uint8Array[]} */
+  const parts = [latin('%PDF-1.5\n')];
+  let at = parts[0].length;
+  /** @type {number[]} */
+  const offsets = [];
+  objects.forEach((pieces, i) => {
+    if (pieces.length === 0) return;
+    offsets[i + 1] = at;
+    for (const piece of [`${i + 1} 0 obj\n`, ...pieces, '\nendobj\n']) {
+      const bytes = typeof piece === 'string' ? latin(piece) : piece;
+      parts.push(bytes);
+      at += bytes.length;
+    }
+  });
+  const row = (/** @type {number} */ type, /** @type {number} */ field, /** @type {number} */ index) => [type, (field >>> 24) & 0xff, (field >> 16) & 0xff, (field >> 8) & 0xff, field & 0xff, (index >> 8) & 0xff, index & 0xff];
+  const table = Uint8Array.from([
+    ...row(0, 0, 0xffff),
+    ...[1, 2, 3, 4, 5].flatMap((n) => row(1, offsets[n], 0)),
+    ...row(2, 5, 0),
+    ...row(1, offsets[7], 0),
+    ...row(1, at, 0),
+  ]);
+  const xref = at;
+  for (const piece of [`8 0 obj\n<< /Type /XRef /Size 9 /W [1 4 2] /Root 1 0 R /Encrypt 7 0 R /ID [<${hex(id)}> <${hex(id)}>] /Length ${table.length} >>\nstream\n`, table, `\nendstream\nendobj\nstartxref\n${xref}\n%%EOF\n`]) {
+    parts.push(typeof piece === 'string' ? latin(piece) : piece);
+  }
+  return Uint8Array.from(parts.flatMap((part) => [...part]));
+}
+
+describe('PDF crypt: a stream length kept in an encrypted object stream (review P20: guards the fallback)', () => {
+  it('unlocks the file and reads the stream up to its endstream', async () => {
+    const file = await openPdf(packedLengthFile());
+    assert.equal(file.encrypted, true);
+    assert.equal(await file.unlock(''), true);
+    const [page] = pageList(file);
+    const content = file.resolve(page.dict.get('Contents'));
+    assert.ok(content instanceof PdfStream);
+    assert.equal(new TextDecoder().decode(await file.decode(content)), LETTER.content);
   });
 });

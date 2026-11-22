@@ -83,6 +83,20 @@ describe('splitMessage', () => {
     assert.equal(splitMessage(mbox).cleaned.mbox, true);
   });
 
+  it('finds quoted or indented headers with ordinary text around them (review E15)', () => {
+    const expected = fields(RFC5322_A4);
+    const quoted = RFC5322_A4.split('\n').map((line) => (line ? `> ${line}` : '>')).join('\n');
+    const indented = RFC5322_A4.split('\n').map((line) => (line ? `    ${line}` : '')).join('\n');
+    for (const [name, block, flag] of /** @type {const} */ ([['quoted', quoted, 'quoted'], ['indented', indented, 'indented']])) {
+      const message = splitMessage(`Ana wrote, look at this one:\n\n${block}\n\nThanks,\nNino`);
+      assert.deepEqual(message.fields, expected, name);
+      assert.equal(message.cleaned[flag], true, name);
+      assert.equal(message.cleaned.before, 1, `${name}: the note above is counted as skipped`);
+    }
+    const nested = RFC5322_A4.split('\n').map((line) => (line ? `> > ${line}` : '> >')).join('\n');
+    assert.deepEqual(splitMessage(`> I got this:\n>\n${nested}\n>\n> What is it?`).fields, expected, 'one level inside another');
+  });
+
   it('skips a summary a mail program shows above the source, starting at the trace fields', () => {
     const pasted = `Original message\nMessage ID\t<12345.abc@example.com>\nCreated at:\tFri, Feb 15 2002\nFrom:\tsender@example.com\nSPF:\tPASS\nDownload Original\tCopy to clipboard\n${RFC8601_B1}`;
     const message = splitMessage(pasted);
@@ -349,7 +363,19 @@ epilogue, ignored
 
   it('reads an attached message (message/rfc822) and a boundary that never closes', () => {
     const text = 'From: a@example.com\nContent-Type: multipart/mixed; boundary=b\n\n--b\nContent-Type: message/rfc822\n\nFrom: c@example.org\nContent-Type: text/plain\n\nInner text\n--b\nContent-Type: image/png; name=x.png\nContent-Transfer-Encoding: base64\n\niVBORw0KGgo=\n';
-    assert.deepEqual(mime(text).parts.map(({ type, name, text: body }) => [type, name, body.trim()]), [['text/plain', '', 'Inner text'], ['image/png', 'x.png', '']]);
+    assert.deepEqual(mime(text).parts.map(({ type, name, text: body }) => [type, name, body.trim()]), [['message/rfc822', '', ''], ['text/plain', '', 'Inner text'], ['image/png', 'x.png', '']]);
+  });
+
+  it('reads a sent message with another attached as the sent one, not the attached one (review E16)', () => {
+    const inner = 'Received: from out.example.org by mx.example.org with ESMTPS id 1; Mon, 16 Nov 2026 09:00:01 +0000\nFrom: c@example.org\nSubject: Inner\n\nInner text\n';
+    const sent = `From: a@example.com\nTo: b@example.net\nSubject: Look at this\nMIME-Version: 1.0\nContent-Type: multipart/mixed; boundary=b\n\n--b\nContent-Type: text/plain\n\nSee below.\n--b\nContent-Type: message/rfc822; name=forwarded.eml\n\n${inner}--b--\n`;
+    const message = splitMessage(sent);
+    assert.deepEqual(message.fields.map((field) => field.key), ['from', 'to', 'subject', 'mime-version', 'content-type']);
+    assert.equal(message.cleaned.before, 0);
+    const parts = readMime(message.fields, message.body).parts;
+    assert.deepEqual(parts.map((part) => [part.type, part.name]), [['text/plain', ''], ['message/rfc822', 'forwarded.eml'], ['text/plain', '']]);
+    const summary = `Original message\nFrom:\tc@example.org\nSubject:\tInner\n\n${inner}`;
+    assert.equal(splitMessage(summary).fields[0].key, 'received', 'a summary above the source still gives way to the trace fields');
   });
 
   it('marks text it can’t decode as broken', () => {

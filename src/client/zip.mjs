@@ -203,7 +203,27 @@ export async function unzip(entry, maxBytes) {
  * @returns {Uint8Array<ArrayBuffer>}
  */
 export function writeZip(entries) {
-  /** @type {Uint8Array[]} */
+  return concat(/** @type {Uint8Array[]} */ (zipParts(entries)));
+}
+
+/**
+ * The same archive as a Blob whose entries are the Blobs (or Files) given: nothing is copied into memory, so several
+ * large files cost their headers only (review C8).
+ * @param {(Omit<ZipEntry, 'data'> & { data: Blob })[]} entries
+ */
+export function zipBlob(entries) {
+  return new Blob(/** @type {BlobPart[]} */ (zipParts(entries)), { type: 'application/zip' });
+}
+
+/**
+ * The pieces of an archive in order: headers, names and the entries' data as given.
+ * @param {(Omit<ZipEntry, 'data'> & { data: Uint8Array | Blob })[]} entries
+ * @returns {(Uint8Array | Blob)[]}
+ */
+function zipParts(entries) {
+  // Without ZIP64 the count is 16 bits: more would write an archive that lists none of them (review C9).
+  if (entries.length > 0xffff) throw new RangeError(`A ZIP archive without ZIP64 holds at most 65,535 entries, not ${entries.length}.`);
+  /** @type {(Uint8Array | Blob)[]} */
   const files = [];
   /** @type {Uint8Array[]} */
   const directory = [];
@@ -218,7 +238,8 @@ export function writeZip(entries) {
     common.setUint16(6, 0, true);
     common.setUint16(8, DOS_DATE_ZERO, true);
     common.setUint32(10, entry.crc, true);
-    common.setUint32(14, entry.data.length, true);
+    const stored = entry.data instanceof Blob ? entry.data.size : entry.data.length;
+    common.setUint32(14, stored, true);
     common.setUint32(18, entry.size, true);
     common.setUint16(22, entry.rawName.length, true);
     common.setUint16(24, 0, true); // no extra field
@@ -235,7 +256,7 @@ export function writeZip(entries) {
     central.setUint32(42, offset, true); // comment length, disk and attributes stay 0
     directory.push(new Uint8Array(central.buffer), entry.rawName);
 
-    offset += 4 + shared.length + entry.rawName.length + entry.data.length;
+    offset += 4 + shared.length + entry.rawName.length + stored;
   }
 
   const directorySize = directory.reduce((sum, part) => sum + part.length, 0);
@@ -245,7 +266,7 @@ export function writeZip(entries) {
   end.setUint16(10, entries.length, true);
   end.setUint32(12, directorySize, true);
   end.setUint32(16, offset, true);
-  return concat([...files, ...directory, new Uint8Array(end.buffer)]);
+  return [...files, ...directory, new Uint8Array(end.buffer)];
 }
 
 /** Characters that can't be in a file name on some system: separators, Windows' reserved ones, control characters. */

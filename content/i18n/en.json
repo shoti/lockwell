@@ -1721,6 +1721,7 @@
           "run": "One character repeated, or a run such as 12345678 or abcdefgh.",
           "name": "It contains the file’s name.",
           "text": "It’s the same as the text you’re locking.",
+          "edges": "It starts or ends with a space: it has to be typed the same way to open the file.",
           "mismatch": "The two passwords are different."
         },
         "ownHint": "There’s no strength meter here: a rule can’t tell a password that’s easy to guess from a good one. Six random words made by the page are the better choice.",
@@ -1765,6 +1766,8 @@
           "opened": "Opened.",
           "needsInput": "Choose a locked file or paste a locked text first.",
           "wrongPassword": "The password is wrong, or the file was changed on the way. The two can’t be told apart. Check the password and try again.",
+          "wrongPasswordCaps": "The password is wrong, or the file was changed on the way. Caps Lock is on: turn it off and try again.",
+          "wrongPasswordLayout": "The password is wrong, or the file was changed on the way. What you typed has Georgian letters: if the password was set with the English keyboard layout, switch the layout and try again.",
           "damaged": "This file is damaged, cut off or was changed on the way, so nothing was opened. Ask the sender to send it again.",
           "notLocked": "This isn’t a file or a text locked with this tool.",
           "newerVersion": "This was locked with a newer version of this tool. Reload the page and try again.",

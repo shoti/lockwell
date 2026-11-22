@@ -346,6 +346,37 @@ describe('findings', () => {
     assert.deepEqual(finding(text, 'privateOrigin')?.values, ['10.1.2.3']);
   });
 
+  it('nameHidden: not for joiners that are spelling, still for hidden ones (E12)', () => {
+    for (const name of ['Ana 👩🏽\u200d💻', 'Family 👨\u200d👩\u200d👧', 'می\u200cخواهم', 'क्\u200dष']) {
+      assert.ok(!keys(message({ from: `"${name}" <ana@example.com>` })).includes('nameHidden'), name);
+    }
+    for (const name of ['Pay\u200cpal', 'Bank\u200d', '\u200dمی', 'Ana\u202e']) {
+      assert.ok(keys(message({ from: `"${name}" <ana@example.com>` })).includes('nameHidden'), name);
+    }
+  });
+
+  it('forwarded: not for the provider’s own ARC set, but for anyone else’s (E11)', () => {
+    const own = 'ARC-Seal: i=1; a=rsa-sha256; t=1795000000; cv=none; d=inbox.test; s=arc1; b=QQ\nARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=inbox.test; s=arc1; h=from; bh=x; b=QQ\nARC-Authentication-Results: i=1; mx.inbox.test; spf=pass smtp.mailfrom=ana@example.com\n';
+    assert.ok(!keys(message({ extra: own })).includes('forwarded'));
+    const relay = 'ARC-Seal: i=2; a=rsa-sha256; t=1795000000; cv=pass; d=inbox.test; s=arc1; b=QQ\nARC-Seal: i=1; a=rsa-sha256; t=1795000000; cv=none; d=forward.example.org; s=arc1; b=QQ\n';
+    assert.deepEqual(finding(message({ extra: relay }), 'forwarded')?.values, ['forward.example.org']);
+    assert.deepEqual(finding(message({ fields: own }), 'forwarded')?.values, ['inbox.test'], 'below the provider’s lines anyone could write it');
+  });
+
+  it('privateOrigin from a Microsoft 365 line, whose address has no brackets (E17)', () => {
+    const text = `Received: from BN9PR03CA0001.namprd03.prod.outlook.com (2603:10b6:408:1::2) by SA1PR12MB0001.namprd12.prod.outlook.com with HTTPS; Mon, 16 Nov 2026 09:12:32 +0000
+Authentication-Results: spf=pass (sender IP is 192.0.2.25) smtp.mailfrom=example.com; dkim=pass (signature was verified) header.d=example.com;dmarc=pass action=none header.from=example.com;compauth=pass reason=100
+Received: from mail.example.com (192.0.2.25) by BN8NAM11FT001.mail.protection.outlook.com (10.13.1.1) with Microsoft SMTP Server id 15.20.1 via Frontend Transport; Mon, 16 Nov 2026 09:12:31 +0000
+Received: from laptop.example.com (10.20.30.40) by mail.example.com (192.0.2.25) with Microsoft SMTP Server id 15.2.1; Mon, 16 Nov 2026 09:12:30 +0000
+From: Friend <friend@example.com>
+To: you@contoso.example
+Subject: Lunch?
+Date: Mon, 16 Nov 2026 09:12:29 +0000
+Message-ID: <abc@example.com>
+`;
+    assert.deepEqual(finding(text, 'privateOrigin')?.values, ['10.20.30.40']);
+  });
+
   it('forwarded, oldDkim', () => {
     assert.ok(keys(message({ fields: 'X-Forwarded-For: ana@example.com\n' })).includes('forwarded'));
     assert.ok(keys(message({ fields: 'Resent-From: ana@example.com\n' })).includes('forwarded'));

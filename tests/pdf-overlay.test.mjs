@@ -9,7 +9,7 @@ import { describe, it } from 'node:test';
 import { build } from '../src/client/pdf-build.mjs';
 import { openPdf } from '../src/client/pdf-file.mjs';
 import { pageList } from '../src/client/pdf-pages.mjs';
-import { INKS, MARKS, STAMP_OPACITY, apply, fitStrokes, inkMask, overlayMatrix, shownSize, shownToUser, then } from '../src/client/pdf-overlay.mjs';
+import { INKS, MARKS, STAMP_OPACITY, apply, compose, fitStrokes, inkMask, overlayMatrix, shownSize, shownToUser } from '../src/client/pdf-overlay.mjs';
 import { PdfDict, PdfName, PdfRef, PdfStream } from '../src/client/pdf-syntax.mjs';
 import { pdfFile, simplePdf } from './build-files.mjs';
 
@@ -51,18 +51,24 @@ describe('overlays: geometry', () => {
     for (const rotate of [0, 90, 180, 270]) {
       const page = { box: [0, 0, 612, 792], rotate };
       const m = overlayMatrix({ x: 0.8, y: 0.9, w: 0.1, h: 0.05, rotation: 0, opacity: 1 }, page);
-      const toShown = then(m, invert(shownToUser(page)));
+      const toShown = compose(m, invert(shownToUser(page)));
       const { width, height } = shownSize(page);
       const corner = apply(toShown, { x: 1, y: 0 });
       assert.deepEqual(round({ x: corner.x / width, y: corner.y / height }), { x: 0.9, y: 0.95 }, `rotate ${rotate}`);
     }
   });
 
+  it('is not thenable: importing it with await gives the module (review P21)', async () => {
+    const module = await import('../src/client/pdf-overlay.mjs');
+    assert.equal(typeof module.compose, 'function');
+    assert.equal('then' in module, false);
+  });
+
   it('composes matrices first-then-second', () => {
     const scale = [2, 0, 0, 2, 0, 0];
     const move = [1, 0, 0, 1, 5, 0];
-    assert.deepEqual(apply(then(scale, move), { x: 1, y: 1 }), { x: 7, y: 2 });
-    assert.deepEqual(apply(then(move, scale), { x: 1, y: 1 }), { x: 12, y: 2 });
+    assert.deepEqual(apply(compose(scale, move), { x: 1, y: 1 }), { x: 7, y: 2 });
+    assert.deepEqual(apply(compose(move, scale), { x: 1, y: 1 }), { x: 12, y: 2 });
   });
 });
 

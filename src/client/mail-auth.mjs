@@ -389,7 +389,12 @@ const CLAUSES = /** @type {const} */ (['from', 'by', 'via', 'with', 'id', 'for']
 function tcpInfo(comment) {
   const open = comment.indexOf('[');
   const close = open === -1 ? -1 : comment.indexOf(']', open);
-  if (close === -1) return null;
+  if (close === -1) {
+    // Microsoft 365 writes the address without brackets: "(192.0.2.25)" (review E17).
+    const words = comment.trim().split(/\s+/);
+    const last = words[words.length - 1] ?? '';
+    return parseIp(last) ? { address: last, reverse: words.length > 1 ? words[0].replace(/\.$/, '') : '' } : null;
+  }
   const before = comment.slice(0, open).trim().split(/\s+/)[0] ?? '';
   return { address: comment.slice(open + 1, close).trim(), reverse: before.replace(/\.$/, '') };
 }

@@ -219,8 +219,12 @@ export function lookalike(domain) {
 
 /** Control and direction characters written out: "Bank⟨U+202E⟩". @param {string} text */
 export const visibleControls = (text) => text.replace(new RegExp(CONTROL.source, 'gu'), (char) => `⟨U+${(char.codePointAt(0) ?? 0).toString(16).toUpperCase().padStart(4, '0')}⟩`);
+/** Scripts whose spelling needs the zero-width joiner and non-joiner between letters (Persian, the Indic scripts…). */
+const JOINING = '\\p{Script=Arabic}\\p{Script=Syriac}\\p{Script=Nko}\\p{Script=Devanagari}\\p{Script=Bengali}\\p{Script=Gurmukhi}\\p{Script=Gujarati}\\p{Script=Oriya}\\p{Script=Tamil}\\p{Script=Telugu}\\p{Script=Kannada}\\p{Script=Malayalam}\\p{Script=Sinhala}\\p{Script=Mongolian}\\p{Script=Myanmar}\\p{Script=Khmer}';
+/** Joiners that are spelling, not hiding: between letters of those scripts, or between emoji in one emoji (review E12). */
+const SPELLING_JOINER = new RegExp(`(?<=[${JOINING}]\\p{M}*)[\\u200c\\u200d](?=[${JOINING}])|(?<=\\p{Extended_Pictographic}[\\u{fe0f}\\u{1f3fb}-\\u{1f3ff}]?)\\u200d(?=\\p{Extended_Pictographic})`, 'gu');
 /** @param {string} text */
-const hasControls = (text) => new RegExp(CONTROL.source, 'u').test(text);
+const hasControls = (text) => new RegExp(CONTROL.source, 'u').test(text.replace(SPELLING_JOINER, ''));
 
 /* ---------- Which lines can be believed ---------- */
 
@@ -636,7 +640,10 @@ export function inspectMessage(text, { limit } = {}) {
   if (oldSignatures.length) found.add('oldDkim', oldSignatures.map((signature) => signature.domain));
 
   /* Forwarding, lists, bulk mail */
-  if (sets.length || all('x-forwarded-for').length || all('x-forwarded-to').length || all('resent-from').length) found.add('forwarded', sets.map((set) => set.seal?.tags.d ?? '').filter(Boolean));
+  // The visitor's provider seals its own ARC set on nearly every message it takes in (Gmail does): that is no sign of
+  // forwarding. Only sets sealed by someone else, or below the provider's lines, are (review E11).
+  const travelled = sets.filter((set) => !(trusted(set) && trust.receiver.has(organisationOf(set.seal?.tags.d ?? ''))));
+  if (travelled.length || all('x-forwarded-for').length || all('x-forwarded-to').length || all('resent-from').length) found.add('forwarded', travelled.map((set) => set.seal?.tags.d ?? '').filter(Boolean));
   if (one('list-unsubscribe') || one('feedback-id') || /^(bulk|list|junk)$/i.test(one('precedence').trim())) found.add('bulkSender');
   if (identity.list) found.add('mailingList', [identity.list]);
   const autoSubmitted = one('auto-submitted').trim().toLowerCase();
@@ -1117,6 +1124,8 @@ export function init(root) {
   const message = /** @type {HTMLElement} */ (find('message'));
   const report = /** @type {HTMLElement} */ (find('report'));
   const file = /** @type {HTMLInputElement | null} */ (find('file'));
+  const announce = /** @type {HTMLElement | null} */ (find('announce'));
+  const verdict = /** @type {HTMLElement | null} */ (find('verdict'));
   if (!input || !check || !message || !report) return;
   const examples = exampleMessages();
 
@@ -1133,6 +1142,7 @@ export function init(root) {
    */
   const judge = (text, limit) => {
     report.hidden = true;
+    if (announce) announce.textContent = '';
     let result;
     try {
       result = inspectMessage(text, limit === undefined ? {} : { limit });
@@ -1148,6 +1158,8 @@ export function init(root) {
     }
     message.textContent = '';
     report.hidden = false;
+    // The verdict is read out after Check or a dropped file, as the error messages are (review E18).
+    if (announce && verdict) announce.textContent = verdict.textContent;
   };
   // A file chosen and left unchanged in the box is judged whole again, body included.
   const run = () => (input.value !== '' && input.value === chosenFile.shown ? judge(chosenFile.text, MAX_FILE) : judge(input.value));
@@ -1183,7 +1195,13 @@ export function init(root) {
   clear?.addEventListener('click', () => {
     input.value = '';
     message.textContent = '';
+    if (announce) announce.textContent = '';
     report.hidden = true;
+    // Forget the chosen file too: its name no longer shows, and choosing it again fires a change (review E19).
+    chosenFile = { text: '', shown: '' };
+    if (file) file.value = '';
+    const name = /** @type {HTMLElement | null} */ (root.querySelector('[data-js="file-name"]'));
+    if (name) name.textContent = name.dataset.empty ?? '';
     input.focus();
   });
   for (const button of /** @type {HTMLButtonElement[]} */ ([...root.querySelectorAll('[data-js="email-example"]')])) {

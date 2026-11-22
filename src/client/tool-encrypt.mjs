@@ -25,7 +25,7 @@ import { fillText } from './fill.mjs';
 import { ARMOUR_BEGIN, KIND, LockboxError, MAX_NAME, armour, cleanName, looksLocked, open, openBytes, openEnds, readBytes, seal, sealBytes, unarmour } from './lockbox.mjs';
 import { initSave } from './save.mjs';
 import { generatePassphrase, passphraseBits } from './tool-password.mjs';
-import { FLAG_UTF8, writeZip } from './zip.mjs';
+import { FLAG_UTF8, zipBlob } from './zip.mjs';
 
 /** Six words from EFF's long list: about 77 bits. */
 export const PASSPHRASE_WORDS = 6;
@@ -57,7 +57,7 @@ const LOCKWELL_TYPES = [{ description: 'Lockwell', accept: { 'application/octet-
 const encoder = new TextEncoder();
 
 /**
- * @typedef {'tooShort' | 'short' | 'oneClass' | 'run' | 'name' | 'text'} PasswordWarning
+ * @typedef {'tooShort' | 'short' | 'oneClass' | 'run' | 'name' | 'text' | 'edges'} PasswordWarning
  * @typedef {{ suggestedName?: string, types?: { description: string, accept: Record<string, string[]> }[] }} SaveOptions
  * @typedef {(options: SaveOptions) => Promise<FileSystemFileHandle>} SavePicker
  */
@@ -92,7 +92,41 @@ export function passwordWarnings(password, { name = '', text = '' } = {}) {
   const base = name.replace(/\.[^.]*$/, '').toLowerCase();
   if (base.length >= 3 && password.toLowerCase().includes(base)) found.push('name');
   if (text && password === text) found.push('text');
+  // A space at either end is easy to type once and forget (review C7).
+  if (password !== password.trim()) found.push('edges');
   return found;
+}
+
+/**
+ * Which "wrong password" to say: with a hint when Caps Lock was on, or when the password has Georgian letters (typed
+ * with the Georgian layout when the password was set with the English one) (review C7).
+ * @param {string} typed
+ * @param {boolean} capsLock  Caps Lock was on at the last key pressed in the field.
+ * @returns {'wrongPassword' | 'wrongPasswordCaps' | 'wrongPasswordLayout'}
+ */
+export function wrongPasswordMessage(typed, capsLock) {
+  if (capsLock) return 'wrongPasswordCaps';
+  if (/\p{Script=Georgian}/u.test(typed)) return 'wrongPasswordLayout';
+  return 'wrongPassword';
+}
+
+/**
+ * Runs a step that needs the password; when the password is wrong and has white space at either end, tries once more
+ * without it: a space copied along with a password is the commonest wrong password (review C7). The file format is
+ * unchanged: a password is still used as typed first.
+ * @template T
+ * @param {string} typed
+ * @param {(password: string) => Promise<T>} step
+ * @returns {Promise<{ result: T, password: string }>}
+ */
+export async function withPassword(typed, step) {
+  try {
+    return { result: await step(typed), password: typed };
+  } catch (error) {
+    const trimmed = typed.trim();
+    if (!(error instanceof LockboxError) || error.code !== 'wrongPassword' || trimmed === typed || trimmed === '') throw error;
+    return { result: await step(trimmed), password: trimmed };
+  }
 }
 
 /**
@@ -155,17 +189,27 @@ export function bundleNames(names) {
   });
 }
 
+/** Bytes read at a time for a file's checksum. */
+const CRC_SLICE = 8 * 1024 * 1024;
+
 /**
- * Several files as one stored (uncompressed) ZIP archive, built in memory.
+ * Several files as one stored (uncompressed) ZIP archive. Each file is read a slice at a time for its checksum and
+ * then left where it is: the archive refers to the files instead of holding copies (review C8).
  * @param {File[]} files
+ * @param {() => boolean} isCancelled
  */
-async function bundle(files) {
+async function bundle(files, isCancelled) {
   const names = bundleNames(files.map((file) => file.name));
-  const entries = await Promise.all(files.map(async (file, i) => {
-    const data = new Uint8Array(await file.arrayBuffer());
-    return { name: names[i], rawName: encoder.encode(names[i]), flags: FLAG_UTF8, method: 0, crc: crc32(data), size: data.length, data };
-  }));
-  return writeZip(entries);
+  const entries = [];
+  for (const [i, file] of files.entries()) {
+    let crc = 0;
+    for (let at = 0; at < file.size; at += CRC_SLICE) {
+      if (isCancelled()) throw new LockboxError('cancelled');
+      crc = crc32(new Uint8Array(await file.slice(at, at + CRC_SLICE).arrayBuffer()), crc);
+    }
+    entries.push({ name: names[i], rawName: encoder.encode(names[i]), flags: FLAG_UTF8, method: 0, crc, size: file.size, data: file });
+  }
+  return zipBlob(entries);
 }
 
 /**
@@ -333,6 +377,8 @@ export function init(root) {
   /** Each job's number: a job whose number is no longer current (Start again, another mode) shows nothing. */
   let ticket = 0;
   let textShownAt = 0;
+  /** Caps Lock as the last key pressed in the Open password field found it. */
+  let capsLock = false;
 
   const what = () => (whats.find((radio) => radio.checked)?.value === 'file' ? 'file' : 'text');
   const own = () => kinds.find((radio) => radio.checked)?.value === 'own';
@@ -486,7 +532,7 @@ export function init(root) {
       return;
     }
     if (error instanceof LockboxError) {
-      say(error.code);
+      say(error.code === 'wrongPassword' ? wrongPasswordMessage(openPassword.value, capsLock) : error.code);
       if (error.code === 'wrongPassword') openPassword.focus();
       return;
     }
@@ -609,7 +655,7 @@ export function init(root) {
         return;
       }
       if (!handle && total > BLOB_LIMIT) throw new TooLarge(BLOB_LIMIT);
-      const source = several ? new Blob([await bundle(chosen)], { type: 'application/zip' }) : chosen[0];
+      const source = several ? await bundle(chosen, stop) : chosen[0];
       const meta = several ? { kind: KIND.files, name: 'files.zip', type: 'application/zip' } : { kind: KIND.file, name: fitName(chosen[0].name), type: mediaType(chosen[0].type) };
       if (job !== ticket) return;
       startProgress();
@@ -720,10 +766,12 @@ export function init(root) {
       const { read, size, binary } = await source();
       const toFile = Boolean(picker && binary);
       if (!toFile && size > BLOB_LIMIT + BLOB_LIMIT / 64) throw new TooLarge(BLOB_LIMIT);
-      const typed = openPassword.value;
+      let typed = openPassword.value;
       if (toFile && !handle) {
         // The password is checked before any dialog opens: a wrong one costs a key derivation and nothing else.
-        const { meta } = await openEnds({ password: typed, read, size });
+        const checked = await withPassword(typed, (password) => openEnds({ password, read, size }));
+        typed = checked.password;
+        const { meta } = checked.result;
         if (job !== ticket) return;
         try {
           handle = await /** @type {SavePicker} */ (picker)({ suggestedName: savedAs(meta).original });
@@ -742,7 +790,8 @@ export function init(root) {
       const blob = handle ? null : blobSink();
       file = handle ? await fileSink(handle) : null;
       const write = file?.write ?? /** @type {ReturnType<typeof blobSink>} */ (blob).write;
-      const meta = await open({ password: typed, read, size, start: () => write, onProgress: showProgress, isCancelled: stop });
+      // A wrong password fails at the header, before anything is written, so trying again is safe.
+      const { result: meta } = await withPassword(typed, (password) => open({ password, read, size, start: () => write, onProgress: showProgress, isCancelled: stop }));
       if (file) await file.finish();
       file = null;
       if (job !== ticket) return;
@@ -851,6 +900,12 @@ export function init(root) {
     update();
   });
   for (const field of [password, repeat, openPassword]) field.addEventListener('input', update);
+  for (const type of ['keydown', 'keyup']) {
+    openPassword.addEventListener(type, (event) => {
+      const key = /** @type {KeyboardEvent} */ (event);
+      if (typeof key.getModifierState === 'function') capsLock = key.getModifierState('CapsLock');
+    });
+  }
 
   for (const radio of modes) {
     radio.addEventListener('change', () => {

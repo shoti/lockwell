@@ -222,6 +222,15 @@ describe('parseReceived (RFC 5321 §4.4)', () => {
     assert.equal(parseReceived('from a by b with UTF8SMTPSA; 21 Nov 1997 10:05:43 -0600').auth, true);
   });
 
+  it('reads Microsoft 365’s address without brackets, and no address from other comments (review E17)', () => {
+    const line = parseReceived('from mail.example.com (192.0.2.25) by BN8NAM11FT001.mail.protection.outlook.com (10.13.1.1) with Microsoft SMTP Server id 15.20.1 via Frontend Transport; Mon, 16 Nov 2026 09:12:31 +0000');
+    assert.deepEqual([line.fromAddress, line.ip?.text, line.reverse], ['192.0.2.25', '192.0.2.25', '']);
+    assert.equal(parseReceived('from SA1PR12MB0001.namprd12.prod.outlook.com (2603:10b6:806:1::1) by x.example with HTTPS; Mon, 16 Nov 2026 09:12:33 +0000').ip?.text, '2603:10b6:806:1::1');
+    for (const comment of ['Postfix', 'using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384', 'HELO 999.1.1.1']) {
+      assert.equal(parseReceived(`from a.example (${comment}) by b.example; Mon, 16 Nov 2026 09:12:33 +0000`).ip, null, comment);
+    }
+  });
+
   it('keeps text it does not know, and reads garbage without throwing', () => {
     assert.equal(parseReceived('(qmail 1234 invoked by uid 0); 21 Nov 1997 10:05:43 -0600').comments[0], 'qmail 1234 invoked by uid 0');
     assert.equal(parseReceived('something odd by x.example; bad date').extra, 'something odd');

@@ -240,6 +240,75 @@ function cleanLines(lines) {
 }
 
 /**
+ * Quote marks at the start of a line ("> > "): how many, and where the text after them starts.
+ * @param {string} line
+ */
+function quoteOf(line) {
+  let level = 0;
+  let at = 0;
+  while (level < 5 && line[at] === '>') {
+    level += 1;
+    at += line[at + 1] === ' ' ? 2 : 1;
+  }
+  return { level, at };
+}
+
+/** @param {string} line @param {number} from */
+function indentOf(line, from) {
+  let k = from;
+  while (k < line.length && (line[k] === ' ' || line[k] === '\t')) k += 1;
+  return k - from;
+}
+
+/**
+ * Headers quoted or indented inside other text (a note above them, a signature below): finds the first known field
+ * once quote marks and indent are taken off, and cleans only the run of lines around it, at its quote level and
+ * indent (review E15). Used only when no header block shows as the text stands.
+ * @param {string[]} lines  Changed in place.
+ * @returns {{ quoted: boolean, indented: boolean } | null}
+ */
+function cleanRun(lines) {
+  /** @param {Set<string>} names */
+  const find = (names) => {
+    for (let i = 0; i < lines.length; i += 1) {
+      STEPS.count += 1;
+      const { level, at } = quoteOf(lines[i]);
+      const indent = indentOf(lines[i], at);
+      if (level === 0 && indent === 0) continue;
+      const rest = lines[i].slice(at + indent);
+      const colon = fieldColon(rest);
+      if (colon !== -1 && names.has(rest.slice(0, colon).trim().toLowerCase())) return { i, level, indent };
+    }
+    return null;
+  };
+  const found = find(TRACE) ?? find(CORE);
+  if (!found) return null;
+  const { level, indent } = found;
+  /** The text after the run's quote marks, or null when the line is at another quote level or less indented. @param {string} line */
+  const inRun = (line) => {
+    const quote = quoteOf(line);
+    if (quote.level !== level) return null;
+    const rest = line.slice(quote.at);
+    return isBlank(rest) || indentOf(line, quote.at) >= indent ? rest : null;
+  };
+  let from = found.i;
+  for (let rest = from > 0 ? inRun(lines[from - 1]) : null; rest !== null && !isBlank(rest); rest = from > 0 ? inRun(lines[from - 1]) : null) {
+    STEPS.count += 1;
+    from -= 1;
+  }
+  let to = found.i;
+  while (to + 1 < lines.length && inRun(lines[to + 1]) !== null) {
+    STEPS.count += 1;
+    to += 1;
+  }
+  for (let i = from; i <= to; i += 1) {
+    const rest = /** @type {string} */ (inRun(lines[i]));
+    lines[i] = isBlank(rest) ? '' : rest.slice(indent);
+  }
+  return { quoted: level > 0, indented: indent > 0 };
+}
+
+/**
  * The first line of the header block: the run of field lines around the first trace field, or, without one, around
  * the first common field. Lines above it (a summary a mail program shows before the source) are skipped.
  * @param {string[]} lines
@@ -255,15 +324,27 @@ function headerStart(lines) {
     }
     return -1;
   };
-  let at = firstOf(TRACE);
-  if (at === -1) at = firstOf(CORE);
-  if (at === -1) return -1;
-  while (at > 0 && (fieldColon(lines[at - 1]) !== -1 || isContinuation(lines[at - 1]))) {
-    STEPS.count += 1;
-    at -= 1;
+  /** @param {number} at */
+  const blockStart = (at) => {
+    while (at > 0 && (fieldColon(lines[at - 1]) !== -1 || isContinuation(lines[at - 1]))) {
+      STEPS.count += 1;
+      at -= 1;
+    }
+    while (fieldColon(lines[at]) === -1) at += 1;
+    return at;
+  };
+  const trace = firstOf(TRACE);
+  const core = firstOf(CORE);
+  if (trace === -1) return core === -1 ? -1 : blockStart(core);
+  if (core !== -1 && core < trace) {
+    // A whole header block above the trace fields, with a multipart body that holds them: a sent message with another
+    // message attached. The attached one's Received lines are not this message's (review E16).
+    const start = blockStart(core);
+    const block = readHeaderBlock(lines, start, trace);
+    const type = block.fields.find((field) => field.key === 'content-type')?.value ?? '';
+    if (block.end < trace && /^\s*multipart\//i.test(type)) return start;
   }
-  while (fieldColon(lines[at]) === -1) at += 1;
-  return at;
+  return blockStart(trace);
 }
 
 /**
@@ -344,7 +425,15 @@ export function splitMessage(input, { limit = MAX_TEXT } = {}) {
   }
   const lines = input.replace(/^\ufeff/, '').replace(/\r\n?/g, '\n').split('\n');
   message.cleaned = { ...cleanLines(lines), before: 0 };
-  const start = headerStart(lines);
+  let start = headerStart(lines);
+  if (start === -1) {
+    const run = cleanRun(lines);
+    if (run) {
+      message.cleaned.quoted ||= run.quoted;
+      message.cleaned.indented ||= run.indented;
+      start = headerStart(lines);
+    }
+  }
   if (start === -1) return message;
   message.cleaned.before = lines.slice(0, start).filter((line) => !isBlank(line)).length;
 
@@ -920,6 +1009,13 @@ export function readMime(fields, body) {
       continue;
     }
     if (type === 'message/rfc822') {
+      // The attached message is listed as an attachment itself (review E16), and its parts are read too.
+      report.total += 1;
+      if (report.parts.length < MAX_PARTS) {
+        let size = 0;
+        for (let i = node.start; i < node.end; i += 1) size += lines[i].length + 1;
+        report.parts.push({ type, name: disposition.params.filename ?? contentType.params.name ?? '', disposition: disposition.value.toLowerCase(), size, text: '', broken: false });
+      }
       const block = readHeaderBlock(lines, node.start, node.end);
       stack.push({ fields: block.fields, start: Math.min(block.end + 1, node.end), end: node.end, depth: node.depth + 1 });
       continue;
