@@ -1639,7 +1639,7 @@
         "resultOnePage": "1 page, {size} (the originals: {before})",
         "resultMany": "{files} files, {pages} pages in all, {size} (the originals: {before})",
         "picturesLine": "Pictures made smaller: {done}. Left as they were: {left}.",
-        "metadataGone": "The author, the software and the dates of the originals are not in the new file.",
+        "metadataGone": "The author, the software and the dates of the originals are not in the new file. Any comments keep the names and dates of those who wrote them.",
         "droppedHeading": "Not carried over",
         "dropped": {
           "bookmarks": "Bookmarks",
@@ -1685,7 +1685,7 @@
           "open": "Open",
           "skip": "Skip this file"
         },
-        "note3": "The saved copy keeps each page’s look, with its comments, form fields and layers. It leaves out the title, the author, the software and the dates, and never carries bookmarks, attached files, scripts or the structure screen readers use; after saving, the result lists what was left out. Keep the original.",
+        "note3": "The saved copy keeps each page’s look, with its comments, form fields and layers. It leaves out the document’s title, author, software and dates (comments keep their writers’ names and dates), and never carries bookmarks, attached files, scripts or the structure screen readers use; after saving, the result lists what was left out. Keep the original.",
         "note4": "Saving always leaves out what a PDF does not need, such as unused objects and repeated copies of the same picture, without changing how any page looks. Making the pictures smaller is a separate step: it loses some detail, colours can shift slightly, and colour profiles are dropped. Pictures that are already small, and a few kinds this tool cannot redraw, are left as they are, and the result says how many. A scanned document usually shrinks a lot; one that is mostly text barely changes, because text already takes little space.",
         "note5": "A signature drawn or added here becomes part of the page, like ink on paper. It is not a digital signature: it records nothing about who added it or whether the document changed afterwards. If the PDF has a digital signature, the saved copy no longer carries it as one, even if you change nothing, because the copy is written anew; its look stays. Anything you add sits on top of the page and someone with a PDF editor can take it off again, so it hides nothing reliably. For a copy of an ID, the Dutch government advises writing on the copy that it is a copy, who it is for and the date, and making the national identity number unreadable, including in the line of characters at the bottom: cover the number on the photo in Image redaction first, then turn the photo into a PDF here and add the stamp.",
         "note6": "Some things this tool does not do. It cannot open a file whose password you do not have, or files protected with AES-256, the newer kind of password protection, or with a certificate, and it does not add a password to the saved copy (File encryption can lock any file). It does not change the text on a page or recognise the text in a scan. It turns down files over 300 MB on a computer and over 100 MB on a phone, and a phone can still run out of memory with very large files. When a file does not carry its own fonts, the previews draw its letters with this device’s fonts, so a preview can look slightly different from the same page in another reader; the saved file is not affected.",
@@ -1775,6 +1775,7 @@
           "bundleTooLarge": "These files together are larger than {limit}. Lock them one at a time, or put them in a ZIP archive yourself first.",
           "unsupported": "This browser can’t encrypt on this page: it offers the Web Crypto it needs only on secure (https) pages, and not every browser has it.",
           "readFailed": "The file couldn’t be read. If it’s on a cloud drive, save it to this device first.",
+          "writeFailed": "Couldn’t write the file you chose. Check that there is room on the disk and that the file is still there, then try again.",
           "cancelled": "Stopped. Nothing was saved.",
           "verifyFailed": "The check failed: the result didn’t open back to what you locked, so it isn’t offered. Try again.",
           "pressAgain": "Press Open again, and choose where to save the file first.",

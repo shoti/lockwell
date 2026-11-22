@@ -160,6 +160,27 @@ describe('email header analyzer page', () => {
     }
   });
 
+  it('shows the file chosen last when an earlier one finishes reading later (review E28)', async () => {
+    const page = open('en');
+    try {
+      const { tool, part } = page;
+      /** @type {(value: ArrayBuffer) => void} */
+      let release = () => {};
+      const slow = new File([exampleMessages()[0]], 'slow.eml');
+      const late = exampleMessages()[0];
+      slow.arrayBuffer = () => new Promise((resolve) => { release = () => resolve(new TextEncoder().encode(late).buffer); });
+      tool.dispatchEvent({ type: 'drop', preventDefault() {}, dataTransfer: { files: [slow] } });
+      tool.dispatchEvent({ type: 'drop', preventDefault() {}, dataTransfer: { files: [new File([exampleMessages()[2]], 'news.eml')] } });
+      for (let i = 0; i < 100 && part('report').hidden; i += 1) await new Promise((resolve) => setTimeout(resolve, 5));
+      assert.equal(part('input').value, headerPart(exampleMessages()[2]));
+      release(new ArrayBuffer(0));
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      assert.equal(part('input').value, headerPart(exampleMessages()[2]), 'the earlier file does not replace it');
+    } finally {
+      page.restore();
+    }
+  });
+
   it('announces the verdict, and Clear forgets the chosen file (review E18, E19)', async () => {
     const page = open('ka');
     try {

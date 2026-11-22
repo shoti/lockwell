@@ -546,6 +546,8 @@ describe('lockbox: armoured text', () => {
       'zero-width characters': text.replace(/(.{10})/g, '$1\u200b').replace(/(.{7})/g, '$1\u2060'),
       'URL-safe alphabet, no padding': body.join('').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''),
       'one long line inside a message': `Here it is: ${ARMOUR_BEGIN} ${body.join(' ')} ${ARMOUR_END} thanks!`,
+      'smart dashes in the markers (review C11)': text.replace(/-----/g, '——–'),
+      'en dashes in a long line (review C11)': `Here: ${ARMOUR_BEGIN.replace(/-/g, '–')} ${body.join(' ')} ${ARMOUR_END.replace(/-/g, '–')} thanks`,
     };
     for (const [label, variant] of Object.entries(variants)) assert.deepEqual(unarmour(variant), bytes, label);
   });
@@ -568,7 +570,11 @@ describe('lockbox: armoured text', () => {
 describe('lockbox: the name an unlocked file is saved under', () => {
   it('removes path separators, control and direction characters, leading dots; keeps the extension when cut', () => {
     assert.equal(cleanName('../../etc/passwd'), 'etcpasswd');
-    assert.equal(cleanName('C:\\Users\\me\\report.pdf'), 'C:Usersmereport.pdf');
+    assert.equal(cleanName('C:\\Users\\me\\report.pdf'), 'C-Usersmereport.pdf', 'Windows refuses ":" (review C10)');
+    assert.equal(cleanName('a\tb\nc<d>|e?*"f.pdf. '), 'a b c-d--e---f.pdf');
+    assert.equal(cleanName('CON.txt'), '_CON.txt');
+    assert.equal(cleanName('lpt1'), '_lpt1');
+    assert.equal(cleanName('console.txt'), 'console.txt');
     assert.equal(cleanName('invoice\u202Efdp.exe'), 'invoicefdp.exe');
     assert.equal(cleanName('.hidden'), 'hidden');
     assert.equal(cleanName(''), FALLBACK_NAME);

@@ -476,6 +476,8 @@ export function init(root) {
 
   /** @param {PlanPage[]} next @param {string} [tag] */
   const change = (next, tag = '') => {
+    // An edit during a build stops it: its result would no longer be what the board shows (review P16).
+    if (busy) cancelled = true;
     history = commit(history, next, tag);
     clearResult();
     releaseUnused();
@@ -938,6 +940,7 @@ export function init(root) {
   });
   button('restart-yes').addEventListener('click', () => {
     restart.hidden = true;
+    if (busy) cancelled = true; // review P16
     answerPassword?.(null);
     stage.reset();
     for (const source of sources.values()) letGo(source);
@@ -1036,10 +1039,14 @@ export function init(root) {
       const inputs = new Map([...sources].map(([id, source]) => [id, source.kind === 'pdf' ? { file: source.file, pages: source.pages } : { picture: source.picture, findings: source.findings }]));
       const recode = level !== 'none' && readBack ? createRecoder() : null;
       for (const [i, group] of groups.entries()) {
-        /** @param {import('./pdf-compress.mjs').Level | null} step @param {number} share  Of this file's progress. */
-        const once = (step, share = 1) => build({
+        /**
+         * @param {import('./pdf-compress.mjs').Level | null} step
+         * @param {number} [from]  Where in this file's progress the build starts, 0 to 1.
+         * @param {number} [to]  Where it ends: each "fit" build moves the bar on instead of starting it again (review P15).
+         */
+        const once = (step, from = 0, to = 1) => build({
           pages: group, sources: inputs, imagePage, compress: step && recode ? { level: step, recode } : null, isCancelled: () => cancelled,
-          onProgress: (done, total) => { progress.value = (i + (done / total) * share) / groups.length; },
+          onProgress: (done, total) => { progress.value = (i + from + (done / total) * (to - from)) / groups.length; },
         });
         if (level === 'good' || level === 'small') results.push(await once(LEVELS[level]));
         else if (level === 'fit' && recode) results.push(await fitUnder(once, limit));
@@ -1066,22 +1073,25 @@ export function init(root) {
 
   /**
    * The best result under a size (plan §6.7): without loss first; then the best level, then the smallest, then
-   * halving between the two, so never more than five builds. Pictures are decoded again for each build, one at a
+   * halving between the two: with six steps, never more than six builds. Pictures are decoded again for each build, one at a
    * time, which keeps memory to one picture.
-   * @param {(step: import('./pdf-compress.mjs').Level | null, share?: number) => Promise<{ bytes: Uint8Array, report: import('./pdf-build.mjs').Result }>} once
+   * @param {(step: import('./pdf-compress.mjs').Level | null, from?: number, to?: number) => Promise<{ bytes: Uint8Array, report: import('./pdf-build.mjs').Result }>} once
    * @param {number} limit  Bytes.
    */
   const fitUnder = async (once, limit) => {
-    const lossless = await once(null, 0.2);
+    // Three builds take a fifth of the bar each; the halving (three builds at most) shares the rest.
+    const lossless = await once(null, 0, 0.2);
     if (lossless.bytes.length <= limit) return lossless;
-    const best = await once(FIT_STEPS[0], 0.4);
+    const best = await once(FIT_STEPS[0], 0.2, 0.4);
     if (best.bytes.length <= limit) return best;
-    let fits = await once(FIT_STEPS[FIT_STEPS.length - 1], 0.6);
+    let fits = await once(FIT_STEPS[FIT_STEPS.length - 1], 0.4, 0.6);
     if (fits.bytes.length > limit) return fits;
     let [low, high] = [0, FIT_STEPS.length - 1];
+    let at = 0.6;
     while (high - low > 1) {
       const middle = Math.floor((low + high) / 2);
-      const tried = await once(FIT_STEPS[middle], 0.8);
+      const tried = await once(FIT_STEPS[middle], at, Math.min(1, at + 0.4 / 3));
+      at = Math.min(1, at + 0.4 / 3);
       if (tried.bytes.length <= limit) [high, fits] = [middle, tried];
       else low = middle;
     }
@@ -1144,14 +1154,23 @@ export function init(root) {
       offerAll();
       save.onRename(offerAll);
     }
+    // The first page is drawn before the result shows, so the picture never resizes under the visitor and moves the
+    // save button (rule 4, review P14).
+    const canvas = /** @type {HTMLCanvasElement} */ (find('result-canvas'));
+    const board = history;
+    try {
+      const preview = await openPreview(results[0].bytes);
+      if (preview) {
+        await drawPage(preview, 0, canvas, { width: 192, turn: 0, ratio: Math.min(2, globalThis.devicePixelRatio || 1) }).done;
+        await closePreview(preview);
+      }
+    } catch (error) {
+      console.warn('[lockwell] The saved PDF\'s first page could not be drawn; the result is offered without it.', error);
+    }
+    // Changed while the picture was drawn: the result no longer matches the board (review P16).
+    if (history !== board) return;
     result.hidden = false;
     say('saved');
-    const canvas = /** @type {HTMLCanvasElement} */ (find('result-canvas'));
-    const preview = await openPreview(results[0].bytes);
-    if (preview) {
-      await drawPage(preview, 0, canvas, { width: 192, turn: 0, ratio: Math.min(2, globalThis.devicePixelRatio || 1) }).done;
-      await closePreview(preview);
-    }
   };
 
   render();

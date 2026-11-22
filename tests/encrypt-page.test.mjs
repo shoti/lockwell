@@ -108,13 +108,25 @@ describe('file encryption page', () => {
       const tool = toolSection(pages[lang]);
       for (const name of NAMES) assert.ok(tool.querySelector(`[data-js="encrypt-${name}"]`), `${lang}: encrypt-${name}`);
       const message = /** @type {PageElement} */ (tool.querySelector('[data-js="encrypt-message"]'));
-      for (const key of ['locking', 'checking', 'opening', 'locked', 'opened', 'needsInput', 'wrongPassword', 'damaged', 'notLocked', 'newerVersion', 'tooLarge', 'bundleTooLarge', 'unsupported', 'readFailed', 'cancelled', 'verifyFailed']) {
+      for (const key of ['locking', 'checking', 'opening', 'locked', 'opened', 'needsInput', 'wrongPassword', 'damaged', 'notLocked', 'newerVersion', 'tooLarge', 'bundleTooLarge', 'unsupported', 'readFailed', 'writeFailed', 'cancelled', 'verifyFailed']) {
         assert.ok(message.dataset[key], `${lang}: message ${key}`);
       }
       const units = /** @type {PageElement} */ (tool.querySelector('[data-js="encrypt"]'));
       for (const unit of ['b', 'kb', 'mb', 'gb']) assert.match(units.dataset[unit] ?? '', /\{n\}/, `${lang}: unit ${unit}`);
       assert.doesNotMatch(pages[lang], /\sstyle="/);
       assert.match(pages[lang], new RegExp(`${lang === 'en' ? 'https://example.org/en/' : 'https://example.org/'}tools/file-encryption/`), 'the sentence for the recipient names this page');
+    }
+  });
+
+  it('writes the bits line at build time, the same as the page works it out (review C16)', async () => {
+    const { ENCRYPT_PASSPHRASE_BITS } = await import('../src/build/templates/tool-panels.mjs');
+    const { passphraseBits } = await import('../src/client/tool-password.mjs');
+    const { WORDS } = await import('../src/client/wordlist-en.mjs');
+    assert.equal(ENCRYPT_PASSPHRASE_BITS, passphraseBits(WORDS.split(' ').length, 6, { capital: false, digit: false }));
+    for (const lang of /** @type {const} */ (['en', 'ka'])) {
+      const tool = toolSection(pages[lang]);
+      const bits = /** @type {PageElement} */ (tool.querySelector('[data-js="encrypt-bits"]'));
+      assert.match(bits.textContent, new RegExp(`${ENCRYPT_PASSPHRASE_BITS}`), lang);
     }
   });
 
@@ -213,6 +225,23 @@ describe('file encryption page', () => {
       await lockAndWait();
       page.type('password', 'a long and private sentence!');
       assert.equal(page.part('locked').hidden, true, 'editing the typed password');
+    } finally {
+      page.restore();
+    }
+  });
+
+  it('says the job stopped when the visitor switches between Lock and Open during it (review C17)', async () => {
+    const page = open('en');
+    try {
+      await until(() => Boolean(page.part('passphrase').textContent), 'the passphrase');
+      page.type('text', 'Recovery code: 4417-2291');
+      page.part('lock-button').click();
+      page.choose('mode', 'open');
+      assert.ok(page.said('cancelled'), page.message());
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      assert.ok(page.said('cancelled'), 'the stopped job says nothing more');
+      page.choose('mode', 'lock');
+      assert.equal(page.message(), '', 'nothing to stop: nothing said');
     } finally {
       page.restore();
     }
@@ -355,7 +384,9 @@ describe('file encryption page', () => {
     const page = open('ka');
     try {
       page.part('example').click();
+      assert.equal(page.part('example').disabled, true, 'not twice at once (review C17)');
       await until(() => Boolean(page.part('locked-text').value), 'the example');
+      assert.equal(page.part('example').disabled, false);
       assert.equal(page.part('open').hidden, false);
       assert.equal(page.part('open-password').value, page.part('example').dataset.password);
       page.part('open-button').click();
@@ -545,6 +576,41 @@ describe('file encryption page: large and several files', () => {
     }
   });
 
+  it('says writing failed, not reading, when the chosen file can’t be written (review C13)', async () => {
+    const page = open('en');
+    const target = savedFile('locked.lockwell');
+    const createWritable = target.handle.createWritable.bind(target.handle);
+    target.handle.createWritable = async () => {
+      const writable = await createWritable();
+      let writes = 0;
+      return {
+        ...writable,
+        async write(/** @type {Uint8Array<ArrayBuffer>} */ bytes) {
+          writes += 1;
+          if (writes > 2) throw new DOMException('The disk is full.', 'QuotaExceededError');
+          return writable.write(bytes);
+        },
+      };
+    };
+    const picker = withPicker(async () => target.handle);
+    const error = console.error;
+    console.error = () => {};
+    try {
+      await until(() => Boolean(page.part('passphrase').textContent), 'the passphrase');
+      page.part('file').files = [new File([bytesOf(40 * 1024 * 1024)], 'big.bin')];
+      page.part('file').dispatchEvent({ type: 'change' });
+      await until(() => page.part('lock-button').disabled === false, 'the file');
+      page.part('lock-button').click();
+      await until(() => page.said('writeFailed'), 'the failed write');
+      assert.equal(target.state.aborted, 1);
+      assert.equal(page.part('locked').hidden, true);
+    } finally {
+      console.error = error;
+      picker.remove();
+      page.restore();
+    }
+  });
+
   it('empties the chosen file when the job is cancelled during the check (review C4)', async () => {
     const page = open('en');
     const target = savedFile('locked.lockwell');
@@ -563,6 +629,27 @@ describe('file encryption page: large and several files', () => {
       assert.equal(page.part('locked').hidden, true);
     } finally {
       picker.remove();
+      page.restore();
+    }
+  });
+
+  it('calls a locked text too long to read too large, and anything else that long not locked (review C12)', async () => {
+    const page = open('en');
+    try {
+      const filler = new Uint8Array(46 * 1024 * 1024).fill(0x41);
+      page.choose('mode', 'open');
+      page.part('locked-file').files = [new File([`${ARMOUR_BEGIN}\n`, filler], 'long.txt')];
+      page.part('locked-file').dispatchEvent({ type: 'change' });
+      page.type('open-password', 'any password at all');
+      page.part('open-button').click();
+      await until(() => !page.said('opening'), 'opening');
+      assert.ok(page.said('tooLarge'), page.message());
+      page.part('locked-file').files = [new File([filler], 'other.txt')];
+      page.part('locked-file').dispatchEvent({ type: 'change' });
+      page.part('open-button').click();
+      await until(() => !page.said('opening'), 'opening');
+      assert.ok(page.said('notLocked'), page.message());
+    } finally {
       page.restore();
     }
   });

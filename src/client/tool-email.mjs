@@ -193,11 +193,15 @@ const isTld = (ending) => (tlds ??= new Set(TLDS.split(','))).has(ending);
 export function domainsInName(name) {
   /** @type {string[]} */
   const out = [];
-  for (const word of name.split(/[\s<>()"',;:[\]]+/)) {
+  // Fullwidth "＠" and "．" are the same characters to a reader (review E21).
+  for (const word of name.normalize('NFKC').split(/[\s<>()"',;:[\]]+/)) {
     const domain = domainOf(word).replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
     const labels = domain.split('.');
     if (labels.length < 2 || labels.some((label) => !/^[\p{L}\p{N}-]{1,63}$/u.test(label))) continue;
-    if (isTld(labels[labels.length - 1]) || word.includes('@')) out.push(domain);
+    // "Kate.Design" is a name written with a dot, not the domain kate.design: a capitalised word as the last part.
+    const last = word.split('.').pop() ?? '';
+    const capitalised = last.length > 3 && /^\p{Lu}\p{Ll}+$/u.test(last);
+    if ((isTld(labels[labels.length - 1]) && !capitalised) || word.includes('@')) out.push(domain);
   }
   return out;
 }
@@ -425,7 +429,8 @@ const emptyReport = (status) => ({
 function resultDomain(result) {
   /** @param {string} ptype @param {string} property */
   const prop = (ptype, property) => result.props.find((p) => p.ptype === ptype && p.property === property)?.value ?? '';
-  if (result.method === 'spf') return domainOf(prop('smtp', 'mailfrom') || prop('smtp', 'from') || prop('smtp', 'mfrom') || prop('smtp', 'helo'));
+  // Not smtp.helo: DMARC never aligns on it, so neither does this (review E26).
+  if (result.method === 'spf') return domainOf(prop('smtp', 'mailfrom') || prop('smtp', 'from') || prop('smtp', 'mfrom'));
   if (result.method === 'dkim') return domainOf(prop('header', 'd') || prop('header', 'i'));
   if (result.method === 'dmarc') return domainOf(prop('header', 'from'));
   return '';
@@ -559,7 +564,8 @@ export function inspectMessage(text, { limit } = {}) {
   if (FREE_MAIL.has(identity.site) && (ORGANISATION_WORDS.some((word) => nameWords.includes(word)) || ORGANISATION_STEMS_KA.some((stem) => lowerName.includes(stem)))) {
     found.add('freeMailbox', [identity.domain]);
   }
-  if (/^\s*(re|fwd?)\s*(\[\d+\])?\s*:/i.test(subject) && !one('in-reply-to') && !one('references')) found.add('fakeReply', [oneLine(subject)]);
+  // Only "Re:": a forwarded message ("Fwd:") refers to no earlier one in its headers either (review E20).
+  if (/^\s*re\s*(\[\d+\])?\s*:/i.test(subject) && !one('in-reply-to') && !one('references')) found.add('fakeReply', [oneLine(subject)]);
 
   /* What the provider's filter decided */
   const forefront = all('x-forefront-antispam-report').find(trusted);
@@ -754,7 +760,11 @@ export function headersFromMsg(bytes) {
   if (!isCfb(bytes)) return null;
   const file = readCfb(bytes);
   const stream = MSG_HEADERS.map((name) => file.entries.find((entry) => entry.type === 'stream' && !entry.path.includes('/') && entry.name.toLowerCase() === name)).find(Boolean);
-  if (!stream) return '';
+  if (!stream) {
+    // A Word or Excel file is a compound file too: only one with Outlook's property streams is an Outlook message (review E23).
+    const outlook = file.entries.some((entry) => /^__(substg1\.0_|properties_version1\.0$)/i.test(entry.name));
+    return outlook ? '' : null;
+  }
   const data = file.read(stream, MAX_FILE);
   const text = stream.name.toLowerCase().endsWith('001f') ? new TextDecoder('utf-16le').decode(data) : decodeText(data);
   return text.replace(/\0+$/, '');
@@ -1135,6 +1145,8 @@ export function init(root) {
   };
   /** The last chosen file: its whole text, and what of it the box shows (only the headers). */
   let chosenFile = { text: '', shown: '' };
+  /** Counts the visitor's actions: a file still being read when another action came shows nothing (review E28). */
+  let latest = 0;
   /**
    * Judges a message and shows the report. Anything that goes wrong hides the previous report, so it can never stand
    * under a new message (review E10).
@@ -1162,10 +1174,14 @@ export function init(root) {
     if (announce && verdict) announce.textContent = verdict.textContent;
   };
   // A file chosen and left unchanged in the box is judged whole again, body included.
-  const run = () => (input.value !== '' && input.value === chosenFile.shown ? judge(chosenFile.text, MAX_FILE) : judge(input.value));
+  const run = () => {
+    latest += 1;
+    return input.value !== '' && input.value === chosenFile.shown ? judge(chosenFile.text, MAX_FILE) : judge(input.value);
+  };
   /** @param {File | undefined} chosen */
   const open = async (chosen) => {
     if (!chosen) return;
+    const mine = (latest += 1);
     if (chosen.size > MAX_FILE) {
       report.hidden = true;
       say('tooLarge');
@@ -1173,6 +1189,7 @@ export function init(root) {
     }
     try {
       const bytes = new Uint8Array(await chosen.arrayBuffer());
+      if (mine !== latest) return;
       const fromMsg = headersFromMsg(bytes);
       if (fromMsg === '') {
         report.hidden = true;
@@ -1185,6 +1202,7 @@ export function init(root) {
       input.value = chosenFile.shown;
       judge(text, MAX_FILE);
     } catch (error) {
+      if (mine !== latest) return;
       console.error('[lockwell] Could not read the chosen message file.', error);
       report.hidden = true;
       say('readFailed');
@@ -1193,6 +1211,7 @@ export function init(root) {
 
   check.addEventListener('click', run);
   clear?.addEventListener('click', () => {
+    latest += 1;
     input.value = '';
     message.textContent = '';
     if (announce) announce.textContent = '';

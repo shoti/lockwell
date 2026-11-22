@@ -231,6 +231,11 @@ describe('parseReceived (RFC 5321 §4.4)', () => {
     }
   });
 
+  it('takes Microsoft’s TLS version as encryption, and nothing else in its comments (review E28)', () => {
+    assert.equal(parseReceived('from a.example (192.0.2.1) by b.example (10.0.0.1) with Microsoft SMTP Server (version=TLS1_3, cipher=TLS_AES_256_GCM_SHA384) id 15.20.1; Mon, 16 Nov 2026 09:12:31 +0000').tls, true);
+    assert.equal(parseReceived('from a.example (192.0.2.1) by b.example (10.0.0.1) with Microsoft SMTP Server id 15.20.1; Mon, 16 Nov 2026 09:12:31 +0000').tls, null);
+  });
+
   it('keeps text it does not know, and reads garbage without throwing', () => {
     assert.equal(parseReceived('(qmail 1234 invoked by uid 0); 21 Nov 1997 10:05:43 -0600').comments[0], 'qmail 1234 invoked by uid 0');
     assert.equal(parseReceived('something odd by x.example; bad date').extra, 'something odd');
@@ -260,7 +265,7 @@ describe('IP addresses', () => {
     assert.equal(parseIp('[IPv6:2001:DB8::1A]')?.text, '2001:db8::1a');
     assert.equal(parseIp('2001:0db8:0000:0000:0000:0000:0000:0001')?.text, '2001:db8::1');
     assert.equal(parseIp('fe80::1%eth0')?.text, 'fe80::1');
-    assert.equal(parseIp('::ffff:192.0.2.1')?.text, '::ffff:c000:201');
+    assert.equal(parseIp('::ffff:192.0.2.1')?.text, '::ffff:192.0.2.1');
     assert.equal(parseIp('::')?.text, '::');
     assert.equal(parseIp('1:0:0:1:0:0:0:1')?.text, '1:0:0:1::1');
   });

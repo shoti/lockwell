@@ -902,7 +902,7 @@ describe('copy buttons', async () => {
         written.push(value);
       },
     };
-    return { button, status, root, written, clipboard };
+    return { button, source, status, root, written, clipboard };
   }
 
   /**
@@ -938,6 +938,17 @@ describe('copy buttons', async () => {
     await click(p);
     assert.deepEqual(p.written, []);
     assert.equal(p.status.textContent, 'Copy it yourself');
+  });
+
+  it('shows a hidden source when the visitor has to select it by hand (review E24)', async () => {
+    const p = panel({ text: 'Summary', clipboardFails: true });
+    p.source.hidden = true;
+    await click(p);
+    assert.equal(p.source.hidden, false);
+    const copied = panel({ text: 'Summary' });
+    copied.source.hidden = true;
+    await click(copied);
+    assert.equal(copied.source.hidden, true, 'stays hidden when the copy worked');
   });
 
   it('does nothing while there is no result to copy', async () => {

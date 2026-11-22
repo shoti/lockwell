@@ -572,34 +572,70 @@ export function decodeWords(text) {
   let broken = false;
   let i = 0;
   let afterWord = false;
+  // Adjacent words in one character set are decoded together: a writer may split one character's bytes between two
+  // of them (RFC 2047 §5 forbids it; some do it anyway) (review E22).
+  /** @typedef {{ charset: string, chunks: Uint8Array[], length: number, start: number, end: number }} Pending */
+  /** @type {Pending | null} */
+  let pending = null;
+  const flush = () => {
+    if (!pending) return;
+    const joined = new Uint8Array(pending.length);
+    let at = 0;
+    for (const chunk of pending.chunks) {
+      joined.set(chunk, at);
+      at += chunk.length;
+    }
+    const decoded = decodeCharset(joined, pending.charset);
+    if (decoded === null) {
+      broken = true;
+      out += text.slice(pending.start, pending.end);
+    } else {
+      // A character that still can't be read is shown as U+FFFD and said to be so.
+      if (decoded.includes('\ufffd')) broken = true;
+      out += decoded;
+    }
+    pending = null;
+  };
   while (i < text.length) {
     STEPS.count += 1;
     const at = text.indexOf('=?', i);
     if (at === -1) {
+      flush();
       out += text.slice(i);
       break;
     }
     const word = readEncodedWord(text, at);
     if (!word) {
+      flush();
       out += text.slice(i, at + 2);
       i = at + 2;
       afterWord = false;
       continue;
     }
     const between = text.slice(i, at);
-    if (!(afterWord && between.trim() === '')) out += between;
+    const adjacent = afterWord && between.trim() === '';
     const bytes = word.encoding === 'B' ? base64Bytes(word.payload) : qBytes(word.payload);
-    const decoded = bytes ? decodeCharset(bytes, word.charset.split('*')[0]) : null;
-    if (decoded === null) {
-      broken = true;
-      out += text.slice(at, word.end);
-      afterWord = false;
+    const charset = word.charset.split('*')[0].trim().toLowerCase();
+    // flush() changes `pending`, which the type checker can't see through the closure.
+    const held = /** @type {Pending | null} */ (pending);
+    if (adjacent && bytes && held && held.charset === charset) {
+      held.chunks.push(bytes);
+      held.length += bytes.length;
+      held.end = word.end;
     } else {
-      out += decoded;
-      afterWord = true;
+      flush();
+      if (!adjacent) out += between;
+      if (bytes) {
+        pending = { charset, chunks: [bytes], length: bytes.length, start: at, end: word.end };
+      } else {
+        broken = true;
+        out += text.slice(at, word.end);
+      }
     }
+    afterWord = bytes !== null;
     i = word.end;
   }
+  flush();
   return { text: out, broken };
 }
 

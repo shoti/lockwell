@@ -6,7 +6,7 @@
  * MediaBox is US Letter, a /Rotate that is not a multiple of 90 is 0, an empty crop box falls back to the
  * MediaBox, and Resources found at several levels are merged with the nearest winning.
  */
-import { PdfDict, PdfError, PdfRef, isName } from './pdf-syntax.mjs';
+import { PdfDict, PdfError, PdfName, PdfRef, isName } from './pdf-syntax.mjs';
 
 /** @typedef {import('./pdf-syntax.mjs').PdfObject} PdfObject */
 /** @typedef {import('./pdf-file.mjs').PdfFile} PdfFile */
@@ -61,6 +61,10 @@ export function pageList(file) {
     const kids = file.resolve(dict.get('Kids'));
     const isNode = isName(dict.get('Type'), 'Pages') || (!isName(dict.get('Type'), 'Page') && Array.isArray(kids));
     if (!isNode) {
+      // A dictionary of another type (a font, an annotation) in Kids is not a page; one without /Type is taken as one,
+      // as PDF.js does (review P13).
+      const type = dict.get('Type');
+      if (type instanceof PdfName && type.value !== 'Page') return;
       if (pages.length >= MAX_PAGES) throw new PdfError('tooLarge', `more than ${MAX_PAGES} pages`);
       pages.push(pageInfo(file, node instanceof PdfRef ? node : null, dict, inherited));
       return;

@@ -136,6 +136,8 @@ function v6Text(bytes) {
     if (j - i > bestLength && j - i >= 2) [bestStart, bestLength] = [i, j - i];
     i = j;
   }
+  // An IPv4 address carried in IPv6 (::ffff:0:0/96) is written with its dots: ::ffff:10.0.0.1 (RFC 5952 §5; review E28).
+  if (groups.slice(0, 5).every((group) => group === 0) && groups[5] === 0xffff) return `::ffff:${v4Text(bytes.subarray(12))}`;
   const hex = groups.map((group) => group.toString(16));
   if (bestStart === -1) return hex.join(':');
   return `${hex.slice(0, bestStart).join(':')}::${hex.slice(bestStart + bestLength).join(':')}`;

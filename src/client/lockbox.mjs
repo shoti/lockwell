@@ -395,7 +395,7 @@ export async function open({ password, read, size, start, batch = BATCH, onProgr
         written += take;
         at += take;
       }
-      // Whatever follows the content is padding, and padding is zeros (version 1 writes none).
+      // Whatever follows the content is padding (written when the size is hidden), and padding is zeros.
       for (let i = at; i < plain.length; i += 1) if (plain[i] !== 0) throw new LockboxError('damaged', 'bytes after the content');
     }
     onProgress?.(to, size);
@@ -519,7 +519,8 @@ export function armour(bytes) {
  */
 export function unarmour(text) {
   // Invisible characters first: one inside a marker would otherwise hide the marker.
-  let body = text.replace(CONTROL, '');
+  // Chat apps and word processors turn the markers' hyphens into en or em dashes (review C11).
+  let body = text.replace(CONTROL, '').replace(/[-\u2010-\u2015\u2212\ufe63\uff0d]+[ \t]*(BEGIN|END)[ \t]+LOCKWELL[ \t]+MESSAGE[ \t]*[-\u2010-\u2015\u2212\ufe63\uff0d]+/g, (_, word) => (word === 'BEGIN' ? ARMOUR_BEGIN : ARMOUR_END));
   const begin = body.indexOf(ARMOUR_BEGIN);
   if (begin !== -1) body = body.slice(begin + ARMOUR_BEGIN.length);
   const end = body.indexOf(ARMOUR_END);
@@ -539,11 +540,13 @@ export function unarmour(text) {
 
 /**
  * The name to save an unlocked file under: path separators, control, direction and invisible characters removed,
- * no leading dots or spaces, at most 200 characters with the extension kept; FALLBACK_NAME when nothing is left.
+ * characters Windows refuses replaced, no dots or spaces at either end, no Windows device name, at most 200
+ * characters with the extension kept; FALLBACK_NAME when nothing is left (review C10).
  * @param {string} name
  */
 export function cleanName(name) {
-  const cleaned = name.replace(CONTROL, '').replace(/[/\\]/g, '').replace(/^[\s.]+/, '').trim();
+  const stripped = name.replace(CONTROL, '').replace(/[\t\n]+/g, ' ').replace(/[/\\]/g, '').replace(/[<>:"|?*]/g, '-').replace(/^[\s.]+|[\s.]+$/g, '');
+  const cleaned = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(stripped) ? `_${stripped}` : stripped;
   const chars = [...cleaned];
   if (chars.length <= MAX_SAVED_NAME) return cleaned || FALLBACK_NAME;
   const dot = cleaned.lastIndexOf('.');

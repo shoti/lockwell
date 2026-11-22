@@ -116,7 +116,9 @@ A reader **must**, in this order:
    tag fail.
 5. Parse the metadata block from the start of the first chunk's plaintext. Fail if it's cut off, its lengths are
    over the limits, the name isn't valid UTF-8 or the type isn't printable ASCII. A kind above 2 was made by a newer
-   version.
+   version. This site's reader also refuses a content size above 2^53 − 1 (the largest whole number JavaScript holds
+   exactly), and its UTF-8 decoder drops a byte order mark at the start of the name. The name is only a suggestion for
+   saving: readers clean it before use.
 6. Fail if the stream holds less content than `content size` says, or if any byte after the content isn't zero.
 7. Release nothing as a result until the last chunk verified. A reader that writes to disk as it goes must delete or
    empty its output when it fails.

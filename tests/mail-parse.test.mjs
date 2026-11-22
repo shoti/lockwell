@@ -128,6 +128,14 @@ describe('splitMessage', () => {
 });
 
 describe('decodeWords (RFC 2047)', () => {
+  it('joins a character split between two adjacent words, and flags one that stays broken (review E22)', () => {
+    const b64 = (/** @type {number[]} */ bytes) => Buffer.from(bytes).toString('base64');
+    assert.deepEqual(decodeWords(`=?UTF-8?B?${b64([0xe1, 0x83])}?= =?utf-8?B?${b64([0x90, 0x62])}?=`), { text: 'აb', broken: false });
+    assert.deepEqual(decodeWords(`=?UTF-8?Q?=E1=83?=\n =?UTF-8?Q?=90?= tail`), { text: 'ა tail', broken: false });
+    assert.equal(decodeWords(`=?UTF-8?B?${b64([0xe1, 0x83])}?= plain`).broken, true);
+    assert.equal(decodeWords(`=?UTF-8?B?${b64([0xe1, 0x83])}?= =?ISO-8859-1?Q?=90?=`).broken, true, 'not joined across character sets');
+  });
+
   it('decodes the header fields of RFC 2047 §8', () => {
     const message = fields(RFC2047_HEADERS);
     assert.deepEqual(message.map((field) => decodeWords(field.value).text), [

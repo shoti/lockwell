@@ -522,6 +522,19 @@ describe('PDF tools page: saving', () => {
     }
   });
 
+  it('stops a build when the board changes during it, so its result never shows (review P16)', async () => {
+    const page = open('en');
+    try {
+      await page.add(simplePdf(60));
+      page.press('create');
+      page.press('reverse');
+      await until(() => page.said('cancelled'), 'the stop');
+      assert.equal(page.part('result').hidden, true);
+    } finally {
+      page.restore();
+    }
+  });
+
   it('clears an offered result as soon as the board changes', async () => {
     const page = open('en');
     try {

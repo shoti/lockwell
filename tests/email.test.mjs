@@ -195,6 +195,11 @@ describe('findings', () => {
     assert.equal(inspectMessage(message()).verdict, 'none');
   });
 
+  it('never counts SPF’s helo name as the sender’s domain (E26)', () => {
+    assert.ok(keys(message({ results: 'spf=pass smtp.helo=example.com' })).includes('spoofedSender'));
+    assert.ok(!keys(message({ results: 'spf=pass smtp.mailfrom=ana@example.com' })).includes('spoofedSender'));
+  });
+
   it('dmarcFail and spoofedSender', () => {
     assert.ok(keys(message({ results: 'spf=pass smtp.mailfrom=x@example.com; dmarc=fail header.from=example.com' })).includes('dmarcFail'));
     assert.ok(keys(message({ results: MICROSOFT_AUTH.spoof.replace(/contoso\.com/g, 'example.com') })).includes('dmarcFail'), 'compauth=fail counts');
@@ -242,6 +247,9 @@ describe('findings', () => {
     assert.deepEqual(finding(message({ from: '"bank.ge security" <ana@example.com>' }), 'nameIsAddress')?.values, ['bank.ge']);
     assert.equal(finding(message({ from: '"ana@example.com" <ana@example.com>' }), 'nameIsAddress'), undefined);
     assert.deepEqual(domainsInName('Dr. Ana Example, Inc.'), []);
+    assert.deepEqual(domainsInName('service＠bank．ge'), ['bank.ge'], 'fullwidth characters (E21)');
+    assert.deepEqual(domainsInName('Kate.Design'), [], 'a name written with a dot (E21)');
+    assert.deepEqual(domainsInName('PayPal.com'), ['paypal.com']);
   });
 
   it('lookalikeDomain, by the link checker’s rules', () => {
@@ -313,7 +321,8 @@ describe('findings', () => {
 
   it('fakeReply', () => {
     assert.ok(keys(message({ subject: 'Re: invoice' })).includes('fakeReply'));
-    assert.ok(keys(message({ subject: 'FWD: invoice' })).includes('fakeReply'));
+    assert.ok(keys(message({ subject: 'RE[2]: invoice' })).includes('fakeReply'));
+    assert.ok(!keys(message({ subject: 'FWD: invoice' })).includes('fakeReply'), 'a forward refers to nothing earlier either (E20)');
     assert.ok(!keys(message({ subject: 'Re: invoice', fields: 'In-Reply-To: <0@example.com>\n' })).includes('fakeReply'));
     assert.ok(!keys(message({ subject: 'Regarding the invoice' })).includes('fakeReply'));
   });
@@ -353,6 +362,12 @@ describe('findings', () => {
     for (const name of ['Pay\u200cpal', 'Bank\u200d', '\u200dمی', 'Ana\u202e']) {
       assert.ok(keys(message({ from: `"${name}" <ana@example.com>` })).includes('nameHidden'), name);
     }
+  });
+
+  it('a Word or Excel compound file is not called an Outlook file without headers (E23)', () => {
+    const word = cfb([{ path: 'WordDocument', data: new Uint8Array(600) }]);
+    assert.equal(headersFromMsg(word), null);
+    assert.equal(headersFromMsg(cfb([{ path: '__properties_version1.0', data: new Uint8Array(32) }])), '');
   });
 
   it('forwarded: not for the provider’s own ARC set, but for anyone else’s (E11)', () => {

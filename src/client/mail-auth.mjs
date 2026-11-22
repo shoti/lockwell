@@ -460,7 +460,8 @@ export function parseReceived(value) {
     via: words('via'),
     with: withText,
     protocol,
-    tls: known ? known.tls : null,
+    // Microsoft names no registered protocol but writes the TLS version it used: "(version=TLS1_2, cipher=…)" (review E28).
+    tls: known ? known.tls : (clauses.with?.comments ?? []).some((comment) => /\bversion=TLS1_[0-3]\b/i.test(comment)) ? true : null,
     auth: known ? known.auth : null,
     id: words('id'),
     for: words('for'),

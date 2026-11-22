@@ -269,11 +269,17 @@ export function blobSink() {
  * @param {FileSystemFileHandle} handle
  */
 async function fileSink(handle) {
-  const writable = await handle.createWritable();
+  const writable = await handle.createWritable().catch((error) => {
+    throw new WriteFailed(error);
+  });
   return {
     /** @param {Uint8Array<ArrayBuffer>} bytes */
-    write: (bytes) => writable.write(bytes),
-    finish: () => writable.close(),
+    write: (bytes) => writable.write(bytes).catch((error) => {
+      throw new WriteFailed(error);
+    }),
+    finish: () => writable.close().catch((error) => {
+      throw new WriteFailed(error);
+    }),
     async abort() {
       try {
         await writable.abort();
@@ -292,6 +298,15 @@ function savePicker() {
 
 /** @param {unknown} error */
 const isAbort = (error) => error instanceof Error && error.name === 'AbortError';
+
+/** Writing the chosen file failed (a full disk, a file removed meanwhile): not a reading problem (review C13). */
+class WriteFailed extends Error {
+  /** @param {unknown} cause */
+  constructor(cause) {
+    super('Could not write the chosen file', { cause });
+    this.name = 'WriteFailed';
+  }
+}
 
 /** A visitor-facing problem that is not about the file: too large for this page. */
 class TooLarge extends Error {
@@ -379,6 +394,8 @@ export function init(root) {
   let textShownAt = 0;
   /** Caps Lock as the last key pressed in the Open password field found it. */
   let capsLock = false;
+  /** The example is being made (one key derivation): pressed again meanwhile, it would only start another (review C17). */
+  let makingExample = false;
 
   const what = () => (whats.find((radio) => radio.checked)?.value === 'file' ? 'file' : 'text');
   const own = () => kinds.find((radio) => radio.checked)?.value === 'own';
@@ -445,7 +462,7 @@ export function init(root) {
     const usable = own() ? canUse({ password: typed, repeat: repeat.value, shown: shown() }) : Boolean(passphrase.textContent);
     lockButton.disabled = !supported || busy || !content || !usable;
     openButton.disabled = !supported || busy || !(lockedFile || lockedText.value.trim()) || !openPassword.value;
-    example.disabled = !supported || busy;
+    example.disabled = !supported || busy || makingExample;
     textSize.textContent = text.value ? sizeText(encoder.encode(text.value).length) : '';
     fileSize.textContent = lockFiles.length ? sizeText(lockFiles.reduce((sum, file) => sum + file.size, 0)) : fileHint;
   };
@@ -503,13 +520,15 @@ export function init(root) {
 
   /** @param {'lock' | 'open'} next */
   const setMode = (next) => {
+    // Switching stops a running job: say so rather than let it vanish (review C17).
+    const stopped = busy;
     for (const radio of modes) radio.checked = radio.value === next;
     if (next === 'open') clearLock();
     else clearOpen();
     lockBox.hidden = next !== 'lock';
     openBox.hidden = next !== 'open';
     endJob();
-    say('');
+    say(stopped ? 'cancelled' : '');
     update();
   };
 
@@ -536,7 +555,12 @@ export function init(root) {
       if (error.code === 'wrongPassword') openPassword.focus();
       return;
     }
-    console.error(`[lockwell] ${job === 'lock' ? 'Locking' : 'Opening'} failed while reading or writing the file.`, error);
+    if (error instanceof WriteFailed) {
+      console.error(`[lockwell] ${job === 'lock' ? 'Locking' : 'Opening'} failed while writing the chosen file.`, error.cause);
+      say('writeFailed');
+      return;
+    }
+    console.error(`[lockwell] ${job === 'lock' ? 'Locking' : 'Opening'} failed while reading the file.`, error);
     say('readFailed');
   };
 
@@ -710,7 +734,12 @@ export function init(root) {
       if (looksLocked(await readRange(chosen, 0, 8))) {
         return { read: /** @type {import('./lockbox.mjs').Read} */ ((offset, length) => readRange(chosen, offset, length)), size: chosen.size, binary: true };
       }
-      if (chosen.size > TEXT_FILE_LIMIT) throw new LockboxError('notLocked');
+      if (chosen.size > TEXT_FILE_LIMIT) {
+        // A locked text that is too long to read is too large, not "not locked" (review C12).
+        const start = await chosen.slice(0, 4096).text();
+        if (start.includes(ARMOUR_BEGIN)) throw new TooLarge(TEXT_FILE_LIMIT);
+        throw new LockboxError('notLocked');
+      }
       const bytes = unarmour(await chosen.text());
       if (!bytes) throw new LockboxError('notLocked');
       return { read: readBytes(bytes), size: bytes.length, binary: false };
@@ -951,6 +980,8 @@ export function init(root) {
   example.addEventListener('click', async () => {
     setMode('open');
     const job = ticket;
+    makingExample = true;
+    update();
     try {
       const bytes = await sealBytes({ password: example.dataset.password ?? '', meta: { kind: KIND.text, name: '', type: '' }, content: encoder.encode(example.dataset.text ?? '') });
       if (job !== ticket) return;
@@ -960,6 +991,9 @@ export function init(root) {
       openButton.focus();
     } catch (error) {
       console.error('[lockwell] Could not make the example.', error);
+    } finally {
+      makingExample = false;
+      update();
     }
   });
 

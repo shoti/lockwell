@@ -35,6 +35,16 @@ describe('PDF pages: inheritance (Table 30)', () => {
     assert.ok(list[1].ref instanceof PdfRef && list[1].ref.num === 5);
   });
 
+  it('skips a dictionary of another type in Kids, and takes one without /Type as a page (review P13)', async () => {
+    const list = await pages([
+      { num: 2, body: '<< /Type /Pages /Kids [3 0 R 4 0 R 5 0 R] /Count 3 /MediaBox [0 0 100 100] >>' },
+      { num: 3, body: '<< /Type /Page /Parent 2 0 R >>' },
+      { num: 4, body: '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>' },
+      { num: 5, body: '<< /Parent 2 0 R /MediaBox [0 0 50 50] >>' },
+    ]);
+    assert.deepEqual(list.map((page) => page.ref?.num), [3, 5]);
+  });
+
   it('does not inherit UserUnit, which Table 30 does not mark inheritable', async () => {
     const list = await pages([
       { num: 2, body: '<< /Type /Pages /Kids [3 0 R 4 0 R] /Count 2 /UserUnit 2 /MediaBox [0 0 100 100] >>' },

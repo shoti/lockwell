@@ -1350,9 +1350,12 @@ const ENCRYPT_WARNINGS = ['tooShort', 'short', 'oneClass', 'run', 'name', 'text'
 /** What the message line can say (data-* in kebab case on it; see MESSAGES in tool-encrypt.mjs). */
 const ENCRYPT_MESSAGES = [
   'locking', 'checking', 'opening', 'locked', 'opened', 'needsInput', 'wrongPassword', 'wrongPasswordCaps', 'wrongPasswordLayout', 'damaged', 'notLocked', 'newerVersion', 'tooLarge',
-  'bundleTooLarge', 'unsupported', 'readFailed', 'cancelled', 'verifyFailed', 'pressAgain', 'busy',
+  'bundleTooLarge', 'unsupported', 'readFailed', 'writeFailed', 'cancelled', 'verifyFailed', 'pressAgain', 'busy',
 ];
 const ENCRYPT_UNITS = ['b', 'kb', 'mb', 'gb'];
+/** Six words from EFF's long list of 7,776, as the page makes them: written at build time so the line never fills in
+ * after load (rule 4, review C16). A test checks it against passphraseBits. */
+export const ENCRYPT_PASSPHRASE_BITS = Math.floor(6 * Math.log2(7776));
 /** The example's password: shown to everyone, so it is a demonstration and nothing else. */
 const ENCRYPT_EXAMPLE_PASSWORD = 'example-only-pocket-violin-tundra-spark';
 
@@ -1369,7 +1372,7 @@ function encryptPanel(ctx) {
   const passwordField = (name, label) => html`<div class="field">
             <label class="field__label" for="encrypt__${name}">${label}</label>
             <div class="encrypt__password">
-              <input class="input" type="password" id="encrypt__${name}" data-js="encrypt-${name}" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" translate="no" dir="ltr">
+              <input class="input" type="password" id="encrypt__${name}" data-js="encrypt-${name}" autocomplete="${name === 'open-password' ? 'off' : 'new-password'}" autocapitalize="off" autocorrect="off" spellcheck="false" translate="no" dir="ltr">
               <button class="button button--ghost button--small" type="button" data-js="encrypt-${name}-show" aria-controls="encrypt__${name}" aria-pressed="false" data-show="${s('show')}" data-hide="${s('hide')}">${icons.eye}<span>${s('show')}</span></button>
             </div>
           </div>`;
@@ -1412,7 +1415,7 @@ function encryptPanel(ctx) {
             <button class="button button--ghost button--small" type="button" data-js="encrypt-another">${icons.refresh}<span>${s('another')}</span></button>
           </div>
           <p class="tool__status" role="status" data-js="encrypt-passphrase-status"></p>
-          <p class="facts__why" data-js="encrypt-bits" data-template="${s('bits')}"></p>
+          <p class="facts__why" data-js="encrypt-bits" data-template="${s('bits')}">${s('bits').replace('{bits}', String(ENCRYPT_PASSPHRASE_BITS))}</p>
         </div>
         <div class="encrypt__own" data-js="encrypt-own" hidden>
           ${passwordField('password', s('password'))}
