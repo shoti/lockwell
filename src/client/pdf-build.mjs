@@ -323,7 +323,9 @@ async function layerDictionary(copiers, isCancelled) {
     const layers = layersOf(copier.file);
     if (!layers) continue;
     /** @param {string} key @param {PdfObject[]} items */
-    const add = (key, items) => lists[key].push(.../** @type {PdfObject[]} */ (copier.copy(items, key)));
+    const add = (key, items) => {
+      for (const item of /** @type {PdfObject[]} */ (copier.copy(items, key))) lists[key].push(item);
+    };
     add('OCGs', layers.ocgs);
     add('OFF', layers.off);
     add('Order', layers.order.length > 0 ? layers.order : layers.ocgs);

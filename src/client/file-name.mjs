@@ -58,11 +58,37 @@ export function checkName(name) {
   // A right-to-left override shows what follows it reversed, up to the end or a pop.
   const shown = name.replace(/‮([^‬]*)‬?/g, (_, after) => [...after].reverse().join('')).replace(BIDI, '');
   // Windows drops trailing dots and spaces from names, so "invoice.js." is saved as "invoice.js".
-  const clean = name.replace(BIDI, '').replace(/[. ]+$/, '');
+  const clean = trimEnd(name.replace(BIDI, ''));
   const parts = clean.split('.');
   const extension = parts.length > 1 ? (parts.at(-1) ?? '').trim().toLowerCase() : '';
   const before = parts.length > 2 ? (parts.at(-2) ?? '').trim().toLowerCase() : '';
   const bait = RISKY_EXTENSIONS.has(extension) && BAIT_EXTENSIONS.has(before) ? before : '';
-  const padded = /(?:\s{4,}|_{8,})\.[^.]+$/.test(clean);
+  const padded = isPadded(clean);
   return { visible, shown, bidi, extension, bait, padded };
+}
+
+/**
+ * The name without the trailing dots and spaces Windows drops. A loop, not /[. ]+$/: that pattern takes quadratic
+ * time on a long run of spaces in the middle of a name (review E5).
+ * @param {string} name
+ */
+function trimEnd(name) {
+  let end = name.length;
+  while (end > 0 && (name[end - 1] === '.' || name[end - 1] === ' ')) end -= 1;
+  return name.slice(0, end);
+}
+
+/**
+ * Whether four or more white-space characters, or eight or more underscores, sit right before the last dot, with
+ * something after it: the padding that pushes a real extension out of sight. Linear, unlike the pattern it replaces.
+ * @param {string} name
+ */
+function isPadded(name) {
+  const dot = name.lastIndexOf('.');
+  if (dot <= 0 || dot === name.length - 1) return false;
+  let spaces = 0;
+  while (spaces < 4 && dot - spaces - 1 >= 0 && /\s/.test(name[dot - spaces - 1])) spaces += 1;
+  let lines = 0;
+  while (lines < 8 && dot - lines - 1 >= 0 && name[dot - lines - 1] === '_') lines += 1;
+  return spaces >= 4 || lines >= 8;
 }

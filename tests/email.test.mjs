@@ -8,6 +8,9 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { describe, it } from 'node:test';
 import { parseReceived } from '../src/client/mail-auth.mjs';
+import { checkName } from '../src/client/file-name.mjs';
+import { siteOf } from '../src/client/site.mjs';
+import { inspectText } from '../src/client/tool-check.mjs';
 import { STEPS, splitMessage } from '../src/client/mail-parse.mjs';
 import { CfbError } from '../src/client/cfb.mjs';
 import {
@@ -501,7 +504,7 @@ describe('ordinary mail stays quiet', () => {
 
 describe('exampleMessages', () => {
   it('produce exactly the findings they are meant to show', () => {
-    const [spoof, scam, newsletter] = exampleMessages().map(inspectMessage);
+    const [spoof, scam, newsletter] = exampleMessages().map((text) => inspectMessage(text));
     assert.deepEqual(spoof.findings.map((entry) => entry.key), ['dmarcFail', 'replyElsewhere', 'lookalikeDomain', 'plainHop', 'messageIdElsewhere']);
     assert.ok(spoof.checks.some((check) => !check.trusted && check.result === 'pass'), 'the forged pass is shown, as claimed');
     assert.deepEqual(scam.findings.map((entry) => entry.key), ['replyElsewhere', 'fakeReply', 'encryptedInTransit']);
@@ -525,6 +528,44 @@ describe('exampleMessages', () => {
 });
 
 describe('hostile input', () => {
+  /**
+   * How much longer the work takes on an input eight times as long, as the best of three runs each. Linear work grows
+   * about 8×, quadratic about 64×: the ratio holds on a slow machine too, unlike a time limit (review E5–E7).
+   * @param {(n: number) => void} work
+   */
+  const growth = (work) => {
+    const best = (/** @type {number} */ n) => Math.min(...[0, 1, 2].map(() => {
+      const start = performance.now();
+      work(n);
+      return performance.now() - start;
+    }));
+    best(2000); // warm up
+    return best(400_000) / Math.max(best(50_000), 0.5);
+  };
+
+  it('stays linear on long runs of spaces in an attachment name, an <img src=…> and a host of many labels (E5–E7)', () => {
+    const cases = {
+      checkName: (/** @type {number} */ n) => checkName(`a${' '.repeat(n)}b.exe`),
+      countRemoteImages: (/** @type {number} */ n) => countRemoteImages(`<img src=${' '.repeat(n)}x>`),
+      siteOf: (/** @type {number} */ n) => siteOf(`${'a.'.repeat(n / 2)}com`),
+      inspectText: (/** @type {number} */ n) => inspectText(`${'a.'.repeat(n / 2)}com`, ''),
+    };
+    for (const [name, work] of Object.entries(cases)) {
+      const ratio = growth(work);
+      assert.ok(ratio < 24, `${name}: 8× the input took ${ratio.toFixed(1)}× as long`);
+    }
+  });
+
+  it('reads a file name of hundreds of thousands of characters without throwing, and cuts it (E8)', () => {
+    const long = 'x'.repeat(300_000);
+    for (const disposition of [`attachment; filename*0=${long}.exe`, `attachment; filename*=utf-8''${long}.exe`]) {
+      const text = `From: a@b.example\nTo: c@d.example\nSubject: s\nMIME-Version: 1.0\nContent-Type: multipart/mixed; boundary=X\n\n--X\nContent-Type: text/plain\n\nhi\n--X\nContent-Type: application/octet-stream\nContent-Disposition: ${disposition}\n\nAAAA\n--X--\n`;
+      const report = inspectMessage(text);
+      assert.equal(report.status, 'ok');
+      assert.equal(report.body?.attachmentsTotal, 1);
+    }
+  });
+
   it('reads 2 MB of garbage and every example cut at every 37th character without throwing, in linear time', () => {
     const garbage = `Received: ${'(=?"<'.repeat(400_000)}`;
     STEPS.count = 0;

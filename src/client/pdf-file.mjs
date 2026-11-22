@@ -38,7 +38,7 @@ export const meter = (limit = LIMITS.total) => ({ used: 0, limit });
 /**
  * Where an object is: at a byte offset, inside an object stream, or nowhere (deleted).
  * @typedef {{ type: 'plain', offset: number } | { type: 'packed', stream: number, index: number } | { type: 'free' }} Entry
- * @typedef {{ data: Uint8Array, first: number, pairs: [number, number][] }} Pack
+ * @typedef {{ data: Uint8Array, first: number, pairs: [number, number][], byNumber?: Map<number, [number, number]> }} Pack
  */
 
 /** Objects decrypted side by side when a file is unlocked. */
@@ -93,6 +93,8 @@ export class PdfFile {
     this.reading = new Set();
     /** Cross-reference streams read, by number, with where they really are. @type {Map<number, number>} */
     this.sections = new Map();
+    /** Offsets of "endstream" and "endobj", found once when a stream's length is wrong. @type {Map<string, number[]>} */
+    this.marks = new Map();
   }
 
   async load() {
@@ -500,9 +502,11 @@ export class PdfFile {
    * The object whose header "num gen obj" starts at an offset.
    * @param {number} offset
    * @param {number} num  The number the header must carry.
+   * @param {number} [stringEnd]  Where its strings must end at the latest (the repair scan: the next header).
    */
-  readAt(offset, num) {
+  readAt(offset, num, stringEnd = this.bytes.length) {
     const lexer = new Lexer(this.bytes, offset);
+    lexer.stringEnd = stringEnd;
     const n = lexer.next();
     const g = lexer.next();
     const obj = lexer.next();
@@ -544,12 +548,34 @@ export class PdfFile {
     }
     // Whichever keyword comes first, as qpdf recovers a length: a damaged "endstream" must not swallow the
     // objects after it (qpdf corpus: xref-compressed-in-compressed.pdf).
-    const ends = [find(bytes, 'endstream', start), find(bytes, 'endobj', start)].filter((n) => n >= 0);
+    const ends = [this.nextMark('endstream', start), this.nextMark('endobj', start)].filter((n) => n >= 0);
     if (ends.length === 0) throw new PdfError('damaged', `stream at ${at} has no end`);
     let end = Math.min(...ends);
     if (bytes[end - 1] === 0x0a) end -= 1;
     if (bytes[end - 1] === 0x0d) end -= 1;
     return new PdfStream(dict, bytes.subarray(start, Math.max(start, end)));
+  }
+
+  /**
+   * The first place at or after an offset where a keyword occurs, from an index of the whole file built once: a
+   * search per damaged stream would make many of them quadratic (review P2).
+   * @param {'endstream' | 'endobj'} word @param {number} from
+   */
+  nextMark(word, from) {
+    let marks = this.marks.get(word);
+    if (!marks) {
+      marks = [];
+      for (let at = find(this.bytes, word, 0); at >= 0; at = find(this.bytes, word, at + word.length)) marks.push(at);
+      this.marks.set(word, marks);
+    }
+    let low = 0;
+    let high = marks.length;
+    while (low < high) {
+      const middle = (low + high) >> 1;
+      if (marks[middle] < from) low = middle + 1;
+      else high = middle;
+    }
+    return low < marks.length ? marks[low] : -1;
   }
 
   /** @param {number} num @param {{ stream: number, index: number }} entry */
@@ -559,7 +585,11 @@ export class PdfFile {
     if (!pack) throw new PdfError('damaged', `object stream ${entry.stream} was not read`);
     /** @type {[number, number] | undefined} */
     let pair = pack.pairs[entry.index];
-    if (pair?.[0] !== num) pair = pack.pairs.find(([n]) => n === num);
+    if (pair?.[0] !== num) {
+      // Looked up through a map built once per object stream, not a search per object (review P2).
+      pack.byNumber ??= new Map(pack.pairs.map((item) => [item[0], item]));
+      pair = pack.byNumber.get(num);
+    }
     if (!pair) throw new PdfError('damaged', `object ${num} is not in object stream ${entry.stream}`);
     COUNTS.parsed += 1;
     return parseObject(new Lexer(pack.data, pack.first + pair[1]));
@@ -585,21 +615,27 @@ export class PdfFile {
     const packs = [];
     /** @type {[number, number][]} */
     const skipped = [];
-    let pos = this.header;
-    for (;;) {
-      const at = find(bytes, 'obj', pos);
-      if (at < 0) break;
-      pos = at + 3;
+    // Every "n g obj" header first, so that an object's strings can be held to end before the next one: an unclosed
+    // string would otherwise be read to the end of the file once per object (review P2).
+    /** @type {[number, number, number][]} */
+    const headers = [];
+    for (let at = find(bytes, 'obj', this.header); at >= 0; at = find(bytes, 'obj', at + 3)) {
       const start = objectStart(bytes, at);
-      if (start < 0) continue;
-      const num = headerAt(bytes, start);
-      if (num < 0) continue;
+      const num = start < 0 ? -1 : headerAt(bytes, start);
+      if (num >= 0) headers.push([at, start, num]);
+    }
+    let pos = this.header;
+    for (let h = 0; h < headers.length; h += 1) {
+      const [at, start, num] = headers[h];
+      if (at < pos) continue; // inside the data of a stream already read
+      pos = at + 3;
+      await pause();
       if (!this.entries.has(num) && this.entries.size >= LIMITS.objects) throw new PdfError('tooLarge', 'too many objects');
       this.entries.delete(num);
       this.entries.set(num, { type: 'plain', offset: start });
       try {
         this.cache.delete(num);
-        const value = this.readAt(start, num);
+        const value = this.readAt(start, num, headers[h + 1]?.[1] ?? bytes.length);
         if (value instanceof PdfStream) {
           const end = value.data.byteOffset - bytes.byteOffset + value.data.length;
           skipped.push([at, end]);

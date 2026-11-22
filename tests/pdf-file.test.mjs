@@ -327,6 +327,35 @@ describe('PDF file: encryption and limits', () => {
 });
 
 describe('PDF file: damaged input never crashes or hangs', () => {
+  it('repairs in linear time: unclosed strings and streams without an end (review P2)', async () => {
+    /** @param {'nested' | 'hex' | 'stream'} mode @param {number} n */
+    const hostile = (mode, n) => latin1(`%PDF-1.7\n${mode === 'nested' ? `${'1 0 obj ('.repeat(n)}${')'.repeat(n)}` : mode === 'hex' ? '1 0 obj <'.repeat(n) : Array.from({ length: n }, (_, i) => `${i + 1} 0 obj << /Length 999999 >> stream\nxx\nendobj\n`).join('')}\n`);
+    for (const mode of /** @type {const} */ (['nested', 'hex', 'stream'])) {
+      /** @param {number} n */
+      const best = async (n) => {
+        const bytes = hostile(mode, n);
+        let fastest = Infinity;
+        for (let i = 0; i < 3; i += 1) {
+          const start = performance.now();
+          await openPdf(bytes).catch((error) => assert.ok(error instanceof PdfError, String(error)));
+          fastest = Math.min(fastest, performance.now() - start);
+        }
+        return fastest;
+      };
+      await best(500);
+      // Eight times the input: about 8× the time when linear, 64× when quadratic. A ratio holds on slow machines.
+      const ratio = (await best(16_000)) / Math.max(await best(2000), 0.5);
+      assert.ok(ratio < 24, `${mode}: 8× the input took ${ratio.toFixed(1)}× as long`);
+    }
+  });
+
+  it('still finds the objects after an unclosed string when it repairs', async () => {
+    const text = `%PDF-1.7\n9 0 obj (never closed\n1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 10 10] >> endobj\ntrailer << /Root 1 0 R >>\n%%EOF\n`;
+    const file = await openPdf(latin1(text));
+    assert.equal(file.repaired, true);
+    assert.equal(pageList(file).length, 1);
+  });
+
   /** A seeded generator, so a failure can be reproduced. @param {number} seed */
   const generator = (seed) => () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
   const fixtures = [

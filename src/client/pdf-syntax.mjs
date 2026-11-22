@@ -147,6 +147,8 @@ export class Lexer {
   constructor(bytes, pos = 0) {
     this.bytes = bytes;
     this.pos = pos;
+    /** Where strings must end at the latest: the repair scan sets the next object's header (review P2). */
+    this.stringEnd = bytes.length;
   }
 
   skipSpace() {
@@ -245,7 +247,8 @@ export class Lexer {
     this.pos += 1;
     const out = [];
     let depth = 1;
-    while (this.pos < bytes.length) {
+    const end = Math.min(bytes.length, this.stringEnd);
+    while (this.pos < end) {
       let byte = bytes[this.pos];
       this.pos += 1;
       if (byte === 0x28) {
@@ -297,7 +300,8 @@ export class Lexer {
     this.pos += 1;
     const out = [];
     let high = -1;
-    while (this.pos < bytes.length) {
+    const end = Math.min(bytes.length, this.stringEnd);
+    while (this.pos < end) {
       const byte = bytes[this.pos];
       this.pos += 1;
       if (byte === 0x3e) {

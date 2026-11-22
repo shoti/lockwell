@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, before, describe, it } from 'node:test';
 import { build } from '../src/build/build.mjs';
-import { CHECK_METHODS, FINDINGS, KNOWN_RESULTS, exampleMessages, init } from '../src/client/tool-email.mjs';
+import { CHECK_METHODS, FINDINGS, KNOWN_RESULTS, exampleMessages, headerPart, init } from '../src/client/tool-email.mjs';
 import { cfb, utf16le } from './build-files.mjs';
 import { installDom } from './fake-dom.mjs';
 import { PageElement, parse, toolSection } from './page-dom.mjs';
@@ -151,8 +151,9 @@ describe('email header analyzer page', () => {
       const { tool, part } = page;
       tool.dispatchEvent({ type: 'drop', preventDefault() {}, dataTransfer: { files: [new File([exampleMessages()[2]], 'news.eml', { type: 'message/rfc822' })] } });
       for (let i = 0; i < 100 && part('report').hidden; i += 1) await new Promise((resolve) => setTimeout(resolve, 5));
+      assert.equal(part('message').textContent, '');
       assert.equal(part('report').hidden, false);
-      assert.equal(part('input').value, exampleMessages()[2]);
+      assert.equal(part('input').value, headerPart(exampleMessages()[2]), 'the box shows the headers; the whole file is judged');
       assert.deepEqual(shownFindings(tool), ['spfFail', 'forwarded', 'bulkSender', 'messageIdElsewhere', 'encryptedInTransit']);
     } finally {
       page.restore();
@@ -166,6 +167,47 @@ describe('email header analyzer page: whole messages and files', () => {
     page.tool.dispatchEvent({ type: 'drop', preventDefault() {}, dataTransfer: { files: [file] } });
     for (let i = 0; i < 200 && !done(); i += 1) await new Promise((resolve) => setTimeout(resolve, 5));
   }
+
+  it('reads a file larger than the paste limit whole, and Check reads it whole again (review E9)', async () => {
+    const page = open('en');
+    try {
+      const { tool, part } = page;
+      const attachment = Buffer.alloc(2.2 * 1024 * 1024, 7).toString('base64').replace(/.{76}/g, '$&\n');
+      const eml = `${exampleMessages()[1].replace('Content-Type: text/plain; charset=utf-8\n', '')}Content-Type: multipart/mixed; boundary=B\n\n--B\nContent-Type: text/plain\n\nSee the file.\n--B\nContent-Type: application/pdf\nContent-Disposition: attachment; filename=report.pdf\nContent-Transfer-Encoding: base64\n\n${attachment}\n--B--\n`;
+      assert.ok(eml.length > 2 * 1024 * 1024);
+      await drop(page, new File([eml], 'big.eml'), () => !part('report').hidden || part('message').textContent !== '');
+      assert.equal(part('message').textContent, '');
+      assert.equal(part('report').hidden, false);
+      assert.ok(part('input').value.length < 4096, 'only the headers are put in the box');
+      const names = () => part('attachments-list').children.map((item) => item.textContent);
+      assert.ok(names().some((text) => text.includes('report.pdf')));
+      part('check').click();
+      assert.equal(part('report').hidden, false);
+      assert.ok(names().some((text) => text.includes('report.pdf')), 'Check on the unchanged box reads the whole file again');
+    } finally {
+      page.restore();
+    }
+  });
+
+  it('hides the previous report and says so when judging fails (review E10)', () => {
+    const page = open('en');
+    const quiet = console.error;
+    console.error = () => {};
+    try {
+      const { part } = page;
+      part('input').value = exampleMessages()[1];
+      part('check').click();
+      assert.equal(part('report').hidden, false);
+      Object.defineProperty(part('verdict'), 'textContent', { get: () => '', set() { throw new Error('a part of the page went wrong'); } });
+      part('input').value = exampleMessages()[2];
+      part('check').click();
+      assert.equal(part('report').hidden, true, 'the first message’s report does not stay up');
+      assert.match(part('message').textContent, /^This message stopped the check part-way/);
+    } finally {
+      console.error = quiet;
+      page.restore();
+    }
+  });
 
   it('shows the links and attached files of a whole message', () => {
     const page = open('en');

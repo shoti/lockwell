@@ -15,7 +15,7 @@ import { RISKY_EXTENSIONS, checkName } from './file-name.mjs';
 import { INTERNAL, ipClass, parseIp } from './ip.mjs';
 import { anchorsFromHtml } from './link-text.mjs';
 import { parseArcSets, parseAuthResults, parseDkimSignature, parsePairs, parseReceived, parseSpamStatus } from './mail-auth.mjs';
-import { decodeWords, fieldsNamed, parseAddresses, parseDate, parseMessageIds, readMime, splitMessage } from './mail-parse.mjs';
+import { MAX_TEXT, decodeWords, fieldsNamed, parseAddresses, parseDate, parseMessageIds, readMime, splitMessage } from './mail-parse.mjs';
 import { CONTROL, decodeText, oneLine } from './metadata-text.mjs';
 import { receiveFiles } from './files.mjs';
 import { fillInto, fillText } from './fill.mjs';
@@ -430,11 +430,12 @@ function resultDomain(result) {
 /**
  * Reads a pasted header block or message source and judges it.
  * @param {string} text
+ * @param {{ limit?: number }} [options]  Characters read at most (a chosen file: MAX_FILE; pasted text: MAX_TEXT).
  * @returns {Report}
  */
-export function inspectMessage(text) {
+export function inspectMessage(text, { limit } = {}) {
   if (text.trim() === '') return emptyReport('empty');
-  const message = splitMessage(text);
+  const message = splitMessage(text, limit === undefined ? {} : { limit });
   if (message.tooLarge) return emptyReport('tooLarge');
   if (message.fields.length === 0) return emptyReport('notHeaders');
   const report = emptyReport('ok');
@@ -691,7 +692,8 @@ export function countRemoteImages(html) {
   for (let match = opening.exec(html); match; match = opening.exec(html)) {
     const end = html.indexOf('>', match.index);
     if (end === -1) break;
-    if (/\bsrc\s*=\s*["']?\s*https?:/i.test(html.slice(match.index, end))) count += 1;
+    // Spaces after the quote only when there is a quote: two optional runs side by side backtrack quadratically (review E6).
+    if (/\bsrc\s*=\s*(?:["']\s*)?https?:/i.test(html.slice(match.index, end))) count += 1;
     opening.lastIndex = end + 1;
   }
   return count;
@@ -1096,6 +1098,15 @@ export function showReport(root, report) {
 /** Message files read at most (bytes). */
 export const MAX_FILE = 25 * 1024 * 1024;
 
+/**
+ * The header block of a message: everything before the first empty line, or all of it.
+ * @param {string} text
+ */
+export function headerPart(text) {
+  const end = /\r?\n[ \t]*\r?\n/.exec(text);
+  return end ? text.slice(0, end.index + 1) : text;
+}
+
 /** @param {HTMLElement} root */
 export function init(root) {
   /** @template {HTMLElement} T @param {string} name @returns {T} */
@@ -1113,17 +1124,33 @@ export function init(root) {
   const say = (key) => {
     message.textContent = message.dataset[key] ?? '';
   };
-  const run = () => {
-    const result = inspectMessage(input.value);
+  /** The last chosen file: its whole text, and what of it the box shows (only the headers). */
+  let chosenFile = { text: '', shown: '' };
+  /**
+   * Judges a message and shows the report. Anything that goes wrong hides the previous report, so it can never stand
+   * under a new message (review E10).
+   * @param {string} text @param {number} [limit]
+   */
+  const judge = (text, limit) => {
+    report.hidden = true;
+    let result;
+    try {
+      result = inspectMessage(text, limit === undefined ? {} : { limit });
+      if (result.status === 'ok') showReport(root, result);
+    } catch (error) {
+      console.error('[lockwell] The message could not be judged; the report was hidden.', error);
+      say('failed');
+      return;
+    }
     if (result.status !== 'ok') {
-      report.hidden = true;
       say(result.status);
       return;
     }
     message.textContent = '';
-    showReport(root, result);
     report.hidden = false;
   };
+  // A file chosen and left unchanged in the box is judged whole again, body included.
+  const run = () => (input.value !== '' && input.value === chosenFile.shown ? judge(chosenFile.text, MAX_FILE) : judge(input.value));
   /** @param {File | undefined} chosen */
   const open = async (chosen) => {
     if (!chosen) return;
@@ -1140,8 +1167,11 @@ export function init(root) {
         say('msgNoHeaders');
         return;
       }
-      input.value = fromMsg ?? new TextDecoder('utf-8').decode(bytes);
-      run();
+      // The whole file is judged, up to its own limit; the box shows only its headers (review E9).
+      const text = fromMsg ?? new TextDecoder('utf-8').decode(bytes);
+      chosenFile = { text, shown: headerPart(text).slice(0, MAX_TEXT) };
+      input.value = chosenFile.shown;
+      judge(text, MAX_FILE);
     } catch (error) {
       console.error('[lockwell] Could not read the chosen message file.', error);
       report.hidden = true;

@@ -942,7 +942,7 @@ function emailPanel(ctx) {
         <span class="facts__why">${t('tools.example')}:</span>
         ${[1, 2, 3].map((n) => html`<button class="button button--ghost button--small" type="button" data-js="email-example" data-example="${n - 1}">${icons.eye}<span>${s(`example${n}`)}</span></button>`)}
       </div>
-      <p class="tool__message" role="status" data-js="email-message" data-empty="${s('messages.empty')}" data-not-headers="${s('messages.notHeaders')}" data-too-large="${s('messages.tooLarge')}" data-read-failed="${s('messages.readFailed')}" data-msg-no-headers="${s('messages.msgNoHeaders')}"></p>
+      <p class="tool__message" role="status" data-js="email-message" data-empty="${s('messages.empty')}" data-not-headers="${s('messages.notHeaders')}" data-too-large="${s('messages.tooLarge')}" data-read-failed="${s('messages.readFailed')}" data-msg-no-headers="${s('messages.msgNoHeaders')}" data-failed="${s('messages.failed')}"></p>
       <div class="email" data-js="email-report" hidden>
         <article class="verdict email__verdict" data-js="email-verdict-card">
           <p class="verdict__summary" data-js="email-verdict" data-warn="${s('verdicts.warn')}" data-unchecked="${s('verdicts.unchecked')}" data-none="${s('verdicts.none')}"></p>

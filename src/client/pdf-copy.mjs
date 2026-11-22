@@ -229,7 +229,8 @@ export function nameTree(file, root, each) {
       }
     }
     const kids = file.resolve(node.get('Kids'));
-    if (Array.isArray(kids)) stack.push(...kids.slice().reverse());
+    // A loop, not push(...kids): a Kids array of a few hundred thousand entries overflows the call stack.
+    if (Array.isArray(kids)) for (let i = kids.length - 1; i >= 0; i -= 1) stack.push(kids[i]);
   }
 }
 

@@ -24,6 +24,8 @@ export const MAX_FIELD_LENGTH = 256 * 1024;
 const MAX_ADDRESSES = 1000;
 /** RFC 2231 continuations of one parameter read at most. */
 const MAX_SEGMENTS = 1000;
+/** Bytes of one decoded parameter value, at most (a file name, a charset): more is cut off (review E8). */
+const MAX_PARAM_BYTES = 8192;
 
 /* ---------- Tokens of structured fields ---------- */
 
@@ -330,12 +332,13 @@ function readHeaderBlock(lines, start, end) {
 /**
  * Finds the header block in pasted text or a message file, unfolds its fields (RFC 5322 §2.2.3) and keeps the body.
  * @param {string} input
+ * @param {{ limit?: number }} [options]  Characters read at most: pasted text has MAX_TEXT, a chosen file its own size.
  * @returns {Message}
  */
-export function splitMessage(input) {
+export function splitMessage(input, { limit = MAX_TEXT } = {}) {
   /** @type {Message} */
   const message = { fields: [], unparsed: [], body: '', hasBody: false, notRead: 0, tooLarge: false, cleaned: { quoted: false, indented: false, mbox: false, before: 0 } };
-  if (input.length > MAX_TEXT) {
+  if (input.length > limit) {
     message.tooLarge = true;
     return message;
   }
@@ -770,6 +773,7 @@ export function parseParams(text) {
     /** @type {number[]} */
     const bytes = [];
     list.forEach((segment, n) => {
+      if (bytes.length >= MAX_PARAM_BYTES) return;
       let segmentText = segment.text;
       if (n === 0 && segment.extended) {
         const quote = segmentText.indexOf("'");
@@ -779,7 +783,11 @@ export function parseParams(text) {
           segmentText = segmentText.slice(second + 1);
         }
       }
-      bytes.push(...(segment.extended ? percentBytes(segmentText) : new TextEncoder().encode(segmentText)));
+      // A loop, not push(...bytes): spreading a long value overflows the call stack (review E8).
+      for (const byte of segment.extended ? percentBytes(segmentText) : new TextEncoder().encode(segmentText)) {
+        if (bytes.length >= MAX_PARAM_BYTES) break;
+        bytes.push(byte);
+      }
     });
     const array = Uint8Array.from(bytes);
     params[name] = decodeCharset(array, charset || 'utf-8') ?? new TextDecoder('latin1').decode(array);

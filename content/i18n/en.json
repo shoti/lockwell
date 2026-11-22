@@ -623,7 +623,8 @@
           "notHeaders": "This doesn’t look like email headers. Copy the message’s original or source view, not the text you see when you read it.",
           "tooLarge": "This is too large to check here: the limit is about 2 MB of pasted text or a 25 MB file.",
           "readFailed": "The file couldn’t be read.",
-          "msgNoHeaders": "This Outlook file holds no received headers. That happens with messages that were never sent, such as drafts."
+          "msgNoHeaders": "This Outlook file holds no received headers. That happens with messages that were never sent, such as drafts.",
+          "failed": "This message stopped the check part-way, so nothing is shown for it. Try again with only the headers."
         },
         "verdicts": {
           "warn": "This message has warning signs: {n}. Don’t reply, click or pay until you’ve checked with the sender in another way.",

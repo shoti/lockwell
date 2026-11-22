@@ -222,6 +222,8 @@ export function imitatedBrand(label, site, subdomains, suspicious = false) {
   const ending = site.split('.').pop() ?? '';
   const odd = suspicious || ODD_ENDINGS.has(ending) || parts.some((part) => LURE_WORDS.has(part));
   if (ownerOf(site)) return null;
+  // Split once, not once per brand: a host of a million labels made this quadratic in practice (review E7).
+  const subdomainWords = new Set(subdomains.split(/[.-]/));
   for (const { name, domains, sole } of BRANDS) {
     const found = (/** @type {'brandElsewhere' | 'brandSubdomain' | 'brandLookalike' | 'typo'} */ flag) => ({ flag, brand: name, official: domains[0] });
     if (label === name) {
@@ -234,7 +236,7 @@ export function imitatedBrand(label, site, subdomains, suspicious = false) {
     if (name.length >= 6 && (label.startsWith(name) || label.endsWith(name))) return found('brandLookalike');
     const words = parts.length > 1 ? [label, ...parts] : [label];
     if (words.some((word) => leetFor(word, name) || (oneLetterFrom(word, name) && (sole || odd)))) return found('typo');
-    if (subdomains.split(/[.-]/).includes(name)) return found('brandSubdomain');
+    if (subdomainWords.has(name)) return found('brandSubdomain');
   }
   return null;
 }
